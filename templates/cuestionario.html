@@ -3,122 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cuestionario Simple</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 600px;
-            margin: 50px auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        h1 {
-            text-align: center;
-            color: #333;
-        }
-        
-        .info {
-            background: #e3f2fd;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-        }
-        
-        .pregunta {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            border-left: 4px solid #007bff;
-        }
-        
-        .opcion {
-            display: block;
-            margin: 10px 0;
-            padding: 10px;
-            background: #fff;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .opcion:hover {
-            border-color: #007bff;
-            background: #f8f9ff;
-        }
-        
-        .opcion.seleccionada {
-            border-color: #007bff;
-            background: #007bff;
-            color: white;
-        }
-        
-        button {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-            margin: 5px;
-        }
-        
-        button:hover {
-            background: #0056b3;
-        }
-        
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        
-        .mensaje {
-            padding: 15px;
-            border-radius: 5px;
-            margin: 15px 0;
-            text-align: center;
-            font-weight: bold;
-        }
-        
-        .correcto {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .incorrecto {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        
-        .completado {
-            background: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeaa7;
-        }
-    </style>
+    <title>Sistema de Evaluación de Candidatos</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <div class="container">
-        <h1>🎯 Cuestionario Simple</h1>
+        <h1>📋 Evaluación de Candidatos</h1>
         
-        <div class="info">
-            <strong>Nivel:</strong> <span id="nivel">1</span> | 
-            <strong>Puntos:</strong> <span id="puntos">0</span>
+        <!-- Formulario de datos del candidato -->
+        <div id="datos-candidato" class="info">
+            <h3>Datos del Candidato</h3>
+            <div class="candidate-form-grid">
+                <input type="text" id="nombre_completo" placeholder="Nombre completo *" required>
+                <input type="text" id="documento" placeholder="Documento de identidad *" required>
+                <input type="email" id="email" placeholder="Email *" required>
+                <input type="tel" id="telefono" placeholder="Teléfono">
+            </div>
+            <button id="btn-iniciar" onclick="iniciarEvaluacion()" style="margin-top: 15px; width: 100%;">🚀 Iniciar Evaluación</button>
         </div>
         
-        <div id="pregunta-container">
+        <div class="info" id="info-evaluacion" style="display: none;">
+            <strong>Candidato:</strong> <span id="nombre-candidato"></span> | 
+            <strong>Evaluación en progreso...</strong>
+        </div>
+        
+        <div id="pregunta-container" style="display: none;">
             <div class="pregunta">
                 <h3 id="pregunta-texto">Cargando pregunta...</h3>
             </div>
@@ -130,142 +39,14 @@
             <button id="btn-responder" onclick="responder()" disabled>Responder</button>
             <button id="btn-siguiente" onclick="siguientePregunta()" style="display: none;">Siguiente</button>
             <button id="btn-reiniciar" onclick="reiniciar()" style="display: none;">Reiniciar</button>
+            <button id="btn-generar-pdf" onclick="generarPDF()" style="display: none;">📄 Generar Reporte PDF</button>
+            <button id="btn-guardar-drive" onclick="guardarEnDrive()" style="display: none;">💾 Guardar en Drive</button>
         </div>
         
         <div id="mensaje" style="display: none;"></div>
     </div>
 
-    <script>
-        let respuestaSeleccionada = null;
-        
-        // Cargar primera pregunta al iniciar
-        window.onload = function() {
-            cargarPregunta();
-        };
-        
-        function cargarPregunta() {
-            fetch('/obtener_pregunta')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        mostrarMensaje(data.error, 'incorrecto');
-                        return;
-                    }
-                    
-                    // Actualizar información
-                    document.getElementById('nivel').textContent = data.nivel;
-                    document.getElementById('puntos').textContent = data.puntos;
-                    document.getElementById('pregunta-texto').textContent = data.pregunta;
-                    
-                    // Crear opciones
-                    const container = document.getElementById('opciones-container');
-                    container.innerHTML = '';
-                    
-                    data.opciones.forEach((opcion, index) => {
-                        const div = document.createElement('div');
-                        div.className = 'opcion';
-                        div.textContent = `${String.fromCharCode(65 + index)}) ${opcion}`;
-                        div.onclick = () => seleccionarOpcion(index, div);
-                        container.appendChild(div);
-                    });
-                    
-                    // Resetear estado
-                    respuestaSeleccionada = null;
-                    document.getElementById('btn-responder').disabled = true;
-                    document.getElementById('btn-siguiente').style.display = 'none';
-                    document.getElementById('mensaje').style.display = 'none';
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    mostrarMensaje('Error cargando pregunta', 'incorrecto');
-                });
-        }
-        
-        function seleccionarOpcion(index, elemento) {
-            // Remover selección anterior
-            document.querySelectorAll('.opcion').forEach(op => {
-                op.classList.remove('seleccionada');
-            });
-            
-            // Seleccionar nueva opción
-            elemento.classList.add('seleccionada');
-            respuestaSeleccionada = index;
-            document.getElementById('btn-responder').disabled = false;
-        }
-        
-        function responder() {
-            if (respuestaSeleccionada === null) {
-                alert('Por favor selecciona una respuesta');
-                return;
-            }
-            
-            fetch('/responder', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    respuesta: respuestaSeleccionada
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                // Actualizar puntos
-                document.getElementById('puntos').textContent = data.puntos;
-                document.getElementById('nivel').textContent = data.nivel_actual;
-                
-                // Mostrar mensaje
-                const tipo = data.correcto ? 'correcto' : 'incorrecto';
-                mostrarMensaje(data.mensaje, tipo);
-                
-                // Deshabilitar opciones
-                document.querySelectorAll('.opcion').forEach(op => {
-                    op.style.pointerEvents = 'none';
-                });
-                
-                document.getElementById('btn-responder').style.display = 'none';
-                
-                if (data.hay_mas) {
-                    document.getElementById('btn-siguiente').style.display = 'inline-block';
-                } else {
-                    mostrarMensaje('¡Cuestionario completado! Puntos finales: ' + data.puntos, 'completado');
-                    document.getElementById('btn-reiniciar').style.display = 'inline-block';
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                mostrarMensaje('Error enviando respuesta', 'incorrecto');
-            });
-        }
-        
-        function siguientePregunta() {
-            // Habilitar opciones
-            document.querySelectorAll('.opcion').forEach(op => {
-                op.style.pointerEvents = 'auto';
-                op.classList.remove('seleccionada');
-            });
-            
-            cargarPregunta();
-        }
-        
-        function reiniciar() {
-            fetch('/reiniciar', {
-                method: 'POST'
-            })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('btn-reiniciar').style.display = 'none';
-                document.getElementById('btn-responder').style.display = 'inline-block';
-                cargarPregunta();
-            });
-        }
-        
-        function mostrarMensaje(texto, tipo) {
-            const mensaje = document.getElementById('mensaje');
-            mensaje.textContent = texto;
-            mensaje.className = 'mensaje ' + tipo;
-            mensaje.style.display = 'block';
-        }
-    </script>
+    <!-- JavaScript externo -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

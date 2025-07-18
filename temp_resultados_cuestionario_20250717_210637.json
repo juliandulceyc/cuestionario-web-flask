@@ -1,0 +1,305 @@
+{
+  "timestamp": "2025-07-17T21:06:36.928718",
+  "datos_personales": {
+    "nombre_completo": "Julian",
+    "documento": "1001345236",
+    "email": "julian7456@hotmail.com",
+    "telefono": "3138071869",
+    "fecha_evaluacion": "2025-07-17T21:06:04.774996"
+  },
+  "evaluacion": {
+    "nivel": 1,
+    "puntos": 10,
+    "respuestas_correctas_nivel": 1,
+    "total_preguntas_respondidas": 40,
+    "preguntas_mostradas": [
+      351,
+      352,
+      353,
+      354,
+      355,
+      356,
+      357,
+      358,
+      359,
+      360,
+      361,
+      362,
+      363,
+      364,
+      365,
+      366,
+      367,
+      368,
+      369,
+      370,
+      371,
+      372,
+      373,
+      374,
+      375,
+      376,
+      377,
+      378,
+      379,
+      380,
+      381,
+      382,
+      383,
+      384,
+      385,
+      386,
+      387,
+      388,
+      389,
+      390
+    ]
+  },
+  "preguntas_respondidas": [
+    {
+      "id": 351,
+      "pregunta": "¿Qué es un Palo Alto Strata?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.923986"
+    },
+    {
+      "id": 352,
+      "pregunta": "¿Cuál de los siguientes componentes es clave en la configuración de un Palo Alto Firewall?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.923993"
+    },
+    {
+      "id": 353,
+      "pregunta": "¿Qué significa 'App-ID' en el contexto de Palo Alto Networks?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.923996"
+    },
+    {
+      "id": 354,
+      "pregunta": "Un protocolo de enrutamiento",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.923997"
+    },
+    {
+      "id": 355,
+      "pregunta": "Un tipo de dirección MAC",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.923999"
+    },
+    {
+      "id": 356,
+      "pregunta": "¿Cómo se llama el sistema operativo que ejecutan los firewalls de Palo Alto?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924001"
+    },
+    {
+      "id": 357,
+      "pregunta": "¿Qué funcionalidad ofrece el WildFire de Palo Alto?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924002"
+    },
+    {
+      "id": 358,
+      "pregunta": "¿Qué tipo de objeto se debe crear para permitir acceso a internet a los usuarios internos?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924004"
+    },
+    {
+      "id": 359,
+      "pregunta": "¿Cuálde los siguientes protocolos se utiliza para la autenticación de usuarios?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924005"
+    },
+    {
+      "id": 360,
+      "pregunta": "¿Qué herramienta gráfica se utiliza para visualizar el tráfico en tiempo real?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924007"
+    },
+    {
+      "id": 361,
+      "pregunta": "¿Qué comando permite ver los logs del sistema en un Palo Alto Firewall?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924009"
+    },
+    {
+      "id": 362,
+      "pregunta": "¿Qué es un Virtual System (VSYS) en un firewall Palo Alto?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924010"
+    },
+    {
+      "id": 363,
+      "pregunta": "¿Cuál de las siguientes opciones es un tipo de perfil de seguridad en Palo Alto?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924012"
+    },
+    {
+      "id": 364,
+      "pregunta": "¿Qué significa el término 'User-ID' en el contexto de Palo Alto?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924014"
+    },
+    {
+      "id": 365,
+      "pregunta": "¿Cuál es el propósito de GlobalProtect en Palo Alto Networks?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924016"
+    },
+    {
+      "id": 366,
+      "pregunta": "¿Qué funcionalidad proporciona el servicio de URL Filtering?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924018"
+    },
+    {
+      "id": 367,
+      "pregunta": "¿Qué tipo de NAT se usa para traducir múltiples direcciones internas a una sola dirección externa?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924019"
+    },
+    {
+      "id": 368,
+      "pregunta": "¿Qué comando se usa para verificar el estado de las interfaces en un Palo Alto Firewall?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924021"
+    },
+    {
+      "id": 369,
+      "pregunta": "¿Cuál es el propósito de la funcionalidad de 'Decryption' en un Palo Alto Firewall?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924023"
+    },
+    {
+      "id": 370,
+      "pregunta": "¿Qué significa 'Zone Protection'?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924025"
+    },
+    {
+      "id": 371,
+      "pregunta": " ¿Qué tipo de inspección realiza un perfil de antivirus en Palo Alto?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924027"
+    },
+    {
+      "id": 372,
+      "pregunta": "¿Cuál es el beneficio de utilizar objetos de dirección en reglas de seguridad?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924028"
+    },
+    {
+      "id": 373,
+      "pregunta": "¿Qué protocolo se utiliza para sincronizar los estados de sesión en un entorno de alta disponibilidad (HA)?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924030"
+    },
+    {
+      "id": 374,
+      "pregunta": "¿Qué permite el modo 'Tap' en una interfaz de Palo Alto?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924032"
+    },
+    {
+      "id": 375,
+      "pregunta": "¿Qué significa 'DoS Protection' en Palo Alto?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924034"
+    },
+    {
+      "id": 376,
+      "pregunta": "Filtrado de contenido",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924036"
+    },
+    {
+      "id": 377,
+      "pregunta": "¿Qué comando se usa para aplicar cambios de configuración en el CLI de Palo Alto?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924038"
+    },
+    {
+      "id": 378,
+      "pregunta": "¿Cuál es el propósito del 'Application Command Center (ACC)'?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924040"
+    },
+    {
+      "id": 379,
+      "pregunta": "¿Qué es un 'WildFire signature'?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924042"
+    },
+    {
+      "id": 380,
+      "pregunta": "¿Cuál es el uso de 'Log Forwarding'?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924044"
+    },
+    {
+      "id": 381,
+      "pregunta": "¿Cómo se define una política de seguridad en un firewall Palo Alto?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924046"
+    },
+    {
+      "id": 382,
+      "pregunta": "¿Qué permite la autenticación multifactor (MFA) en GlobalProtect?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924048"
+    },
+    {
+      "id": 383,
+      "pregunta": "¿Cuál es el propósito de un perfil de 'anti-spyware'?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924050"
+    },
+    {
+      "id": 384,
+      "pregunta": "¿Qué significa 'implicit deny' en una política de seguridad?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924053"
+    },
+    {
+      "id": 385,
+      "pregunta": "¿Qué comando muestra las sesiones activas en el firewall?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924055"
+    },
+    {
+      "id": 386,
+      "pregunta": "¿Qué funcionalidad permite el uso de SD-WAN en Palo Alto?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924057"
+    },
+    {
+      "id": 387,
+      "pregunta": " ¿Qué es un 'service route' en Palo Alto?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924060"
+    },
+    {
+      "id": 388,
+      "pregunta": "¿Cuál es el propósito del modo de 'passthrough' en Palo Alto?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924062"
+    },
+    {
+      "id": 389,
+      "pregunta": "¿Qué permite la funcionalidad de SSL Forward Proxy?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924065"
+    },
+    {
+      "id": 390,
+      "pregunta": "¿Cómo se clasifican las aplicaciones en Palo Alto?",
+      "nivel": 1,
+      "fecha_respuesta": "2025-07-17T21:06:36.924067"
+    }
+  ],
+  "metadata": {
+    "version_app": "1.0",
+    "tipo_evaluacion": "Cuestionario Web Interactivo",
+    "fecha_evaluacion": "2025-07-17 21:06:36"
+  }
+}
