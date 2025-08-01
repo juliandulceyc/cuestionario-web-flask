@@ -1,9 +1,6 @@
-/**
- * Sistema de Evaluación de Candidatos - Estilos CSS
- * Diseño profesional y responsivo
- */
+/* Sistema de Evaluación - Estilos principales */
 
-/* Reset y configuración base */
+/* Reset y base */
 * {
     margin: 0;
     padding: 0;
@@ -68,7 +65,13 @@ h3 {
     border-left: 4px solid #3498db;
 }
 
-/* Grid para formulario de candidato */
+.info:hover {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+    transition: all 0.3s ease;
+}
+
+/* Grid para formulario */
 .candidate-form-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -129,15 +132,6 @@ button:disabled {
     box-shadow: none;
 }
 
-/* Botón de iniciar evaluación */
-.btn-iniciar {
-    background: linear-gradient(135deg, #27ae60, #2ecc71);
-    width: 100%;
-    padding: 15px;
-    font-size: 18px;
-    margin-top: 20px;
-}
-
 /* Contenedor de pregunta */
 .pregunta-container {
     background: #f8f9fa;
@@ -189,39 +183,6 @@ button:disabled {
     box-shadow: 0 6px 20px rgba(52, 152, 219, 0.3);
 }
 
-.opcion.correcta {
-    background: linear-gradient(135deg, #27ae60, #2ecc71);
-    border-color: #27ae60;
-    color: white;
-}
-
-.opcion.incorrecta {
-    background: linear-gradient(135deg, #e74c3c, #c0392b);
-    border-color: #c0392b;
-    color: white;
-}
-
-/* Controles de navegación */
-.controles {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-    margin-top: 25px;
-    flex-wrap: wrap;
-}
-
-.btn-responder {
-    background: linear-gradient(135deg, #f39c12, #e67e22);
-}
-
-.btn-siguiente {
-    background: linear-gradient(135deg, #9b59b6, #8e44ad);
-}
-
-.btn-reiniciar {
-    background: linear-gradient(135deg, #95a5a6, #7f8c8d);
-}
-
 /* Mensajes */
 .mensaje {
     padding: 15px 20px;
@@ -270,24 +231,40 @@ button:disabled {
     color: #2c3e50;
 }
 
-/* Botones de acción final */
-.acciones-finales {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-    margin-top: 25px;
-    flex-wrap: wrap;
+/* Procesamiento y confirmación */
+.indicador-procesamiento {
+    text-align: center;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    margin: 20px 0;
+    border: 1px solid #dee2e6;
 }
 
-.btn-pdf {
-    background: linear-gradient(135deg, #e74c3c, #c0392b);
+.indicador-procesamiento::before {
+    content: '⏳';
+    animation: pulse 1.5s infinite;
+    margin-right: 10px;
 }
 
-.btn-drive {
-    background: linear-gradient(135deg, #27ae60, #2ecc71);
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
 }
 
-/* Responsive Design */
+.confirmacion-procesamiento {
+    text-align: center;
+    padding: 15px;
+    background: #d4edda;
+    color: #155724;
+    border-radius: 8px;
+    margin: 20px 0;
+    border: 1px solid #c3e6cb;
+    animation: slideIn 0.5s ease-out;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
     .container {
         padding: 20px;
@@ -300,12 +277,6 @@ button:disabled {
     
     .candidate-form-grid {
         grid-template-columns: 1fr;
-    }
-    
-    .controles,
-    .acciones-finales {
-        flex-direction: column;
-        align-items: center;
     }
     
     button {
@@ -346,7 +317,7 @@ button:disabled {
     display: none !important;
 }
 
-/* Animaciones adicionales */
+/* Animaciones */
 .fade-in {
     animation: fadeIn 0.6s ease-out;
 }
@@ -366,7 +337,7 @@ button:disabled {
     }
 }
 
-/* Estilos para elementos específicos */
+/* Elementos específicos */
 #info-evaluacion {
     background: linear-gradient(135deg, #667eea, #764ba2);
     color: white;
@@ -378,11 +349,4 @@ button:disabled {
 
 #pregunta-container {
     margin-top: 20px;
-}
-
-/* Efectos hover para mejorar la experiencia */
-.info:hover {
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-    transform: translateY(-2px);
-    transition: all 0.3s ease;
 }

@@ -3,50 +3,357 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Evaluación de Candidatos</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <title>Evaluación - {{ candidato.nombre_completo }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .header { text-align: center; margin-bottom: 30px; }
+        .info { background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .candidate-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .candidate-form-grid input { padding: 12px; border: 1px solid #ddd; border-radius: 6px; }
+        .pregunta { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .opcion { display: block; margin: 10px 0; padding: 15px; background: #e9ecef; border: 2px solid transparent; border-radius: 8px; cursor: pointer; transition: all 0.3s; }
+        .opcion:hover { background: #dee2e6; border-color: #007bff; }
+        .opcion.seleccionada { background-color: #007bff !important; color: white !important; border-color: #0056b3 !important; }
+        button { background: #28a745; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin: 5px; }
+        button:hover { background: #218838; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        #mensaje { margin-top: 20px; padding: 15px; border-radius: 8px; }
+        .progreso { background: #e9ecef; height: 10px; border-radius: 5px; margin-bottom: 20px; }
+        .progreso-barra { background: #007bff; height: 100%; border-radius: 5px; transition: width 0.3s; }
+        
+        /* Remover cualquier indicador visual de correcto/incorrecto */
+        .opcion.correcta,
+        .opcion.incorrecta {
+            background-color: #f8f9fa !important;
+            color: #6c757d !important;
+        }
+        
+        /* Opción deshabilitada después de responder */
+        .opcion:disabled,
+        .opcion[style*="pointer-events: none"] {
+            background-color: #f8f9fa !important;
+            color: #6c757d !important;
+            border-color: #dee2e6 !important;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <h1>📋 Evaluación de Candidatos</h1>
+        <div class="header">
+            <h1>Prueba Técnica</h1>
+        </div>
         
-        <!-- Formulario de datos del candidato -->
-        <div id="datos-candidato" class="info">
-            <h3>Datos del Candidato</h3>
+        <!-- INFORMACIÓN DEL CANDIDATO (AUTO-LLENADO) -->
+        <div class="info" id="info-candidato">
+            <strong>👤 Candidato:</strong> {{ candidato.nombre_completo }}<br>
+            <strong>📧 Email:</strong> {{ candidato.email }}<br>
+            <strong>🔑 Código:</strong> {{ candidato.codigo }}
+        </div>
+        
+        <!-- FORMULARIO DE CONFIRMACIÓN -->
+        <div id="formulario-confirmacion">
             <div class="candidate-form-grid">
-                <input type="text" id="nombre_completo" placeholder="Nombre completo *" required>
-                <input type="text" id="documento" placeholder="Documento de identidad *" required>
-                <input type="email" id="email" placeholder="Email *" required>
-                <input type="tel" id="telefono" placeholder="Teléfono">
+                <input type="text" id="nombre_completo" value="{{ candidato.nombre_completo }}" placeholder="Nombre completo" required>
+                <input type="hidden" id="documento" value="{{ candidato.codigo }}">
+                <input type="email" id="email" value="{{ candidato.email }}" placeholder="Email" required>
+                <input type="tel" id="telefono" value="{{ candidato.telefono or '' }}" placeholder="Teléfono">
             </div>
-            <button id="btn-iniciar" onclick="iniciarEvaluacion()" style="margin-top: 15px; width: 100%;">🚀 Iniciar Evaluación</button>
+            <button onclick="iniciarEvaluacion()" style="width: 100%; margin-top: 15px;">🚀 Confirmar Datos e Iniciar Evaluación</button>
         </div>
         
-        <div class="info" id="info-evaluacion" style="display: none;">
-            <strong>Candidato:</strong> <span id="nombre-candidato"></span> | 
-            <strong>Evaluación en progreso...</strong>
+        <!-- PROGRESO -->
+        <div id="progreso-container" style="display: none;">
+            <div class="progreso">
+                <div class="progreso-barra" id="barraProgreso" style="width: 0%"></div>
+            </div>
         </div>
         
+        <!-- CONTENEDOR DE PREGUNTAS -->
         <div id="pregunta-container" style="display: none;">
             <div class="pregunta">
                 <h3 id="pregunta-texto">Cargando pregunta...</h3>
             </div>
+            <div id="opciones-container"></div>
             
-            <div id="opciones-container">
-                <!-- Las opciones se cargarán aquí -->
+            <!-- BOTONES DE ACCIÓN - SIMPLIFICADO -->
+            <div style="text-align: center; margin-top: 30px;">
+                <button id="btn-responder" onclick="responder()" disabled 
+                        style="background: #007bff; color: white; padding: 12px 30px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; transition: all 0.3s;">
+                    Responder
+                </button>
             </div>
-            
-            <button id="btn-responder" onclick="responder()" disabled>Responder</button>
-            <button id="btn-siguiente" onclick="siguientePregunta()" style="display: none;">Siguiente</button>
-            <button id="btn-reiniciar" onclick="reiniciar()" style="display: none;">Reiniciar</button>
-            <button id="btn-generar-pdf" onclick="generarPDF()" style="display: none;">📄 Generar Reporte PDF</button>
-            <button id="btn-guardar-drive" onclick="guardarEnDrive()" style="display: none;">💾 Guardar en Drive</button>
         </div>
         
+        <!-- MENSAJES -->
         <div id="mensaje" style="display: none;"></div>
     </div>
 
-    <!-- JavaScript externo -->
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script>
+        let respuestasSeleccionadas = [];
+        let preguntaActual = null;
+
+        function iniciarEvaluacion() {
+            const nombre = document.getElementById('nombre_completo').value.trim();
+            const documento = document.getElementById('documento').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const telefono = document.getElementById('telefono').value.trim();
+
+            if (!nombre || !email) {
+                alert('Completa todos los campos obligatorios');
+                return;
+            }
+
+            fetch('/iniciar_evaluacion', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    nombre: nombre,
+                    documento: documento,
+                    email: email,
+                    telefono: telefono
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.mensaje) {
+                    document.getElementById('formulario-confirmacion').style.display = 'none';
+                    document.getElementById('progreso-container').style.display = 'block';
+                    document.getElementById('pregunta-container').style.display = 'block';
+                    cargarPregunta();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error iniciando evaluación');
+            });
+        }
+
+        function cargarPregunta() {
+            fetch('/obtener_pregunta')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    mostrarEvaluacionCompleta();
+                } else {
+                    mostrarPregunta(data);
+                }
+            })
+            .catch(error => {
+                console.error('Error cargando pregunta:', error);
+            });
+        }
+
+        function mostrarPregunta(data) {
+            preguntaActual = data;
+            respuestasSeleccionadas = [];
+            
+            // Actualizar progreso
+            const progreso = (data.pregunta_numero / data.total_preguntas) * 100;
+            document.getElementById('barraProgreso').style.width = progreso + '%';
+            
+            // Determinar tipo de pregunta
+            const esMultiple = data.multiple || false;
+            const tipoInfo = esMultiple ? 
+                '<div style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #ffeaa7;"><strong>🔢 PREGUNTA DE RESPUESTA MÚLTIPLE</strong><br>Puedes seleccionar hasta 2 respuestas correctas</div>' :
+                '<div style="background: #d1ecf1; color: #0c5460; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #b8daff;"><strong>📝 PREGUNTA DE RESPUESTA ÚNICA</strong><br>Selecciona la respuesta correcta</div>';
+            
+            // CREAR CONTENIDO DE IMAGEN DESDE EL EXCEL
+            let imagenHtml = '';
+            if (data.imagen && data.imagen.trim() !== '') {
+                imagenHtml = `
+                    <div style="text-align: center; margin: 15px 0;">
+                        <img src="${data.imagen}" 
+                             alt="Imagen de la pregunta" 
+                             style="max-width: 100%; max-height: 400px; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
+                             onerror="this.style.display='none'; document.getElementById('error-imagen-${data.id}').style.display='block';">
+                        <div id="error-imagen-${data.id}" style="display: none; color: #dc3545; font-size: 14px; margin-top: 10px;">
+                            ⚠️ No se pudo cargar la imagen
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Mostrar pregunta CON IMAGEN DEL EXCEL
+            document.getElementById('pregunta-texto').innerHTML = `
+                <strong>Pregunta ${data.pregunta_numero} de ${data.total_preguntas}</strong><br>
+                <small>Nivel ${data.nivel}</small><br><br>
+                ${tipoInfo}
+                ${data.pregunta}
+                ${imagenHtml}
+            `;
+            
+            // Mostrar opciones
+            const container = document.getElementById('opciones-container');
+            container.innerHTML = '';
+            
+            data.opciones.forEach((opcion, index) => {
+                const div = document.createElement('div');
+                div.className = 'opcion';
+                div.innerHTML = `${String.fromCharCode(65 + index)}. ${opcion}`;
+                div.onclick = () => seleccionarOpcion(index, div, esMultiple);
+                container.appendChild(div);
+            });
+            
+            // Resetear botones
+            document.getElementById('btn-responder').disabled = true;
+            document.getElementById('btn-responder').style.display = 'inline-block';
+        }
+
+        function seleccionarOpcion(index, elemento, esMultiple) {
+            const letra = String.fromCharCode(65 + index); // A, B, C, D
+            
+            if (esMultiple) {
+                // PREGUNTA MÚLTIPLE - Permitir hasta 2 selecciones
+                if (elemento.classList.contains('seleccionada')) {
+                    // Deseleccionar
+                    elemento.classList.remove('seleccionada');
+                    respuestasSeleccionadas = respuestasSeleccionadas.filter(r => r !== letra);
+                } else {
+                    // Seleccionar (máximo 2)
+                    if (respuestasSeleccionadas.length < 2) {
+                        elemento.classList.add('seleccionada');
+                        respuestasSeleccionadas.push(letra);
+                    } else {
+                        alert('Máximo 2 respuestas permitidas para esta pregunta');
+                        return;
+                    }
+                }
+            } else {
+                // PREGUNTA ÚNICA - Solo una selección
+                document.querySelectorAll('.opcion').forEach(op => op.classList.remove('seleccionada'));
+                elemento.classList.add('seleccionada');
+                respuestasSeleccionadas = [letra];
+            }
+            
+            // Habilitar botón si hay al menos una selección
+            document.getElementById('btn-responder').disabled = respuestasSeleccionadas.length === 0;
+        }
+
+        function responder() {
+            if (respuestasSeleccionadas.length === 0 || !preguntaActual) {
+                alert('Selecciona al menos una respuesta');
+                return;
+            }
+
+            // Deshabilitar botón para evitar doble clic
+            document.getElementById('btn-responder').disabled = true;
+            document.getElementById('btn-responder').innerHTML = 'Guardando...';
+
+            // Enviar respuestas (como string separado por comas si son múltiples)
+            const respuestaEnviar = respuestasSeleccionadas.join(',');
+
+            fetch('/responder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    respuesta: respuestaEnviar,
+                    pregunta_id: preguntaActual.id,
+                    respuestas_seleccionadas: respuestasSeleccionadas
+                })
+            })
+            .then(response => response.json())
+            .then(data => {  // ← CORREGIDO: Agregado paréntesis
+                // Mostrar mensaje de guardado brevemente
+                mostrarMensajeGuardadoRapido();
+                
+                // Esperar 1 segundo y continuar automáticamente
+                setTimeout(() => {
+                    if (data.hay_mas) {
+                        // Cargar siguiente pregunta directamente
+                        siguientePregunta();
+                    } else {
+                        // Mostrar evaluación completa
+                        mostrarEvaluacionCompleta();
+                    }
+                }, 1000);
+            })
+            .catch(error => {
+                console.error('Error enviando respuesta:', error);
+                alert('Error enviando respuesta, intenta nuevamente');
+                
+                // Rehabilitar botón en caso de error
+                document.getElementById('btn-responder').disabled = false;
+                document.getElementById('btn-responder').innerHTML = 'Responder';
+            });
+        }
+
+        function mostrarMensajeGuardadoRapido() {
+            // Deshabilitar opciones y mostrar mensaje
+            document.querySelectorAll('.opcion').forEach(op => {
+                op.style.pointerEvents = 'none';
+                op.style.opacity = '0.7';
+            });
+            
+            // Cambiar texto del botón
+            document.getElementById('btn-responder').innerHTML = '✅ Guardado';
+            document.getElementById('btn-responder').style.backgroundColor = '#28a745';
+        }
+
+        function siguientePregunta() {
+            // Rehabilitar opciones para la nueva pregunta
+            document.querySelectorAll('.opcion').forEach(op => {
+                op.style.pointerEvents = 'auto';
+                op.style.opacity = '1';
+                op.classList.remove('seleccionada');
+            });
+            
+            // Resetear botón responder
+            document.getElementById('btn-responder').disabled = true;
+            document.getElementById('btn-responder').innerHTML = 'Responder';
+            document.getElementById('btn-responder').style.backgroundColor = '#007bff';
+            
+            // Limpiar respuestas seleccionadas
+            respuestasSeleccionadas = [];
+            
+            // Cargar siguiente pregunta
+            cargarPregunta();
+        }
+
+        function mostrarEvaluacionCompleta() {
+            document.getElementById('pregunta-container').style.display = 'none';
+            document.getElementById('barraProgreso').style.width = '100%';
+            
+            document.getElementById('mensaje').innerHTML = `
+                <div style="text-align: center; background: #d4edda; color: #155724; padding: 30px; border-radius: 10px; border: 1px solid #c3e6cb;">
+                    <h2>🎉 ¡Evaluación Completada!</h2>
+                    <p>Todas tus respuestas han sido guardadas correctamente.</p>
+                    <p>Los resultados serán procesados y enviados posteriormente.</p>
+                    <div id="status-guardado">⏳ Finalizando evaluación...</div>
+                </div>
+            `;
+            document.getElementById('mensaje').style.display = 'block';
+            
+            fetch('/finalizar_evaluacion', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                const statusDiv = document.getElementById('status-guardado');
+                if (data.success) {
+                    statusDiv.innerHTML = `
+                        ✅ Evaluación finalizada correctamente<br>
+                        <small>Gracias por tu participación. Puedes cerrar esta ventana.</small>
+                    `;
+                } else {
+                    statusDiv.innerHTML = `
+                        ✅ Evaluación completada<br>
+                        <small>Tus respuestas han sido guardadas. Puedes cerrar esta ventana.</small>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error finalizando:', error);
+                document.getElementById('status-guardado').innerHTML = `
+                    ✅ Evaluación completada<br>
+                    <small>Tus respuestas han sido guardadas. Puedes cerrar esta ventana.</small>
+                `;
+            });
+        }
+    </script>
 </body>
 </html>
