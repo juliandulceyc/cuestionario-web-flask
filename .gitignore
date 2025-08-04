@@ -1,0 +1,2 @@
+echo "token.json" >> .gitignore
+echo "client_credentials.json" >> .gitignore
