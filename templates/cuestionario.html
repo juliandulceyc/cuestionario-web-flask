@@ -36,12 +36,48 @@
             color: #6c757d !important;
             border-color: #dee2e6 !important;
         }
+
+        /* ✅ ESTILOS PARA CONFIGURACIÓN AUTOMÁTICA */
+        .config-info {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            border: 1px solid #c3e6cb;
+            font-size: 14px;
+        }
+
+        /* ✅ ESTILOS PARA PROGRESO DINÁMICO */
+        .progreso-texto {
+            text-align: center;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #495057;
+        }
+
+        /* ✅ ESTILOS PARA NIVEL DEL CANDIDATO */
+        .nivel-badge {
+            display: inline-block;
+            background: #6f42c1;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>Prueba Técnica</h1>
+            <!-- ✅ INFORMACIÓN DE CONFIGURACIÓN AUTOMÁTICA -->
+            <div id="config-display" class="config-info" style="display: none;">
+                📊 Evaluación de <span class="total-preguntas">5</span> preguntas | 
+                🎯 Avance automático por niveles | 
+                ⏱️ Sin límite de tiempo
+            </div>
         </div>
         
         <!-- INFORMACIÓN DEL CANDIDATO (AUTO-LLENADO) -->
@@ -62,10 +98,11 @@
             <button onclick="iniciarEvaluacion()" style="width: 100%; margin-top: 15px;">🚀 Confirmar Datos e Iniciar Evaluación</button>
         </div>
         
-        <!-- PROGRESO -->
+        <!-- ✅ PROGRESO AUTOMÁTICO -->
         <div id="progreso-container" style="display: none;">
+            <div class="progreso-texto" id="progreso-texto">Pregunta 1 de 5</div>
             <div class="progreso">
-                <div class="progreso-barra" id="barraProgreso" style="width: 0%"></div>
+                <div class="progreso-barra" id="barraProgreso" style="width: 0%" aria-valuemax="5"></div>
             </div>
         </div>
         
@@ -90,8 +127,66 @@
     </div>
 
     <script>
+        // ✅ VARIABLES GLOBALES PARA CONFIGURACIÓN AUTOMÁTICA
         let respuestasSeleccionadas = [];
         let preguntaActual = null;
+        let CONFIGURACION_EVALUACION = null;
+
+        // ✅ OBTENER CONFIGURACIÓN AUTOMÁTICA DEL BACKEND
+        async function obtenerConfiguracion() {
+            try {
+                const response = await fetch('/api/configuracion');
+                CONFIGURACION_EVALUACION = await response.json();
+                console.log('🔧 Configuración cargada:', CONFIGURACION_EVALUACION);
+                
+                // Actualizar elementos del DOM automáticamente
+                actualizarElementosConfiguracion();
+                
+                return true;
+            } catch (error) {
+                console.error('Error obteniendo configuración:', error);
+                // Fallback si no puede conectar
+                CONFIGURACION_EVALUACION = {
+                    total_preguntas: 5,
+                    preguntas_nivel_1: 3,
+                    min_correctas_avance: 2,
+                    niveles_maximos: 5
+                };
+                actualizarElementosConfiguracion();
+                return false;
+            }
+        }
+
+        // ✅ ACTUALIZAR ELEMENTOS DEL DOM CON CONFIGURACIÓN AUTOMÁTICA
+        function actualizarElementosConfiguracion() {
+            if (!CONFIGURACION_EVALUACION) return;
+
+            // Actualizar total de preguntas en todos los elementos
+            const totalElements = document.querySelectorAll('.total-preguntas');
+            totalElements.forEach(el => {
+                el.textContent = CONFIGURACION_EVALUACION.total_preguntas;
+            });
+            
+            // Actualizar barra de progreso máxima
+            const progressBar = document.querySelector('#barraProgreso');
+            if (progressBar) {
+                progressBar.setAttribute('aria-valuemax', CONFIGURACION_EVALUACION.total_preguntas);
+            }
+
+            // Mostrar información de configuración
+            const configDisplay = document.getElementById('config-display');
+            if (configDisplay) {
+                configDisplay.style.display = 'block';
+            }
+
+            console.log(`✅ DOM actualizado para ${CONFIGURACION_EVALUACION.total_preguntas} preguntas`);
+        }
+
+        // ✅ INICIALIZAR AL CARGAR LA PÁGINA
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('🔄 Inicializando sistema de evaluación...');
+            await obtenerConfiguracion();
+        });
 
         function iniciarEvaluacion() {
             const nombre = document.getElementById('nombre_completo').value.trim();
@@ -120,6 +215,8 @@
                     document.getElementById('formulario-confirmacion').style.display = 'none';
                     document.getElementById('progreso-container').style.display = 'block';
                     document.getElementById('pregunta-container').style.display = 'block';
+                    
+                    console.log('✅ Evaluación iniciada correctamente');
                     cargarPregunta();
                 } else {
                     alert('Error: ' + data.error);
@@ -136,6 +233,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.error) {
+                    console.log('📝 Evaluación completada - ' + data.error);
                     mostrarEvaluacionCompleta();
                 } else {
                     mostrarPregunta(data);
@@ -143,6 +241,7 @@
             })
             .catch(error => {
                 console.error('Error cargando pregunta:', error);
+                alert('Error cargando pregunta. Intenta recargar la página.');
             });
         }
 
@@ -150,9 +249,15 @@
             preguntaActual = data;
             respuestasSeleccionadas = [];
             
-            // Actualizar progreso
+            console.log(`📝 Mostrando pregunta ${data.pregunta_numero}/${data.total_preguntas} - Nivel ${data.nivel_candidato}`);
+            
+            // ✅ ACTUALIZAR PROGRESO AUTOMÁTICO
             const progreso = (data.pregunta_numero / data.total_preguntas) * 100;
             document.getElementById('barraProgreso').style.width = progreso + '%';
+            
+            // ✅ ACTUALIZAR TEXTO DE PROGRESO DINÁMICO
+            document.getElementById('progreso-texto').textContent = 
+                `Pregunta ${data.pregunta_numero} de ${data.total_preguntas}`;
             
             // Determinar tipo de pregunta
             const esMultiple = data.multiple || false;
@@ -160,7 +265,7 @@
                 '<div style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #ffeaa7;"><strong>🔢 PREGUNTA DE RESPUESTA MÚLTIPLE</strong><br>Puedes seleccionar hasta 2 respuestas correctas</div>' :
                 '<div style="background: #d1ecf1; color: #0c5460; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #b8daff;"><strong>📝 PREGUNTA DE RESPUESTA ÚNICA</strong><br>Selecciona la respuesta correcta</div>';
             
-            // CREAR CONTENIDO DE IMAGEN DESDE EL EXCEL
+            // ✅ CREAR CONTENIDO DE IMAGEN DESDE EL EXCEL
             let imagenHtml = '';
             if (data.imagen && data.imagen.trim() !== '') {
                 imagenHtml = `
@@ -176,10 +281,15 @@
                 `;
             }
             
-            // Mostrar pregunta CON IMAGEN DEL EXCEL
+            // ✅ MOSTRAR PREGUNTA CON INFORMACIÓN DE NIVEL
             document.getElementById('pregunta-texto').innerHTML = `
-                <strong>Pregunta ${data.pregunta_numero} de ${data.total_preguntas}</strong><br>
-                <small>Nivel ${data.nivel}</small><br><br>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <strong>Pregunta ${data.pregunta_numero} de ${data.total_preguntas}</strong>
+                    <div>
+                        <span class="nivel-badge">Nivel Pregunta: ${data.nivel_pregunta || 1}</span>
+                        <span class="nivel-badge" style="background: #28a745; margin-left: 5px;">Tu Nivel: ${data.nivel_candidato || 1}</span>
+                    </div>
+                </div>
                 ${tipoInfo}
                 ${data.pregunta}
                 ${imagenHtml}
@@ -193,7 +303,7 @@
                 const div = document.createElement('div');
                 div.className = 'opcion';
                 div.innerHTML = `${String.fromCharCode(65 + index)}. ${opcion}`;
-                div.onclick = () => seleccionarOpcion(index, div, esMultiple);
+                div.onclick = () => seleccionarOpcion(index, div, esMultiple, opcion);
                 container.appendChild(div);
             });
             
@@ -202,7 +312,7 @@
             document.getElementById('btn-responder').style.display = 'inline-block';
         }
 
-        function seleccionarOpcion(index, elemento, esMultiple) {
+        function seleccionarOpcion(index, elemento, esMultiple, textoOpcion) {
             const letra = String.fromCharCode(65 + index); // A, B, C, D
             
             if (esMultiple) {
@@ -210,12 +320,12 @@
                 if (elemento.classList.contains('seleccionada')) {
                     // Deseleccionar
                     elemento.classList.remove('seleccionada');
-                    respuestasSeleccionadas = respuestasSeleccionadas.filter(r => r !== letra);
+                    respuestasSeleccionadas = respuestasSeleccionadas.filter(r => r !== textoOpcion);
                 } else {
                     // Seleccionar (máximo 2)
                     if (respuestasSeleccionadas.length < 2) {
                         elemento.classList.add('seleccionada');
-                        respuestasSeleccionadas.push(letra);
+                        respuestasSeleccionadas.push(textoOpcion);
                     } else {
                         alert('Máximo 2 respuestas permitidas para esta pregunta');
                         return;
@@ -225,11 +335,13 @@
                 // PREGUNTA ÚNICA - Solo una selección
                 document.querySelectorAll('.opcion').forEach(op => op.classList.remove('seleccionada'));
                 elemento.classList.add('seleccionada');
-                respuestasSeleccionadas = [letra];
+                respuestasSeleccionadas = [textoOpcion]; // ✅ USAR TEXTO DE LA OPCIÓN, NO LETRA
             }
             
             // Habilitar botón si hay al menos una selección
             document.getElementById('btn-responder').disabled = respuestasSeleccionadas.length === 0;
+            
+            console.log(`🎯 Seleccionada: ${textoOpcion} | Total seleccionadas: ${respuestasSeleccionadas.length}`);
         }
 
         function responder() {
@@ -242,8 +354,10 @@
             document.getElementById('btn-responder').disabled = true;
             document.getElementById('btn-responder').innerHTML = 'Guardando...';
 
-            // Enviar respuestas (como string separado por comas si son múltiples)
+            // ✅ ENVIAR RESPUESTAS - TEXTO COMPLETO DE LA OPCIÓN
             const respuestaEnviar = respuestasSeleccionadas.join(',');
+
+            console.log(`📤 Enviando respuesta: "${respuestaEnviar}" para pregunta ${preguntaActual.id}`);
 
             fetch('/responder', {
                 method: 'POST',
@@ -255,29 +369,69 @@
                 })
             })
             .then(response => response.json())
-            .then(data => {  // ← CORREGIDO: Agregado paréntesis
-                // Mostrar mensaje de guardado brevemente
-                mostrarMensajeGuardadoRapido();
+            .then(data => {
+                console.log('📥 Respuesta del servidor:', data);
                 
-                // Esperar 1 segundo y continuar automáticamente
-                setTimeout(() => {
-                    if (data.hay_mas) {
-                        // Cargar siguiente pregunta directamente
-                        siguientePregunta();
-                    } else {
-                        // Mostrar evaluación completa
-                        mostrarEvaluacionCompleta();
+                if (data.success) {
+                    // Mostrar feedback de nivel si hubo cambio
+                    if (data.avanzar_nivel) {
+                        mostrarMensajeNivelUp(data.nivel);
                     }
-                }, 1000);
+                    
+                    // Mostrar mensaje de guardado brevemente
+                    mostrarMensajeGuardadoRapido();
+                    
+                    // Esperar 1.5 segundos y continuar automáticamente
+                    setTimeout(() => {
+                        if (data.hay_mas) {
+                            // Cargar siguiente pregunta directamente
+                            siguientePregunta();
+                        } else {
+                            // ✅ EVALUACIÓN TERMINADA - GENERAR PDF AUTOMÁTICAMENTE
+                            console.log('🎉 Evaluación completada - Generando PDF...');
+                            generarPDFAutomatico();
+                        }
+                    }, 1500);
+                } else {
+                    alert('Error: ' + (data.error || 'Error desconocido'));
+                    rehabilitarBotonResponder();
+                }
             })
             .catch(error => {
                 console.error('Error enviando respuesta:', error);
                 alert('Error enviando respuesta, intenta nuevamente');
-                
-                // Rehabilitar botón en caso de error
-                document.getElementById('btn-responder').disabled = false;
-                document.getElementById('btn-responder').innerHTML = 'Responder';
+                rehabilitarBotonResponder();
             });
+        }
+
+        // ✅ MOSTRAR MENSAJE DE LEVEL UP
+        function mostrarMensajeNivelUp(nuevoNivel) {
+            const mensaje = document.createElement('div');
+            mensaje.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: linear-gradient(45deg, #28a745, #20c997);
+                color: white;
+                padding: 20px 30px;
+                border-radius: 10px;
+                font-size: 18px;
+                font-weight: bold;
+                z-index: 1000;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                text-align: center;
+            `;
+            mensaje.innerHTML = `🎉 ¡NIVEL UP!<br>Has avanzado al Nivel ${nuevoNivel}`;
+            
+            document.body.appendChild(mensaje);
+            
+            // Remover después de 2 segundos
+            setTimeout(() => {
+                if (mensaje.parentNode) {
+                    mensaje.parentNode.removeChild(mensaje);
+                }
+            }, 2000);
         }
 
         function mostrarMensajeGuardadoRapido() {
@@ -290,6 +444,12 @@
             // Cambiar texto del botón
             document.getElementById('btn-responder').innerHTML = '✅ Guardado';
             document.getElementById('btn-responder').style.backgroundColor = '#28a745';
+        }
+
+        function rehabilitarBotonResponder() {
+            document.getElementById('btn-responder').disabled = false;
+            document.getElementById('btn-responder').innerHTML = 'Responder';
+            document.getElementById('btn-responder').style.backgroundColor = '#007bff';
         }
 
         function siguientePregunta() {
@@ -312,47 +472,79 @@
             cargarPregunta();
         }
 
-        function mostrarEvaluacionCompleta() {
+        // ✅ GENERAR PDF AUTOMÁTICAMENTE AL COMPLETAR
+        function generarPDFAutomatico() {
+            console.log('📄 Iniciando generación automática de PDF...');
+            
+            fetch('/generar_pdf_final', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('📄 Respuesta PDF:', data);
+                
+                if (data.success) {
+                    mostrarEvaluacionCompleta(data);
+                } else {
+                    console.error('Error generando PDF:', data.error);
+                    mostrarEvaluacionCompleta(null, 'Error generando reporte: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error generando PDF:', error);
+                mostrarEvaluacionCompleta(null, 'Error de conexión generando reporte');
+            });
+        }
+
+        function mostrarEvaluacionCompleta(datosResultado = null, errorPDF = null) {
             document.getElementById('pregunta-container').style.display = 'none';
             document.getElementById('barraProgreso').style.width = '100%';
+            document.getElementById('progreso-texto').textContent = '¡Evaluación Completada!';
+            
+            let mensajeResultados = '';
+            let mensajePDF = '';
+            
+            if (datosResultado && datosResultado.success) {
+                mensajeResultados = `
+                    <div style="background: #d4edda; color: #155724; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <h4>📊 Resultados de tu Evaluación:</h4>
+                        <ul style="margin: 10px 0; padding-left: 20px;">
+                            <li><strong>Respuestas correctas:</strong> ${datosResultado.correctas}/${datosResultado.total} (${datosResultado.porcentaje}%)</li>
+                            <li><strong>Nivel final alcanzado:</strong> ${datosResultado.nivel_final}/5</li>
+                            <li><strong>Puntuación total:</strong> ${datosResultado.puntos} puntos</li>
+                        </ul>
+                    </div>
+                `;
+                
+                mensajePDF = datosResultado.pdf_generado ? 
+                    '<div style="background: #cce5ff; color: #004085; padding: 10px; border-radius: 5px;">✅ Reporte PDF generado correctamente</div>' :
+                    '<div style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 5px;">⚠️ Evaluación guardada, reporte en proceso</div>';
+            }
+            
+            if (errorPDF) {
+                mensajePDF = `<div style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px;">⚠️ ${errorPDF}</div>`;
+            }
             
             document.getElementById('mensaje').innerHTML = `
-                <div style="text-align: center; background: #d4edda; color: #155724; padding: 30px; border-radius: 10px; border: 1px solid #c3e6cb;">
-                    <h2>🎉 ¡Evaluación Completada!</h2>
-                    <p>Todas tus respuestas han sido guardadas correctamente.</p>
-                    <p>Los resultados serán procesados y enviados posteriormente.</p>
-                    <div id="status-guardado">⏳ Finalizando evaluación...</div>
+                <div style="text-align: center;">
+                    <div style="background: #d4edda; color: #155724; padding: 30px; border-radius: 10px; border: 1px solid #c3e6cb; margin-bottom: 20px;">
+                        <h2>🎉 ¡Evaluación Completada!</h2>
+                        <p>Todas tus respuestas han sido guardadas correctamente.</p>
+                        ${mensajeResultados}
+                        ${mensajePDF}
+                        <div style="margin-top: 20px;">
+                            <p><strong>Los resultados serán enviados a Recursos Humanos.</strong></p>
+                            <small style="color: #6c757d;">Puedes cerrar esta ventana de forma segura.</small>
+                        </div>
+                    </div>
                 </div>
             `;
             document.getElementById('mensaje').style.display = 'block';
             
-            fetch('/finalizar_evaluacion', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({})
-            })
-            .then(response => response.json())
-            .then(data => {
-                const statusDiv = document.getElementById('status-guardado');
-                if (data.success) {
-                    statusDiv.innerHTML = `
-                        ✅ Evaluación finalizada correctamente<br>
-                        <small>Gracias por tu participación. Puedes cerrar esta ventana.</small>
-                    `;
-                } else {
-                    statusDiv.innerHTML = `
-                        ✅ Evaluación completada<br>
-                        <small>Tus respuestas han sido guardadas. Puedes cerrar esta ventana.</small>
-                    `;
-                }
-            })
-            .catch(error => {
-                console.error('Error finalizando:', error);
-                document.getElementById('status-guardado').innerHTML = `
-                    ✅ Evaluación completada<br>
-                    <small>Tus respuestas han sido guardadas. Puedes cerrar esta ventana.</small>
-                `;
-            });
+            console.log('✅ Evaluación completada exitosamente');
         }
     </script>
 </body>
