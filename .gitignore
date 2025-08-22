@@ -1,2 +1,25 @@
-echo "token.json" >> .gitignore
-echo "client_credentials.json" >> .gitignore
+# Archivos de configuración sensibles
+token.json
+client_credentials.json
+
+# Logs
+*.log
+evaluacion_system.log
+
+# Archivos temporales
+temp_*
+reportes_pdf/
+
+# Cache de Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Entornos virtuales
+venv/
+env/
+.env
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
