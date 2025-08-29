@@ -5,26 +5,24 @@
 }
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    min-height: 100vh;
-    color: #333;
-    line-height: 1.6;
-}
-
-.container {
-    max-width: 900px;
-    margin: 0 auto;
+    font-family: Arial, sans-serif;
+    background: #f5f5f5;
+    margin: 0;
     padding: 20px;
 }
 
-.header {
+.container {
+    max-width: 800px;
+    margin: 0 auto;
     background: white;
-    padding: 1.5rem;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    margin-bottom: 1rem;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.header {
     text-align: center;
+    margin-bottom: 30px;
 }
 
 .header h1 {
@@ -34,20 +32,20 @@ body {
 }
 
 .config-info {
-    background: #e7f3ff;
-    color: #0066cc;
-    padding: 1rem;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    border: 1px solid #b3d9ff;
+    background: #d4edda;
+    color: #155724;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+    border: 1px solid #c3e6cb;
+    font-size: 14px;
 }
 
 .info {
-    background: white;
-    padding: 1.25rem;
+    background: #e3f2fd;
+    padding: 15px;
     border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    margin-bottom: 1rem;
+    margin-bottom: 20px;
 }
 
 .info dl {
@@ -76,33 +74,25 @@ body {
 
 .candidate-form-grid {
     display: grid;
-    gap: 1.5rem;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
     margin-bottom: 2rem;
 }
 
 .input-group {
-    display: flex;
-    flex-direction: column;
+    margin-bottom: 10px;
 }
 
 .input-group label {
-    margin-bottom: 0.5rem;
-    font-weight: 600;
-    color: #333;
+    font-weight: bold;
+    color: #495057;
 }
 
 .input-group input {
-    padding: 0.75rem;
-    border: 2px solid #ddd;
+    padding: 12px;
+    border: 1px solid #ddd;
     border-radius: 6px;
-    font-size: 1rem;
-    transition: all 0.3s ease;
-}
-
-.input-group input:focus {
-    outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    width: 100%;
 }
 
 .error-message {
@@ -138,26 +128,27 @@ body {
     margin-bottom: 0;
 }
 
-.progreso-texto {
-    text-align: center;
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 1rem;
-}
-
 .progreso {
     background: #e9ecef;
-    border-radius: 10px;
-    height: 20px;
+    height: 10px;
+    border-radius: 5px;
+    margin-bottom: 20px;
     overflow: hidden;
     position: relative;
 }
 
 .progreso-barra {
-    background: linear-gradient(90deg, #28a745, #20c997);
+    background: #007bff;
     height: 100%;
-    transition: width 0.5s ease;
-    border-radius: 10px;
+    border-radius: 5px;
+    transition: width 0.3s;
+}
+
+.progreso-texto {
+    text-align: center;
+    margin-bottom: 10px;
+    font-weight: bold;
+    color: #495057;
 }
 
 #pregunta-container {
@@ -167,6 +158,13 @@ body {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
     margin-top: 0;
     margin-bottom: 1.25rem;
+}
+
+.pregunta {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
 }
 
 .pregunta h2 {
@@ -187,21 +185,21 @@ body {
 }
 
 .opcion {
-    background: #f8f9fa;
-    border: 2px solid #dee2e6;
+    display: block;
+    margin: 10px 0;
+    padding: 15px;
+    background: #e9ecef;
+    border: 2px solid transparent;
     border-radius: 8px;
-    padding: 0.85rem 1.25rem;
-    margin-bottom: 0.75rem;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.3s;
     font-size: 1rem;
     line-height: 1.4;
 }
 
 .opcion:hover {
-    background: #e9ecef;
-    border-color: #667eea;
-    transform: translateX(5px);
+    background: #dee2e6;
+    border-color: #007bff;
 }
 
 .opcion:focus {
@@ -211,15 +209,14 @@ body {
 }
 
 .opcion.seleccionada {
-    background: #e7f3ff;
-    border-color: #007bff;
-    color: #0056b3;
-    font-weight: 600;
+    background-color: #007bff !important;
+    color: white !important;
+    border-color: #0056b3 !important;
 }
 
 .action-buttons {
     text-align: center;
-    margin-top: 0.5rem;
+    margin-top: 30px;
 }
 
 #btn-responder {
@@ -247,9 +244,10 @@ body {
 }
 
 #mensaje {
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 8px;
     background: white;
-    padding: 2rem;
-    border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
     text-align: center;
 }

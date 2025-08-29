@@ -11,6 +11,15 @@ body {
     color: #333;
 }
 
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
 .dashboard-container {
     max-width: 1200px;
     margin: 0 auto;
@@ -28,6 +37,8 @@ body {
     align-items: center;
 }
 
+.header { text-align: center; margin-bottom: 30px; }
+
 .dashboard-header h1 {
     color: #333;
     font-size: 1.8rem;
@@ -44,6 +55,21 @@ body {
 
 .dashboard-header nav a:hover {
     background: #c82333;
+}
+
+.config-info {
+    background: #d1ecf1;
+    color: #0c5460;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+    border: 1px solid #b8daff;
+    font-size: 14px;
+}
+
+.dashboard-actions {
+    text-align: right;
+    margin-bottom: 20px;
 }
 
 .form-section {
@@ -78,11 +104,14 @@ form {
     flex-direction: column;
 }
 
-.input-group input {
-    padding: 0.75rem;
-    border: 2px solid #ddd;
+.input-group input, .input-group select {
+    padding: 12px;
+    border: 1px solid #ddd;
     border-radius: 6px;
-    font-size: 1rem;
+    width: 100%;
+}
+
+.input-group input {
     transition: border-color 0.3s ease;
 }
 
@@ -114,6 +143,8 @@ form {
     cursor: pointer;
     transition: all 0.3s ease;
 }
+
+.btn { margin-left: 8px; }
 
 .form-actions button[type="submit"] {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -160,6 +191,7 @@ form {
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
     min-height: 200px;
+    margin-top: 20px;
 }
 
 .candidatos-list h2 {
@@ -288,9 +320,8 @@ form {
     .form-row {
         grid-template-columns: 1fr;
     }
-}
-
-.candidatos-grid {
+    
+    .candidatos-grid {
         grid-template-columns: 1fr;
     }
     
@@ -301,7 +332,7 @@ form {
     .reports-table {
         overflow-x: auto;
     }
-/* Elimina propiedades fuera de bloque y llaves sobrantes */
+}
 
 .stat-card h3 {
     color: #666;
@@ -384,4 +415,25 @@ form {
     .reports-table {
         overflow-x: auto;
     }
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.form-grid label {
+  grid-column: 1 / 3;
+}
+
+.form-grid input, .form-grid select {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 20px;
 }

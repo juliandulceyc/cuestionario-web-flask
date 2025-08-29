@@ -11,6 +11,23 @@ import base64
 from dataclasses import dataclass
 from functools import wraps
 
+# Importar dependencias para PDF y Drive
+try:
+    from pdf_generator import generar_pdf_evaluacion
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
+    generar_pdf_evaluacion = None
+    logging.warning("Generador de PDF no disponible")
+
+try:
+    from drive_integration import save_pdf_to_drive
+    DRIVE_AVAILABLE = True
+except ImportError:
+    DRIVE_AVAILABLE = False
+    save_pdf_to_drive = None
+    logging.warning("Integración con Drive no disponible")
+
 # ===== CONFIGURACIÓN Y CONSTANTES =====
 class Config:
     """Configuración centralizada de la aplicación"""
@@ -19,7 +36,7 @@ class Config:
     PORT = int(os.getenv('PORT', 5000))
     
     # Configuración de evaluación
-    TOTAL_PREGUNTAS = 10
+    TOTAL_PREGUNTAS = 5
     ARCHIVO_EXCEL = 'Evaluación FWS PAN V2.xlsx'
     
     # Credenciales admin (en producción usar variables de entorno)
@@ -676,11 +693,8 @@ class EvaluadorRespuestas:
             
             # 1) Comparación por letra, si viene respuesta_letra
             if respuesta_letra:
-                # normalizar a lista de letras A-D
                 letras_usuario = [s.strip().upper()[:1] for s in str(respuesta_letra).split(',') if s.strip()]
                 letras_usuario = [l for l in letras_usuario if l in ['A','B','C','D']]
-
-                # determinar letras correctas a partir de respuestas_correctas
                 opciones = pregunta.get("opciones", [])
                 correctas_texto = pregunta.get("respuestas_correctas", [respuesta_correcta] if respuesta_correcta else [])
                 letras_correctas = []
@@ -690,7 +704,6 @@ class EvaluadorRespuestas:
                     except ValueError:
                         idx = 0
                     letras_correctas.append(chr(ord('A') + max(0, min(25, idx))))
-
                 # Log comparativo
                 textos_usuario = ", ".join([_safe_opt(opciones, l) for l in letras_usuario])
                 textos_correctos = ", ".join([_safe_opt(opciones, l) for l in letras_correctas])
@@ -699,16 +712,12 @@ class EvaluadorRespuestas:
                     pregunta.get("id"), nivel, str(pregunta.get("pregunta", ""))[:160],
                     ",".join(letras_usuario), textos_usuario, ",".join(letras_correctas), textos_correctos
                 )
-
-                # Evaluación: conjunto exacto (mismo tamaño y misma combinación)
-                if set(letras_usuario) == set(letras_correctas) and len(letras_usuario) == len(letras_correctas):
-                    puntos = 1.0 * nivel
-                    logger.info(f"RESULTADO: CORRECTA (+{puntos} puntos)")
-                    return True, puntos
-                else:
-                    logger.info("RESULTADO: INCORRECTA (+0 puntos)")
-                    return False, 0.0
-
+                # Puntaje proporcional por aciertos, aunque haya errores
+                aciertos = len([l for l in letras_usuario if l in letras_correctas])
+                total_correctas = len(letras_correctas)
+                puntos = (aciertos / total_correctas) * nivel if total_correctas > 0 else 0.0
+                logger.info(f"RESULTADO: {aciertos} aciertos de {total_correctas} (+{puntos} puntos)")
+                return aciertos == total_correctas, puntos
             # 2) Fallback: comparación por texto (admite múltiples separados por coma)
             if respuesta_usuario and respuesta_correcta:
                 opciones = pregunta.get("opciones", [])
@@ -729,7 +738,6 @@ class EvaluadorRespuestas:
             else:
                 logger.debug("DATOS FALTANTES")
                 return False, 0.0
-                
         except Exception as e:
             logger.error(f"Error evaluando respuesta: {e}")
             return False, 0.0
@@ -821,15 +829,16 @@ class CandidatoManager:
         return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
     
     @staticmethod
-    def registrar_candidato(nombre: str, email: str, telefono: str = "", cargo: str = "") -> Dict[str, Any]:
+    def registrar_candidato(tipo_documento: str, numero_documento: str, nombre: str, email: str, cargo: str) -> Dict[str, Any]:
         """Registra un nuevo candidato"""
         codigo = CandidatoManager.generar_codigo()
         
         candidato = {
             "codigo": codigo,
+            "tipo_documento": tipo_documento,
+            "numero_documento": numero_documento,
             "nombre_completo": nombre,
             "email": email,
-            "telefono": telefono,
             "cargo": cargo,
             "fecha_registro": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "evaluacion_completada": False,
@@ -844,6 +853,20 @@ class CandidatoManager:
 
 # ===== VALIDADORES DE ENTRADA =====
 class InputValidator:
+    @staticmethod
+    def validate_cargo(cargo: str) -> Tuple[bool, str]:
+        """Valida el campo cargo"""
+        if not cargo or not cargo.strip():
+            return False, "Cargo es obligatorio"
+        cargo = cargo.strip()
+        if len(cargo) < 2:
+            return False, "Cargo debe tener al menos 2 caracteres"
+        if len(cargo) > 100:
+            return False, "Cargo demasiado largo"
+        # Solo letras, espacios y caracteres acentuados
+        if not re.match(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$', cargo):
+            return False, "Cargo solo puede contener letras y espacios"
+        return True, ""
     """Validador de entrada para datos del usuario"""
     
     @staticmethod
@@ -867,66 +890,30 @@ class InputValidator:
         """Valida nombre completo"""
         if not name or not name.strip():
             return False, "Nombre es obligatorio"
-        
         name = name.strip()
         if len(name) < 2:
             return False, "Nombre debe tener al menos 2 caracteres"
-        
         if len(name) > 100:
             return False, "Nombre demasiado largo"
-        
         # Solo letras, espacios y caracteres acentuados
         if not re.match(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$', name):
             return False, "Nombre solo puede contener letras y espacios"
-        
         return True, ""
-    
+
     @staticmethod
     def validate_phone(phone: str) -> Tuple[bool, str]:
         """Valida número de teléfono"""
         if not phone or not phone.strip():
             return True, ""  # Teléfono es opcional
-        
         phone = phone.strip()
-        if len(phone) < 7 or len(phone) > 15:
-            return False, "Teléfono debe tener entre 7 y 15 caracteres"
-        
+        if len(phone) < 7:
+            return False, "Teléfono demasiado corto"
+        if len(phone) > 15:
+            return False, "Teléfono demasiado largo"
         # Solo números, espacios, guiones, paréntesis y +
         if not re.match(r'^[\d\s\-\+\(\)]+$', phone):
-            return False, "Formato de teléfono inválido"
-        
+            return False, "Teléfono contiene caracteres inválidos"
         return True, ""
-    
-    @staticmethod
-    def validate_cargo(cargo: str) -> Tuple[bool, str]:
-        """Valida cargo"""
-        if not cargo or not cargo.strip():
-            return False, "Cargo es obligatorio"
-        
-        cargo = cargo.strip()
-        if len(cargo) < 2:
-            return False, "Cargo debe tener al menos 2 caracteres"
-        
-        if len(cargo) > 100:
-            return False, "Cargo demasiado largo"
-        
-        return True, ""
-
-# Importar dependencias para PDF y Drive
-try:
-    from pdf_generator import generar_pdf_evaluacion
-    REPORTLAB_AVAILABLE = True
-except ImportError:
-    REPORTLAB_AVAILABLE = False
-    logger.warning("Generador de PDF no disponible")
-
-try:
-    from drive_integration import save_pdf_to_drive
-    DRIVE_AVAILABLE = True
-except ImportError:
-    DRIVE_AVAILABLE = False
-    logger.warning("Integración con Drive no disponible")
-
 # ===== FUNCIONES DE UTILIDAD =====
 def get_total_preguntas() -> int:
     """Función global para obtener el total de preguntas"""
@@ -999,66 +986,56 @@ def registrar_candidato():
     if request.is_json:
         data = request.get_json()
         if not data:
-            return jsonify({"success": False, "error": "Datos JSON inválidos"}), 400
-            
+            return jsonify({'error': 'Datos JSON requeridos'}), 400
+        tipo_documento = data.get('tipo_documento', '').strip()
+        numero_documento = data.get('numero_documento', '').strip()
         nombre = data.get('nombre_completo', '').strip()
         email = data.get('email', '').strip()
-        telefono = data.get('telefono', '').strip()
         cargo = data.get('cargo', '').strip()
     else:
+        tipo_documento = request.form.get('tipo_documento', '').strip()
+        numero_documento = request.form.get('numero_documento', '').strip()
         nombre = request.form.get('nombre_completo', '').strip()
         email = request.form.get('email', '').strip()
-        telefono = request.form.get('telefono', '').strip()
         cargo = request.form.get('cargo', '').strip()
-    
     # Validaciones robustas
     validation_errors = []
-    
+    if not tipo_documento:
+        validation_errors.append('Tipo de documento es obligatorio')
+    if not numero_documento:
+        validation_errors.append('Número de documento es obligatorio')
     valid_name, name_error = InputValidator.validate_name(nombre)
     if not valid_name:
         validation_errors.append(f"Nombre: {name_error}")
-    
     valid_email, email_error = InputValidator.validate_email(email)
     if not valid_email:
         validation_errors.append(f"Email: {email_error}")
-    
-    valid_phone, phone_error = InputValidator.validate_phone(telefono)
-    if not valid_phone:
-        validation_errors.append(f"Teléfono: {phone_error}")
-    
-    valid_cargo, cargo_error = InputValidator.validate_cargo(cargo)
-    if not valid_cargo:
-        validation_errors.append(f"Cargo: {cargo_error}")
-    
-    # Verificar duplicados de email
+    # Verificar duplicados de documento y email
     for candidato in candidatos_registrados.values():
-        if candidato['email'].lower() == email.lower():
-            validation_errors.append("Email: Ya existe un candidato con este email")
+        if candidato.get('numero_documento', '').lower() == numero_documento.lower():
+            validation_errors.append('Ya existe un candidato con este número de documento')
             break
-    
+        if candidato['email'].lower() == email.lower():
+            validation_errors.append('Ya existe un candidato con este email')
+            break
     if validation_errors:
-        error_msg = "; ".join(validation_errors)
+        error_msg = '; '.join(validation_errors)
         logger.warning(f"Errores de validación al registrar candidato: {error_msg}")
-        
         if request.is_json:
-            return jsonify({"success": False, "error": error_msg}), 400
+            return jsonify({'error': error_msg}), 400
         else:
             return render_template('admin_dashboard.html', error=error_msg)
-    
     try:
-        candidato = CandidatoManager.registrar_candidato(nombre, email, telefono, cargo)
-        
+        candidato = CandidatoManager.registrar_candidato(tipo_documento, numero_documento, nombre, email, cargo)
         if request.is_json:
             return jsonify({"success": True, "candidato": candidato})
         else:
             return redirect(url_for('admin_candidatos'))
-            
     except Exception as e:
         logger.error(f"Error registrando candidato: {e}")
         error_msg = "Error interno al registrar candidato"
-        
         if request.is_json:
-            return jsonify({"success": False, "error": error_msg}), 500
+            return jsonify({'error': error_msg}), 500
         else:
             return render_template('admin_dashboard.html', error=error_msg)
 

@@ -4,19 +4,17 @@ document.addEventListener('DOMContentLoaded', function() {
     var candidatoForm = document.getElementById('candidatoForm');
     var listaCandidatos = document.getElementById('listaCandidatos');
     var addCandidateBtn = document.querySelector('.add-candidate-btn');
-    
+
     // Inicializar
     init();
-    
+
     function init() {
         console.log('🔄 Inicializando panel de administración...');
-        
         setupEventListeners();
         cargarCandidatos();
-        
         console.log('✅ Panel inicializado correctamente');
-// ...existing code...
-    
+    }
+
     function setupEventListeners() {
         // Botón para mostrar formulario
         if (addCandidateBtn) {
@@ -24,7 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 mostrarFormulario();
             });
         }
-        
+
         // Botón cancelar
         var cancelBtn = document.querySelector('button[data-action="cancel"]');
         if (cancelBtn) {
@@ -32,7 +30,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 ocultarFormulario();
             });
         }
-        
+
         // Formulario de registro
         if (candidatoForm) {
             candidatoForm.addEventListener('submit', function(e) {
@@ -40,11 +38,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 registrarCandidato();
             });
         }
-        
+
         // Validación en tiempo real
         setupFieldValidation();
     }
-    
+
     function setupFieldValidation() {
         var fields = [
             { id: 'nombre_completo', errorId: 'nombre-completo-error' },
@@ -52,11 +50,11 @@ document.addEventListener('DOMContentLoaded', function() {
             { id: 'telefono', errorId: 'telefono-error' },
             { id: 'cargo', errorId: 'cargo-error' }
         ];
-        
+
         fields.forEach(function(field) {
             var input = document.getElementById(field.id);
             var errorElement = document.getElementById(field.errorId);
-            
+
             if (input && errorElement) {
                 input.addEventListener('blur', function() {
                     validateField(input, errorElement);
@@ -67,19 +65,19 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    
+
     function validateField(field, errorElement) {
         if (!field || !errorElement) return false;
-        
+
         var value = field.value.trim();
         var fieldType = field.type;
         var isRequired = field.hasAttribute('required');
-        
+
         if (isRequired && !value) {
             showFieldError(field, errorElement, 'Este campo es obligatorio');
             return false;
         }
-        
+
         if (fieldType === 'email' && value) {
             var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(value)) {
@@ -87,7 +85,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return false;
             }
         }
-        
+
         if (fieldType === 'tel' && value) {
             var phoneRegex = /^[\d\s\-\+\(\)]{7,15}$/;
             if (!phoneRegex.test(value)) {
@@ -95,25 +93,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 return false;
             }
         }
-        
+
         if (field.id === 'nombre_completo' && value) {
             if (value.length < 2) {
                 showFieldError(field, errorElement, 'El nombre debe tener al menos 2 caracteres');
                 return false;
             }
         }
-        
+
         if (field.id === 'cargo' && value) {
             if (value.length < 2) {
                 showFieldError(field, errorElement, 'El cargo debe tener al menos 2 caracteres');
                 return false;
             }
         }
-        
+
         clearFieldError(field, errorElement);
         return true;
     }
-    
+
     function showFieldError(field, errorElement, message) {
         if (field && errorElement) {
             field.style.borderColor = '#dc3545';
@@ -121,24 +119,24 @@ document.addEventListener('DOMContentLoaded', function() {
             errorElement.style.color = '#dc3545';
         }
     }
-    
+
     function clearFieldError(field, errorElement) {
         if (field && errorElement) {
             field.style.borderColor = '';
             errorElement.textContent = '';
         }
     }
-    
+
     function mostrarFormulario() {
         if (formularioRegistro) {
             formularioRegistro.style.display = 'block';
-            
+
             // Scroll al formulario
-            formularioRegistro.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'start' 
+            formularioRegistro.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
             });
-            
+
             // Focus en primer campo
             var firstField = document.getElementById('nombre_completo');
             if (firstField) {
@@ -148,22 +146,22 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
-    
+
     function ocultarFormulario() {
         if (formularioRegistro) {
             formularioRegistro.style.display = 'none';
         }
-        
+
         // Limpiar formulario
         if (candidatoForm) {
             candidatoForm.reset();
-            
+
             // Limpiar errores
             var errorElements = candidatoForm.querySelectorAll('.error-message');
             errorElements.forEach(function(element) {
                 element.textContent = '';
             });
-            
+
             // Limpiar estilos de error
             var inputs = candidatoForm.querySelectorAll('input');
             inputs.forEach(function(input) {
@@ -171,83 +169,59 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     }
-    
+
     function registrarCandidato() {
-        if (!candidatoForm) return;
-        
-        // Validar todos los campos
-        var isValid = validateAllFields();
-        
-        if (!isValid) {
-            mostrarNotificacion('Por favor corrige los errores en el formulario', 'error');
+        var tipo_documento = document.getElementById('tipo_documento').value;
+        var numero_documento = document.getElementById('numero_documento').value;
+        var nombre_completo = document.getElementById('nombre_completo').value;
+        var email = document.getElementById('email').value;
+        var cargo = document.getElementById('cargo').value;
+        // Validación básica
+        if (!tipo_documento || !numero_documento || !nombre_completo || !email || !cargo) {
+            alert('Todos los campos son obligatorios');
             return;
         }
-        
-        // Obtener datos del formulario
-        var formData = {
-            nombre_completo: getValue('nombre_completo'),
-            email: getValue('email'),
-            telefono: getValue('telefono'),
-            cargo: getValue('cargo')
-        };
-        
-        var submitBtn = candidatoForm.querySelector('button[type="submit"]');
-        var originalText = submitBtn ? submitBtn.textContent : '';
-        
-        // Estado de carga
-        if (submitBtn) {
-            submitBtn.disabled = true;
-            submitBtn.textContent = '⏳ Registrando...';
-        }
-        
-        // Enviar datos
         fetch('/admin/registrar_candidato', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(formData)
+            body: JSON.stringify({
+                tipo_documento: tipo_documento,
+                numero_documento: numero_documento,
+                nombre_completo: nombre_completo,
+                email: email,
+                cargo: cargo
+            })
         })
-        .then(function(response) {
+        .then(response => {
             if (!response.ok) {
-                throw new Error('HTTP ' + response.status);
+                throw new Error('Error: HTTP ' + response.status);
             }
             return response.json();
         })
-        .then(function(data) {
-            if (data.success) {
-                mostrarNotificacion('✅ Candidato registrado correctamente', 'success');
-                ocultarFormulario();
-                cargarCandidatos(); // Recargar lista
-            } else {
-                throw new Error(data.error || 'Error desconocido');
-            }
+        .then(data => {
+            mostrarNotificacion('✅ Candidato registrado correctamente', 'success');
+            ocultarFormulario();
+            cargarCandidatos(); // Recargar lista
         })
-        .catch(function(error) {
-            console.error('Error:', error);
-            mostrarNotificacion('❌ Error al registrar candidato: ' + error.message, 'error');
-        })
-        .finally(function() {
-            // Restaurar botón
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.textContent = originalText;
-            }
+        .catch(error => {
+            alert(error);
         });
     }
-    
+
     function validateAllFields() {
         if (!candidatoForm) return false;
-        
+
         var validations = [
             { field: document.getElementById('nombre_completo'), error: document.getElementById('nombre-completo-error') },
             { field: document.getElementById('email'), error: document.getElementById('email-error') },
             { field: document.getElementById('telefono'), error: document.getElementById('telefono-error') },
             { field: document.getElementById('cargo'), error: document.getElementById('cargo-error') }
         ];
-        
+
         var allValid = true;
-        
+
         validations.forEach(function(validation) {
             if (validation.field && validation.error) {
                 if (!validateField(validation.field, validation.error)) {
@@ -255,20 +229,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
-        
+
         return allValid;
     }
-    
+
     function getValue(id) {
         var element = document.getElementById(id);
         return element ? element.value.trim() : '';
     }
-    
+
     function cargarCandidatos() {
         if (!listaCandidatos) return;
-        
+
         listaCandidatos.innerHTML = '<div class="loading">Cargando candidatos...</div>';
-        
+
         fetch('/admin/candidatos?format=json')
         .then(function(response) {
             if (!response.ok) {
@@ -284,21 +258,21 @@ document.addEventListener('DOMContentLoaded', function() {
             listaCandidatos.innerHTML = '<div class="error">❌ Error cargando candidatos</div>';
         });
     }
-    
+
     function mostrarCandidatos(candidatos) {
         if (!listaCandidatos) return;
-        
+
         if (!candidatos || candidatos.length === 0) {
             listaCandidatos.innerHTML = '<div class="no-candidates">📝 No hay candidatos registrados</div>';
             return;
         }
-        
+
         var html = '';
-        
+
         candidatos.forEach(function(candidato) {
             var statusClass = candidato.evaluacion_completada ? 'status-completada' : 'status-pendiente';
             var statusText = candidato.evaluacion_completada ? '✅ Completada' : '⏳ Pendiente';
-            
+
             html += '<div class="candidato-card">';
             html += '  <div class="candidato-info">';
             html += '    <h3>' + escapeHtml(candidato.nombre_completo) + '</h3>';
@@ -309,7 +283,7 @@ document.addEventListener('DOMContentLoaded', function() {
             html += '  </div>';
             html += '  <div class="candidato-status">';
             html += '    <span class="' + statusClass + '">' + statusText + '</span>';
-            
+
             if (!candidato.evaluacion_completada && candidato.url_evaluacion) {
                 html += '    <button class="copy-btn" onclick="copiarURL(\'' + candidato.url_evaluacion + '\')">';
                 html += '      📋 Copiar URL';
@@ -318,14 +292,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 html += '      🔗 Abrir Evaluación';
                 html += '    </a>';
             }
-            
+
             html += '  </div>';
             html += '</div>';
         });
-        
+
         listaCandidatos.innerHTML = html;
     }
-    
+
     function escapeHtml(text) {
         if (!text) return '';
         var map = {
@@ -337,25 +311,42 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         return text.replace(/[&<>"']/g, function(m) { return map[m]; });
     }
-    
+
     function mostrarNotificacion(mensaje, tipo) {
-        var notification = document.createElement('div');
-        notification.className = 'notification ' + tipo;
-        notification.textContent = mensaje;
-        
-        document.body.appendChild(notification);
-        
-        setTimeout(function() {
-            if (notification.parentNode) {
-                notification.remove();
-            }
-        }, 5000);
+        if (typeof window.mostrarNotificacion === 'function') {
+            window.mostrarNotificacion(mensaje, tipo);
+        } else {
+            // Fallback si utils.js no está cargado
+            const notification = document.createElement('div');
+            notification.style.background = tipo === 'success' ? '#d4edda' : '#f8d7da';
+            notification.style.color = tipo === 'success' ? '#155724' : '#721c24';
+            notification.style.border = tipo === 'success' ? '1px solid #c3e6cb' : '1px solid #f5c6cb';
+            notification.setAttribute('role', 'alert');
+            notification.setAttribute('aria-live', tipo === 'error' ? 'assertive' : 'polite');
+            notification.textContent = mensaje;
+            notification.style.position = 'fixed';
+            notification.style.top = '20px';
+            notification.style.right = '20px';
+            notification.style.padding = '15px 20px';
+            notification.style.borderRadius = '8px';
+            notification.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+            notification.style.zIndex = '1000';
+            notification.style.maxWidth = '400px';
+            notification.style.animation = 'slideInRight 0.3s ease-out';
+            document.body.appendChild(notification);
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.style.animation = 'slideOutRight 0.3s ease-in';
+                    setTimeout(() => notification.remove(), 300);
+                }
+            }, 4000);
+        }
     }
-    
+
     // Función global para copiar URL
     window.copiarURL = function(url) {
         if (!url) return;
-        
+
         if (navigator.clipboard) {
             navigator.clipboard.writeText(url).then(function() {
                 mostrarNotificacion('📋 URL copiada al portapapeles', 'success');
@@ -367,14 +358,14 @@ document.addEventListener('DOMContentLoaded', function() {
             fallbackCopyURL(url);
         }
     };
-    
+
     function fallbackCopyURL(url) {
         // Crear elemento temporal
         var tempInput = document.createElement('input');
         tempInput.value = url;
         document.body.appendChild(tempInput);
         tempInput.select();
-        
+
         try {
             document.execCommand('copy');
             mostrarNotificacion('📋 URL copiada al portapapeles', 'success');
@@ -382,10 +373,10 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error copiando URL:', err);
             mostrarNotificacion('❌ No se pudo copiar la URL', 'error');
         }
-        
+
         document.body.removeChild(tempInput);
     }
-    
+
     // Agregar estilos de animación solo una vez
     if (!document.querySelector('#admin-animations')) {
         var style = document.createElement('style');
@@ -394,47 +385,25 @@ document.addEventListener('DOMContentLoaded', function() {
             '@keyframes slideInRight {' +
             '  from { transform: translateX(100%); opacity: 0; }' +
             '  to { transform: translateX(0); opacity: 1; }' +
+            '}' +
+            '@keyframes slideOutRight {' +
+            '  from { transform: translateX(0); opacity: 1; }' +
+            '  to { transform: translateX(100%); opacity: 0; }' +
             '}';
         document.head.appendChild(style);
     }
-// ...existing code...
-        notification.style.position = 'fixed';
-        notification.style.top = '20px';
-        notification.style.right = '20px';
-        notification.style.padding = '15px 20px';
-        notification.style.borderRadius = '8px';
-        notification.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-        notification.style.zIndex = '1000';
-        notification.style.maxWidth = '400px';
-        notification.style.whiteSpace = 'pre-line';
-        notification.style.animation = 'slideInRight 0.3s ease-out';
-        if (tipo === 'success') {
-            notification.style.background = '#d4edda';
-            notification.style.color = '#155724';
-            notification.style.border = '1px solid #c3e6cb';
-        } else if (tipo === 'error') {
-            notification.style.background = '#f8d7da';
-            notification.style.color = '#721c24';
-            notification.style.border = '1px solid #f5c6cb';
-        }
-        notification.setAttribute('role', 'alert');
-        notification.setAttribute('aria-live', tipo === 'error' ? 'assertive' : 'polite');
-        notification.textContent = mensaje;
-        document.body.appendChild(notification);
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.style.animation = 'slideOutRight 0.3s ease-in';
-                setTimeout(() => notification.remove(), 300);
-            }
-        }, duracion);
-    }
 
     function announceToScreenReader(message) {
-        if (formStatus) {
-            formStatus.textContent = message;
-            setTimeout(() => {
-                formStatus.textContent = '';
-            }, 3000);
+        if (typeof window.announceToScreenReader === 'function') {
+            window.announceToScreenReader(message);
+        } else {
+            var formStatus = document.getElementById('form-status');
+            if (formStatus) {
+                formStatus.textContent = message;
+                setTimeout(() => {
+                    formStatus.textContent = '';
+                }, 3000);
+            }
         }
     }
 

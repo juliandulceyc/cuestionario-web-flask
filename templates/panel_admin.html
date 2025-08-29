@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión de Candidatos</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin-panel.css') }}">
 </head>
+
 <body>
     <div class="container">
         <div class="header">
@@ -16,50 +17,56 @@
                 👥 Consulta y estado de candidatos
             </div>
             <div class="dashboard-actions">
-                <a href="/admin/dashboard" class="btn btn-primary" role="button">📊 Dashboard</a>
-                <a href="/admin/logout" class="btn btn-danger" role="button">Cerrar Sesión</a>
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                    <a href="/admin/dashboard" class="btn btn-primary" role="button">📊 Dashboard</a>
+                    <a href="/admin/logout" class="btn btn-danger" role="button" style="margin-left:auto;">Cerrar
+                        Sesión</a>
+                </div>
             </div>
         </div>
         <section aria-labelledby="candidates-title">
             <h2 id="candidates-title">Candidatos Registrados</h2>
             {% if candidatos %}
-                <div class="candidatos-grid">
-                    {% for candidato in candidatos %}
-                    <article class="candidato-card" role="article">
-                        <div class="candidato-info">
-                            <h3>{{ candidato.nombre_completo }}</h3>
-                            <p>📧 {{ candidato.email }}</p>
-                            <p>🔑 {{ candidato.codigo }}</p>
-                            <p>👔 {{ candidato.cargo or 'N/A' }}</p>
-                        </div>
-                        <div class="candidato-status">
-                            {% if candidato.evaluacion_completada %}
-                                <span class="status-completada">✅ Completada</span>
-                            {% else %}
-                                <span class="status-pendiente">⏳ Pendiente</span>
-                                <div class="evaluacion-actions">
-                                    <span class="estado-pendiente">
-                                        <img src="https://cdn-icons-png.flaticon.com/512/1828/1828778.png" alt="Pendiente" class="icono-pendiente">
-                                        Pendiente
-                                    </span>
-                                    <button type="button" class="btn-copiar-url" onclick="copiarUrl(this)">
-                                        <img src="https://cdn-icons-png.flaticon.com/512/1828/1828778.png" alt="Copiar" style="width:16px;vertical-align:middle;margin-right:2px;opacity:0.7;"> Copiar URL
-                                    </button>
-                                    <a href="{{ candidato.url_evaluacion }}" target="_blank" class="btn-abrir-url">
-                                        <img src="https://cdn-icons-png.flaticon.com/512/1828/1828778.png" alt="Abrir" style="width:16px;vertical-align:middle;margin-right:2px;opacity:0.7;"> <span style="text-decoration:underline;color:#6c2eb7;">Abrir Evaluación</span>
-                                    </a>
-                                </div>
-                            {% endif %}
-                        </div>
-                    </article>
-                    {% endfor %}
+            <div class="candidatos-grid">
+                {% for candidato in candidatos %}
+                <div class="candidato-card">
+                    <h3>👤 {{ candidato.nombre_completo }}</h3>
+                    <div class="datos-candidato">
+                        <div class="dato email"><span class="icono">✉️</span>{{ candidato.email }}</div>
+                        <div class="dato documento"><span class="icono">🪪</span>{{ candidato.tipo_documento }}</div>
+                        <div class="dato documento"><span class="icono">🔢</span>{{ candidato.numero_documento }}</div>
+                        <div class="dato cargo"><span class="icono">💼</span>{{ candidato.cargo }}</div>
+                        <div class="dato"><span class="icono">🔑</span>{{ candidato.codigo }}</div>
+                    </div>
+                    {% if candidato.evaluacion_completada %}
+                        <div class="estado-completada badge badge-success">✔ Completado</div>
+                    {% else %}
+                        <div class="estado-pendiente"><span class="icono">⏳</span>Pendiente</div>
+                    {% endif %}
+                    <div class="acciones">
+                        <button class="copiar-url-btn" onclick="copiarURL(this)"><span class="icono-copiar">📋</span>Copiar URL</button>
+                        <a href="{{ candidato.url_evaluacion }}" class="abrir-evaluacion-link" target="_blank"><span class="icono-link">🔗</span>Abrir Evaluación</a>
+                    </div>
                 </div>
+                {% endfor %}
+            </div>
             {% else %}
-                <div class="no-candidates">
-                    <p>📝 No hay candidatos registrados</p>
-                </div>
+            <div class="no-candidates">
+                <p>📝 No hay candidatos registrados</p>
+            </div>
             {% endif %}
         </section>
     </div>
 
-<script src="{{ url_for('static', filename='js/admin-panel.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin-panel.js') }}"></script>
+    <script>
+        function copiarURL(btn) {
+            const url = btn.nextElementSibling.href;
+            navigator.clipboard.writeText(url);
+            btn.innerHTML = '<span class="icono-copiar">✅</span>Copiado!';
+            setTimeout(() => { btn.innerHTML = '<span class="icono-copiar">📋</span>Copiar URL'; }, 1200);
+        }
+    </script>
+</body>
+
+</html>

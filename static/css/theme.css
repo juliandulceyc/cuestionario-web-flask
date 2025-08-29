@@ -36,17 +36,24 @@
 }
 
 /* Reset mínimo y base tipográfica */
-* { box-sizing: border-box; }
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 html { scroll-behavior: smooth; }
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: var(--text);
     background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
     min-height: 100vh;
+    padding: 20px;
 }
 
 /* Contenedores y tarjetas */
 .container, .dashboard-container, .login-container, .error-container {
+    max-width: 800px;
+    margin: 0 auto;
     padding: var(--space-5);
 }
 
@@ -55,6 +62,36 @@ body {
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-md);
     padding: var(--space-5);
+}
+
+/* Encabezados */
+.header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+.header h1 {
+    color: #333;
+    font-size: 2rem;
+    margin-bottom: 1rem;
+}
+
+/* Información de configuración */
+.config-info {
+    background: #d4edda;
+    color: #155724;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+    border: 1px solid #c3e6cb;
+    font-size: 14px;
+}
+
+/* Secciones de información */
+.info {
+    background: #e3f2fd;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
 }
 
 /* Botones */
@@ -69,6 +106,9 @@ body {
     font-weight: 600;
     cursor: pointer;
     transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+    margin-left: 8px;
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
 }
 .btn:disabled { opacity: .6; cursor: not-allowed; transform: none; }
 .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
@@ -106,10 +146,74 @@ input:focus, select:focus, textarea:focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
 }
-.error-message { color: #dc3545; font-size: .9rem; min-height: 1.2rem; margin-top: .25rem; }
+.error-message {
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    min-height: 1.2rem;
+}
 
-/* Utilidades */
-.center { text-align: center; }
+/* Secciones y cuadrículas */
+.form-section, #formulario-confirmacion, #pregunta-container {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+.form-grid, .candidate-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 2rem;
+}
+
+/* Estilos para mejorar la alineación y presentación del formulario de registro de candidato */
+.form-registro-candidato {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px 24px;
+  margin-bottom: 2rem;
+}
+.form-row {
+  display: contents;
+}
+.form-label {
+  font-weight: bold;
+  color: #495057;
+  font-size: 1rem;
+  margin-bottom: 6px;
+}
+.form-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  background: #fff;
+}
+.form-actions {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 2rem;
+}
+.btn {
+  min-width: 160px;
+}
+@media (max-width: 600px) {
+  .form-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .form-label {
+    min-width: unset;
+    margin-bottom: 4px;
+  }
+}
+
+/* Grillas y utilidades */
 .grid { display: grid; gap: var(--space-4); }
 .grid-2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
 .grid-3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
@@ -135,6 +239,311 @@ input:focus, select:focus, textarea:focus {
 
 /* Responsive */
 @media (max-width: 768px) {
-  .grid-2, .grid-3 { grid-template-columns: 1fr; }
-  .container, .dashboard-container, .login-container, .error-container { padding: var(--space-5); }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .container, .dashboard-container, .login-container, .error-container { padding: var(--space-5); }
+    .header {
+        padding: 1.5rem;
+    }
+    .header h1 {
+        font-size: 1.5rem;
+    }
+    #formulario-confirmacion,
+    #pregunta-container {
+        padding: 1.5rem;
+    }
+    .opcion {
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+    }
+    #btn-responder {
+        padding: 0.75rem 2rem;
+        font-size: 1rem;
+    }
+    .info dl {
+        grid-template-columns: 1fr;
+        gap: 0.25rem;
+    }
+}
+@media (max-width: 480px) {
+    .container {
+        padding: 15px;
+    }
+    .header h1 {
+        font-size: 1.5rem;
+    }
+    .info dl {
+        grid-template-columns: 1fr;
+        gap: 0.25rem;
+    }
+    .candidate-form-grid {
+        gap: 1rem;
+    }
+    .start-btn {
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+    }
+    #btn-responder {
+        padding: 0.75rem 2rem;
+        font-size: 1rem;
+    }
+    .opcion {
+        padding: 12px 15px;
+    }
+    .pregunta {
+        padding: 20px 15px;
+    }
+    #btn-responder {
+        padding: 12px 30px;
+        font-size: 15px;
+    }
+}
+
+/* Estilos globales uniformes para todas las vistas, migrados desde cuestionario.css */
+body {
+    background: #f5f5f5;
+    margin: 0;
+    padding: 20px;
+}
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+.input-group {
+    margin-bottom: 10px;
+}
+.input-group label {
+    font-weight: bold;
+    color: #495057;
+}
+.input-group input, .input-group select {
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    width: 100%;
+}
+.start-btn, #btn-responder {
+    width: 100%;
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+.start-btn:hover, #btn-responder:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(40, 167, 69, 0.3);
+}
+#btn-responder:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 30px;
+}
+.stat-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    padding: 18px;
+    text-align: center;
+}
+.stat-number {
+    font-size: 32px;
+    font-weight: bold;
+    color: #007bff;
+}
+.reports-table {
+    overflow-x: auto;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+th, td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #dee2e6;
+    text-align: left;
+}
+th {
+    background: #e3f2fd;
+    color: #495057;
+}
+.status-completada {
+    color: #28a745;
+    font-weight: bold;
+}
+.status-pendiente {
+    color: #ffc107;
+    font-weight: bold;
+}
+.no-data {
+    text-align: center;
+    color: #6c757d;
+    margin-top: 30px;
+}
+.action-buttons {
+    text-align: center;
+    margin-top: 30px;
+}
+#mensaje {
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 8px;
+    background: white;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+/* Card de candidato mejorada */
+.candidato-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  padding: 22px 28px;
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 320px;
+  max-width: 420px;
+}
+.candidato-card h3 {
+  font-size: 1.25rem;
+  font-weight: bold;
+  margin-bottom: 6px;
+  color: #222;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Mejoras visuales para los datos y acciones dentro de la card de candidato */
+.candidato-card .datos-candidato {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 10px;
+}
+.candidato-card .dato {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.08rem;
+  color: #444;
+  background: #f7f7fa;
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+.candidato-card .dato .icono {
+  font-size: 1.15em;
+}
+.candidato-card .dato.email {
+  color: #007bff;
+  background: #e3f2fd;
+}
+.candidato-card .dato.cargo {
+  color: #6f42c1;
+  background: #f3e9ff;
+}
+.candidato-card .dato.documento {
+  color: #f7b500;
+  background: #fffbe6;
+}
+.candidato-card .dato.telefono {
+  color: #dc3545;
+  background: #ffeaea;
+}
+.candidato-card .estado-pendiente {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 1.08em;
+  color: #f7b500;
+  font-weight: bold;
+  background: #fffbe6;
+  border-radius: 6px;
+  padding: 4px 12px;
+  margin-right: 12px;
+  box-shadow: 0 1px 4px rgba(247,181,0,0.08);
+}
+.candidato-card .acciones {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 0;
+}
+.candidato-card .copiar-url-btn {
+  background: linear-gradient(90deg, #e3e3ff 0%, #f3f3f3 100%);
+  border: 1px solid #bdbdbd;
+  border-radius: 6px;
+  padding: 7px 18px;
+  font-size: 1em;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(90,46,166,0.08);
+  transition: background 0.2s, border 0.2s, box-shadow 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 500;
+  color: #333;
+  outline: none;
+}
+.candidato-card .copiar-url-btn:active {
+  box-shadow: 0 2px 8px rgba(90,46,166,0.18);
+}
+.candidato-card .copiar-url-btn:hover {
+  background: #e9e9ff;
+  border-color: #5a2ea6;
+}
+.candidato-card .abrir-evaluacion-link {
+  color: #5a2ea6;
+  text-decoration: none;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 18px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f3e9ff 0%, #e3e3ff 100%);
+  transition: color 0.2s, background 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+.candidato-card .abrir-evaluacion-link:active {
+  box-shadow: 0 2px 8px rgba(90,46,166,0.18);
+}
+.candidato-card .abrir-evaluacion-link:hover {
+  color: #2e8b57;
+  background: #e3ffe9;
+  text-decoration: underline;
+}
+@media (max-width: 600px) {
+  .candidato-card {
+    padding: 16px 8px;
+    min-width: unset;
+    max-width: 100%;
+  }
+}
+
+/* Alinear el botón 'Cerrar Sesión' a la derecha */
+.dashboard-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+}
+.dashboard-actions .btn-danger {
+  margin-left: auto;
 }

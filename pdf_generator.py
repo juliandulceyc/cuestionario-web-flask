@@ -83,9 +83,10 @@ class PDFGenerator:
         
         # Información del candidato
         info_candidato = [
-            ['Candidato:', candidato_data.get('nombre_completo', 'N/A')],
+            ['Tipo de documento:', candidato_data.get('tipo_documento', '')],
+            ['Número de documento:', candidato_data.get('numero_documento', '')],
+            ['Nombre completo:', candidato_data.get('nombre_completo', 'N/A')],
             ['Email:', candidato_data.get('email', 'N/A')],
-            ['Teléfono:', candidato_data.get('telefono', 'N/A')],
             ['Cargo:', candidato_data.get('cargo', 'N/A')],
             ['Código:', candidato_data.get('codigo', 'N/A')],
             ['Fecha Evaluación:', datetime.now().strftime("%d/%m/%Y %H:%M")]
@@ -230,7 +231,20 @@ class PDFGenerator:
         
         elementos.append(tabla_stats)
         elementos.append(Spacer(1, 30))
-        
+        # Sección de preguntas falladas
+        preguntas_falladas = [r for r in respuestas if not r.get('correcta', False)]
+        if preguntas_falladas:
+            elementos.append(Paragraph("PREGUNTAS FALLADAS", styles['Heading2']))
+            elementos.append(Spacer(1, 10))
+            for idx, r in enumerate(preguntas_falladas, 1):
+                pregunta_txt = r.get('pregunta', 'Pregunta no disponible')
+                respuesta_correcta = ', '.join(r.get('respuestas_correctas', []))
+                respuesta_usuario = r.get('respuesta', '')
+                elementos.append(Paragraph(f"<b>{idx}.</b> {pregunta_txt}", styles['Normal']))
+                elementos.append(Paragraph(f"<b>Respuesta correcta:</b> {respuesta_correcta}", styles['Normal']))
+                elementos.append(Paragraph(f"<b>Respuesta dada:</b> {respuesta_usuario}", styles['Normal']))
+                elementos.append(Spacer(1, 8))
+            elementos.append(Spacer(1, 20))
         return elementos
     
     def _crear_pie_documento(self, styles) -> List:

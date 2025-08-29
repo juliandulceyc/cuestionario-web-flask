@@ -6,21 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel de Administración</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
-    <style>
-        body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
-        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .header { text-align: center; margin-bottom: 30px; }
-        .config-info { background: #d1ecf1; color: #0c5460; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #b8daff; font-size: 14px; }
-        .dashboard-actions { text-align: right; margin-bottom: 20px; }
-        .btn { margin-left: 8px; }
-        .form-section { background: #e3f2fd; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .input-group input { padding: 12px; border: 1px solid #ddd; border-radius: 6px; width: 100%; }
-        .form-actions { margin-top: 15px; text-align: right; }
-        .candidatos-list { margin-top: 20px; }
-        .loading { text-align: center; color: #6c757d; padding: 20px; }
-        h2 { margin-top: 30px; }
-    </style>
 </head>
 <body>
     <div class="container">
@@ -34,33 +19,43 @@
             </div>
         </div>
         <section class="form-section" id="formularioRegistro" style="display: none;">
-            <h2>Registrar Nuevo Candidato</h2>
-            <form id="candidatoForm">
-                <div class="form-row">
-                    <div class="input-group">
-                        <input type="text" id="nombre_completo" placeholder="Nombre Completo" required>
-                        <span id="nombre-completo-error" class="error-message"></span>
-                    </div>
-                    <div class="input-group">
-                        <input type="email" id="email" placeholder="Email" required>
-                        <span id="email-error" class="error-message"></span>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="input-group">
-                        <input type="tel" id="telefono" placeholder="Teléfono" required>
-                        <span id="telefono-error" class="error-message"></span>
-                    </div>
-                    <div class="input-group">
-                        <input type="text" id="cargo" placeholder="Cargo" required>
-                        <span id="cargo-error" class="error-message"></span>
-                    </div>
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">💾 Registrar</button>
-                    <button type="button" class="btn btn-secondary cancel" data-action="cancel">❌ Cancelar</button>
-                </div>
-            </form>
+                        <h2 style="margin-bottom: 1.5rem;">Registrar Nuevo Candidato</h2>
+                        <form id="candidatoForm">
+                            <div class="form-registro-candidato">
+                                <div class="form-row">
+                                    <label for="tipo_documento" class="form-label">Tipo de documento:</label>
+                                    <select id="tipo_documento" name="tipo_documento" required class="form-input">
+                                            <option value="CC">Cédula de ciudadanía</option>
+                                            <option value="TI">Tarjeta de identidad</option>
+                                            <option value="CE">Cédula de extranjería</option>
+                                            <option value="PA">Pasaporte</option>
+                                            <option value="RC">Registro civil</option>
+                                            <option value="NIT">NIT</option>
+                                            <option value="Otro">Otro</option>
+                                    </select>
+                                </div>
+                                <div class="form-row">
+                                    <label for="numero_documento" class="form-label">Número de Documento:</label>
+                                    <input type="text" id="numero_documento" name="numero_documento" placeholder="Número de Documento" required class="form-input">
+                                </div>
+                                <div class="form-row">
+                                    <label for="nombre_completo" class="form-label">Nombre Completo:</label>
+                                    <input type="text" id="nombre_completo" name="nombre_completo" placeholder="Nombre Completo" required class="form-input">
+                                </div>
+                                <div class="form-row">
+                                    <label for="email" class="form-label">Email:</label>
+                                    <input type="email" id="email" name="email" placeholder="Email" required class="form-input">
+                                </div>
+                                <div class="form-row">
+                                    <label for="cargo" class="form-label">Cargo:</label>
+                                    <input type="text" id="cargo" name="cargo" placeholder="Cargo" required class="form-input">
+                                </div>
+                            </div>
+                            <div class="form-actions" style="display: flex; justify-content: center; gap: 24px; margin-top: 2rem;">
+                                <button type="submit" class="btn btn-primary" style="min-width: 160px;">💾 Registrar</button>
+                                <button type="button" class="btn btn-secondary cancel" data-action="cancel" style="min-width: 160px;">❌ Cancelar</button>
+                            </div>
+                        </form>
         </section>
         <section>
             <button type="button" class="add-candidate-btn btn btn-success" data-action="show-form" style="margin-bottom: 20px;">

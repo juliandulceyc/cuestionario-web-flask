@@ -18,6 +18,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const messageDiv = document.getElementById('mensaje');
     const answerStatus = document.getElementById('answer-status');
 
+    // Importar utilidades
+    // Si usas ES Modules, usa: import { mostrarNotificacion, mostrarError, announceToScreenReader } from './utils.js';
+    // Si usas <script>, agrega utils.js antes y usa window.mostrarNotificacion, etc.
+
     // Init
     init();
 
@@ -518,21 +522,30 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function mostrarError(mensaje) {
-        const notification = document.createElement('div');
-        notification.style.cssText = 'position:fixed;top:20px;right:20px;background:#f8d7da;color:#721c24;padding:15px 20px;border:1px solid #f5c6cb;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);z-index:1000;max-width:400px;';
-        notification.textContent = mensaje;
-        document.body.appendChild(notification);
-        setTimeout(() => {
-            if (notification.parentNode) notification.remove();
-        }, 5000);
+        if (typeof window.mostrarError === 'function') {
+            window.mostrarError(mensaje);
+        } else {
+            // Fallback si utils.js no está cargado
+            const notification = document.createElement('div');
+            notification.style.cssText = 'position:fixed;top:20px;right:20px;background:#f8d7da;color:#721c24;padding:15px 20px;border:1px solid #f5c6cb;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);z-index:1000;max-width:400px;';
+            notification.textContent = mensaje;
+            document.body.appendChild(notification);
+            setTimeout(() => {
+                if (notification.parentNode) notification.remove();
+            }, 5000);
+        }
     }
 
     function announceToScreenReader(message) {
-        if (!answerStatus) return;
-        answerStatus.textContent = message;
-        setTimeout(() => {
-            answerStatus.textContent = '';
-        }, 3000);
+        if (typeof window.announceToScreenReader === 'function') {
+            window.announceToScreenReader(message);
+        } else {
+            if (!answerStatus) return;
+            answerStatus.textContent = message;
+            setTimeout(() => {
+                answerStatus.textContent = '';
+            }, 3000);
+        }
     }
 
     // Agregar estilos para animaciones solo una vez

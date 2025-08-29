@@ -65,16 +65,53 @@
                             <span id="email-error" class="error-message"></span>
                         </div>
                         <div class="input-group">
-                            <label for="telefono">Teléfono</label>
-                            <input type="tel" id="telefono" value="{{ candidato.telefono or '' }}">
-                            <span id="telefono-error" class="error-message"></span>
+                            <label for="tipo_documento">Tipo de documento</label>
+                            <input type="text" id="tipo_documento" value="{{ candidato.tipo_documento }}" required>
+                            <span id="tipo-documento-error" class="error-message"></span>
+                        </div>
+                        <div class="input-group">
+                            <label for="numero_documento">Número de documento</label>
+                            <input type="text" id="numero_documento" value="{{ candidato.numero_documento }}" required>
+                            <span id="numero-documento-error" class="error-message"></span>
                         </div>
                     </div>
-                    <button type="submit" class="start-btn btn btn-success" style="width:100%;margin-top:15px;">
-                        🚀 Confirmar Datos e Iniciar Evaluación
-                    </button>
+                    <div class="aviso-legal" style="background:#fff3cd;color:#856404;padding:15px;border-radius:8px;margin:20px 0 10px 0;border:1px solid #ffeeba;font-size:14px;">
+                        <strong>🛡️ Aviso de Protección de Datos Personales:</strong><br>
+                        De acuerdo con la Ley 1581 de 2012 y normas concordantes de Colombia, informamos que los datos personales aquí registrados serán tratados de manera legal, segura y confidencial, únicamente para fines de gestión de la evaluación técnica y procesos internos de la empresa. El titular tiene derecho a conocer, actualizar, rectificar y suprimir sus datos, así como a revocar la autorización otorgada. Para continuar, es necesario que acepte los términos de tratamiento de datos personales.
+                    </div>
+                    <div style="margin-bottom:10px;">
+                        <input type="checkbox" id="acepta_terminos" style="margin-right:8px;">
+                        <label for="acepta_terminos" style="font-size:15px;">Acepto el tratamiento de mis datos personales según la legislación colombiana y los términos de la empresa.</label>
+                    </div>
+                    <div style="display:flex;gap:10px;">
+                        <button type="submit" id="btn-aceptar" class="start-btn btn btn-success" style="width:100%;margin-top:10px;" disabled>
+                             Aceptar y Iniciar Evaluación
+                        </button>
+                        <button type="button" id="btn-rechazar" class="btn btn-danger" style="width:100%;margin-top:10px;">
+                             Rechazar y Salir
+                        </button>
+                    </div>
                 </div>
             </form>
+            <script>
+                // Habilitar botón solo si acepta términos
+                document.addEventListener('DOMContentLoaded', function() {
+                    var checkbox = document.getElementById('acepta_terminos');
+                    var btnAceptar = document.getElementById('btn-aceptar');
+                    var btnRechazar = document.getElementById('btn-rechazar');
+                    if (checkbox && btnAceptar) {
+                        checkbox.addEventListener('change', function() {
+                            btnAceptar.disabled = !checkbox.checked;
+                        });
+                    }
+                    if (btnRechazar) {
+                        btnRechazar.addEventListener('click', function() {
+                            alert('No puedes continuar sin aceptar los términos. Si tienes dudas sobre el tratamiento de tus datos, contacta a la empresa.');
+                            window.location.href = '/';
+                        });
+                    }
+                });
+            </script>
         </section>
         
         <section id="progreso-container" style="display: none;">
