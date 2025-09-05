@@ -114,8 +114,50 @@ def setup_logging():
 logger = setup_logging()
 
 # ===== INICIALIZACIÓN DE FLASK =====
+from flask_sqlalchemy import SQLAlchemy
+
+# Configuración de conexión a PostgreSQL
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://usuario:contraseña@localhost:5432/empresa_db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+
+# Modelo de Candidato
+class CandidatoDB(db.Model):
+    __tablename__ = 'candidatos'
+    id = db.Column(db.Integer, primary_key=True)
+    codigo = db.Column(db.String(20), unique=True, nullable=False)
+    nombre_completo = db.Column(db.String(120), nullable=False)
+    email = db.Column(db.String(120), nullable=False)
+    telefono = db.Column(db.String(30))
+    cargo = db.Column(db.String(100))
+    fecha_registro = db.Column(db.DateTime)
+    evaluacion_completada = db.Column(db.Boolean, default=False)
+    puntos_finales = db.Column(db.Float, default=0)
+    nivel_final = db.Column(db.Integer, default=1)
+    acepta_terminos = db.Column(db.Boolean, default=False)
+    tema = db.Column(db.String(120))
+
+# Modelo de Resultado
+class ResultadoDB(db.Model):
+    __tablename__ = 'resultados'
+    id = db.Column(db.Integer, primary_key=True)
+    candidato_id = db.Column(db.Integer, db.ForeignKey('candidatos.id'))
+    correctas = db.Column(db.Integer)
+    total = db.Column(db.Integer)
+    porcentaje = db.Column(db.Float)
+    puntos = db.Column(db.Float)
+    nivel_final = db.Column(db.Integer)
+    fecha_evaluacion = db.Column(db.DateTime)
+    tema = db.Column(db.String(120))
 app = Flask(__name__)
+
 app.secret_key = Config.SECRET_KEY
+
+# Configuración de conexión a PostgreSQL
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://usuario:contraseña@localhost:5432/empresa_db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+from flask_sqlalchemy import SQLAlchemy
+db = SQLAlchemy(app)
 
 # ===== VARIABLES GLOBALES =====
 candidatos_registrados: Dict[str, Dict[str, Any]] = {}
@@ -334,45 +376,25 @@ class PreguntaLoader:
     
     @staticmethod
     def cargar_preguntas() -> bool:
-        """Carga preguntas desde archivo Excel con validación robusta"""
+        """Carga preguntas desde el archivo Excel activo seleccionado por el admin"""
         global PREGUNTAS
-        
         try:
-            logger.info(f"Buscando archivo: {Config.ARCHIVO_EXCEL}")
-            
-            if not os.path.exists(Config.ARCHIVO_EXCEL):
-                logger.error(f"Archivo no encontrado: {Config.ARCHIVO_EXCEL}")
+            archivo_excel = get_tema_activo()
+            logger.info(f"Buscando archivo: {archivo_excel}")
+            temas_dir = os.path.join(os.getcwd(), 'temas')
+            ruta_excel = os.path.join(temas_dir, archivo_excel) if archivo_excel else None
+            if not ruta_excel or not os.path.exists(ruta_excel):
+                logger.error(f"Archivo no encontrado: {ruta_excel}")
                 return False
-            
-            df = PreguntaLoader._leer_excel()
-            if df is None:
-                return False
-            
+            df = pd.read_excel(ruta_excel)
             PREGUNTAS = []
             estadisticas = PreguntaLoader._procesar_filas(df)
-            
             return PreguntaLoader._finalizar_carga(estadisticas)
-            
         except Exception as e:
             logger.error(f"Error crítico cargando preguntas: {e}")
             return False
     
-    @staticmethod
-    def _leer_excel() -> Optional[pd.DataFrame]:
-        """Lee el archivo Excel"""
-        try:
-            try:
-                df = pd.read_excel(Config.ARCHIVO_EXCEL, engine='openpyxl')
-            except:
-                df = pd.read_excel(Config.ARCHIVO_EXCEL, engine='xlrd')
-            
-            logger.info(f"Excel cargado: {len(df)} filas")
-            logger.info(f"Columnas disponibles: {list(df.columns)}")
-            return df
-            
-        except Exception as e:
-            logger.error(f"Error leyendo Excel: {e}")
-            return None
+    # _leer_excel ya no es necesario, se lee directo en cargar_preguntas
     
     @staticmethod
     def _procesar_filas(df: pd.DataFrame) -> Dict[str, int]:
@@ -927,6 +949,78 @@ def get_configuracion_evaluacion() -> Dict[str, Any]:
     return cfg
 
 # ===== RUTAS PRINCIPALES =====
+# Endpoint para listar archivos Excel disponibles
+@app.route('/temas/', methods=['GET'])
+def listar_archivos_temas():
+    temas_dir = os.path.join(os.getcwd(), 'temas')
+    if not os.path.exists(temas_dir):
+        return jsonify({'archivos': []})
+    archivos = [f for f in os.listdir(temas_dir) if f.endswith('.xlsx') or f.endswith('.xls')]
+    return jsonify({'archivos': archivos})
+import pandas as pd
+
+# Ruta para subir archivos Excel de preguntas
+@app.route('/admin/subir_tema', methods=['POST'])
+@admin_required
+def subir_tema():
+    if 'archivo_tema' not in request.files:
+        return jsonify({'error': 'No se envió archivo'}), 400
+    archivo = request.files['archivo_tema']
+    if archivo.filename == '':
+        return jsonify({'error': 'Nombre de archivo vacío'}), 400
+    temas_dir = os.path.join(os.getcwd(), 'temas')
+    if not os.path.exists(temas_dir):
+        os.makedirs(temas_dir)
+    ruta_destino = os.path.join(temas_dir, archivo.filename)
+    archivo.save(ruta_destino)
+    return jsonify({'success': True, 'archivo': archivo.filename})
+
+# Ruta para seleccionar el tema activo
+@app.route('/admin/seleccionar_tema', methods=['POST'])
+@admin_required
+def seleccionar_tema():
+    data = request.form if not request.is_json else request.get_json()
+    nombre_archivo = data.get('archivo_excel')
+    if not nombre_archivo:
+        return jsonify({'error': 'Nombre de archivo requerido'}), 400
+    config = {
+        'archivo_excel': nombre_archivo
+    }
+    with open('config_tema.json', 'w', encoding='utf-8') as f:
+        import json
+        json.dump(config, f, ensure_ascii=False, indent=2)
+    return jsonify({'success': True, 'tema_activo': nombre_archivo})
+
+# Función para obtener el tema activo
+def get_tema_activo():
+    import json
+    if not os.path.exists('config_tema.json'):
+        return None
+    with open('config_tema.json', 'r', encoding='utf-8') as f:
+        config = json.load(f)
+    return config.get('archivo_excel')
+
+# Función para cargar preguntas desde el tema activo
+def cargar_preguntas_desde_excel():
+    archivo_excel = get_tema_activo()
+    if not archivo_excel:
+        return []
+    temas_dir = os.path.join(os.getcwd(), 'temas')
+    ruta_excel = os.path.join(temas_dir, archivo_excel)
+    if not os.path.exists(ruta_excel):
+        return []
+    df = pd.read_excel(ruta_excel)
+    preguntas = []
+    for _, row in df.iterrows():
+        preguntas.append({
+            'pregunta': row.get('pregunta', ''),
+            'opciones': [row.get(f'opcion_{i}', '') for i in range(1, 5)],
+            'respuesta_correcta': row.get('respuesta_correcta', ''),
+            'nivel': row.get('nivel', 1),
+            'categoria': row.get('categoria', ''),
+            'multiple': bool(row.get('multiple', False))
+        })
+    return preguntas
 
 @app.route('/')
 def home():
@@ -1069,12 +1163,12 @@ def iniciar_evaluacion():
         return jsonify({"error": "Datos JSON requeridos"}), 400
     
     documento = data.get('documento', '')
-    
+    acepta_terminos = int(data.get('acepta_terminos', 0))
+
     logger.info(f"Iniciando evaluación para: {documento}")
     
     if documento and documento in candidatos_registrados:
         candidato_encontrado = candidatos_registrados[documento]
-        
         # REINICIAR COMPLETAMENTE candidato_actual
         candidato_actual = {
             "datos_personales": {
@@ -1088,11 +1182,11 @@ def iniciar_evaluacion():
             "preguntas_mostradas": [],
             "evaluacion_completa": False,
             "respuestas": [],
-            "fecha_inicio": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "fecha_inicio": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "acepta_terminos": acepta_terminos
         }
-        
         candidatos_registrados[documento]["evaluacion_completada"] = False
-        
+        candidatos_registrados[documento]["acepta_terminos"] = acepta_terminos
         logger.info(f"Evaluación iniciada para: {candidato_encontrado['nombre_completo']}")
         return jsonify({"mensaje": "Evaluación iniciada correctamente"})
     else:
@@ -1305,6 +1399,8 @@ def generar_pdf_final():
         # Obtener datos del candidato
         codigo = candidato_actual.get("datos_personales", {}).get("codigo")
         candidato_data = candidatos_registrados.get(codigo, {})
+        # Asegurar que el valor de aceptación de términos esté presente
+        candidato_data["acepta_terminos"] = candidato_actual.get("acepta_terminos", candidato_data.get("acepta_terminos", 0))
         
         # Generar PDF usando el generador especializado
         pdf_path = None

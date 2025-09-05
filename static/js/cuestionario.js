@@ -162,7 +162,8 @@ document.addEventListener('DOMContentLoaded', function () {
             nombre: getValue('nombre_completo'),
             documento: getValue('documento'),
             email: getValue('email'),
-            telefono: getValue('telefono')
+            telefono: getValue('telefono'),
+            acepta_terminos: document.getElementById('acepta_terminos')?.checked ? 1 : 0
         };
         const submitBtn = candidateForm ? candidateForm.querySelector('button[type="submit"]') : null;
         if (!submitBtn) return;

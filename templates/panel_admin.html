@@ -11,6 +11,20 @@
 
 <body>
     <div class="container">
+        <section class="panel-temas" style="margin-bottom:30px;">
+            <h2>🗂 Gestión de Temas de Evaluación</h2>
+            <form id="form-subir-tema" enctype="multipart/form-data" method="post" style="margin-bottom:15px;">
+                <label for="archivo_tema"><b>Subir nuevo archivo Excel de preguntas:</b></label>
+                <input type="file" id="archivo_tema" name="archivo_tema" accept=".xlsx,.xls" required>
+                <button type="submit" class="btn btn-primary">Subir archivo</button>
+            </form>
+            <form id="form-seleccionar-tema" method="post">
+                <label for="archivo_excel"><b>Seleccionar tema activo:</b></label>
+                <select id="archivo_excel" name="archivo_excel" style="min-width:200px;"></select>
+                <button type="submit" class="btn btn-success">Activar tema</button>
+            </form>
+            <div id="tema-resultado" style="margin-top:10px;color:#155724;"></div>
+        </section>
         <div class="header">
             <h1>📋 Gestión de Candidatos</h1>
             <div class="config-info">

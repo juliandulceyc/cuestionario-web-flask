@@ -89,7 +89,8 @@ class PDFGenerator:
             ['Email:', candidato_data.get('email', 'N/A')],
             ['Cargo:', candidato_data.get('cargo', 'N/A')],
             ['Código:', candidato_data.get('codigo', 'N/A')],
-            ['Fecha Evaluación:', datetime.now().strftime("%d/%m/%Y %H:%M")]
+            ['Fecha Evaluación:', datetime.now().strftime("%d/%m/%Y %H:%M")],
+                ['Tratamiento de datos:', 'Sí' if candidato_data.get('acepta_terminos') else 'No']
         ]
         
         tabla_info = Table(info_candidato, colWidths=[2*inch, 4*inch])
