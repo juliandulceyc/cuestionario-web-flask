@@ -1,8 +1,52 @@
 document.addEventListener('DOMContentLoaded', function() {
+    var listaTemas = document.getElementById('lista-temas');
+    cargarArchivosTemas();
+
+    function cargarArchivosTemas() {
+        fetch('/temas/')
+            .then(r => r.json())
+            .then(data => {
+                if (!listaTemas) return;
+                listaTemas.innerHTML = '';
+                (data.archivos || []).forEach(function(nombre) {
+                    var tr = document.createElement('tr');
+                    var tdNombre = document.createElement('td');
+                    tdNombre.textContent = nombre;
+                    tdNombre.style.fontWeight = 'bold';
+                    var tdAccion = document.createElement('td');
+                    var btn = document.createElement('button');
+                    btn.className = 'btn-eliminar-tema';
+                    btn.textContent = 'Eliminar';
+                    btn.onclick = function() { eliminarTemaExcel(nombre); };
+                    tdAccion.appendChild(btn);
+                    tr.appendChild(tdNombre);
+                    tr.appendChild(tdAccion);
+                    listaTemas.appendChild(tr);
+                });
+            });
+    }
+
+    window.eliminarTemaExcel = function(nombre) {
+        if (!confirm('¿Seguro que deseas eliminar el archivo ' + nombre + '?')) return;
+        fetch('/admin/eliminar_tema', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ archivo_excel: nombre })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert('Archivo eliminado correctamente');
+                cargarArchivosTemas();
+            } else {
+                alert('Error eliminando archivo: ' + (data.error || 'Desconocido'));
+            }
+        });
+    }
     // Variables globales
     var formularioRegistro = document.getElementById('formularioRegistro');
     var candidatoForm = document.getElementById('candidatoForm');
-    var listaCandidatos = document.getElementById('listaCandidatos');
+    var listaCandidatos = document.getElementById('candidatos-lista');
     var addCandidateBtn = document.querySelector('.add-candidate-btn');
 
     // Inicializar
@@ -279,26 +323,72 @@ document.addEventListener('DOMContentLoaded', function() {
             html += '    <p>📧 ' + escapeHtml(candidato.email) + '</p>';
             html += '    <p>🔑 ' + escapeHtml(candidato.codigo) + '</p>';
             html += '    <p>👔 ' + escapeHtml(candidato.cargo || 'N/A') + '</p>';
-            html += '    <p>📞 ' + escapeHtml(candidato.telefono || 'N/A') + '</p>';
+            if (candidato.telefono && candidato.telefono !== 'N/A') {
+                html += '    <p>📞 ' + escapeHtml(candidato.telefono) + '</p>';
+            }
             html += '  </div>';
             html += '  <div class="candidato-status">';
             html += '    <span class="' + statusClass + '">' + statusText + '</span>';
-
-            if (!candidato.evaluacion_completada && candidato.url_evaluacion) {
-                html += '    <button class="copy-btn" onclick="copiarURL(\'' + candidato.url_evaluacion + '\')">';
-                html += '      📋 Copiar URL';
-                html += '    </button>';
-                html += '    <a href="' + candidato.url_evaluacion + '" target="_blank" class="eval-link">';
-                html += '      🔗 Abrir Evaluación';
-                html += '    </a>';
+            if (!candidato.evaluacion_completada) {
+                html += '<div style="margin-top:8px;display:flex;gap:8px;">';
+                html += '<button type="button" class="copy-btn" data-url="' + (candidato.url_evaluacion || '') + '" style="background:#007bff;color:white;padding:4px 10px;border-radius:5px;border:none;cursor:pointer;">📋 Copiar URL</button>';
+                html += '<a href="' + (candidato.url_evaluacion || '#') + '" target="_blank" class="eval-link" style="background:#28a745;color:white;padding:4px 10px;border-radius:5px;text-decoration:none;display:inline-block;">🔗 Abrir Evaluación</a>';
+                html += '</div>';
             }
-
+            // Botón eliminar disponible para todos los candidatos
+            html += '<button type="button" class="delete-btn" data-codigo="' + candidato.codigo + '" style="background:#dc3545;color:white;padding:4px 10px;border-radius:5px;border:none;cursor:pointer;">🗑️ Eliminar</button>';
             html += '  </div>';
             html += '</div>';
         });
 
         listaCandidatos.innerHTML = html;
+        // Asignar eventos a los botones recién renderizados
+        setTimeout(function() {
+            document.querySelectorAll('.copy-btn').forEach(function(btn) {
+                btn.onclick = function() {
+                    const url = btn.getAttribute('data-url');
+                    if (navigator.clipboard) {
+                        navigator.clipboard.writeText(url).then(function() {
+                            mostrarNotificacion('📋 URL copiada al portapapeles', 'success');
+                            btn.innerHTML = '✅ Copiado!';
+                            setTimeout(function(){ btn.innerHTML = '📋 Copiar URL'; }, 2000);
+                        }).catch(function(err) {
+                            fallbackCopyURL(url);
+                        });
+                    } else {
+                        fallbackCopyURL(url);
+                    }
+                };
+            });
+            // Evento para eliminar candidato
+            document.querySelectorAll('.delete-btn').forEach(function(btn) {
+                btn.onclick = function() {
+                    const codigo = btn.getAttribute('data-codigo');
+                    if (confirm('¿Seguro que deseas eliminar este candidato?')) {
+                        fetch('/admin/eliminar_candidato', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ codigo: codigo })
+                        })
+                        .then(response => {
+                            if (!response.ok) throw new Error('Error eliminando candidato');
+                            return response.json();
+                        })
+                        .then(data => {
+                            mostrarNotificacion('🗑️ Candidato eliminado', 'success');
+                            cargarCandidatos();
+                        })
+                        .catch(error => {
+                            mostrarNotificacion('❌ Error al eliminar candidato', 'error');
+                        });
+                    }
+                };
+            });
+        // El enlace <a> ya navega por sí solo, no necesita evento JS
+        }, 100);
     }
+
+    // ...eliminada función eliminarCandidato...
 
     function escapeHtml(text) {
         if (!text) return '';

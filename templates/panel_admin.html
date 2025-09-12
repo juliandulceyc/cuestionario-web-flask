@@ -13,12 +13,12 @@
     <div class="container">
         <section class="panel-temas" style="margin-bottom:30px;">
             <h2>🗂 Gestión de Temas de Evaluación</h2>
-            <form id="form-subir-tema" enctype="multipart/form-data" method="post" style="margin-bottom:15px;">
+            <form id="form-subir-tema" enctype="multipart/form-data" method="post" action="/admin/subir_tema" style="margin-bottom:15px;">
                 <label for="archivo_tema"><b>Subir nuevo archivo Excel de preguntas:</b></label>
                 <input type="file" id="archivo_tema" name="archivo_tema" accept=".xlsx,.xls" required>
                 <button type="submit" class="btn btn-primary">Subir archivo</button>
             </form>
-            <form id="form-seleccionar-tema" method="post">
+            <form id="form-seleccionar-tema" method="post" action="/admin/seleccionar_tema">
                 <label for="archivo_excel"><b>Seleccionar tema activo:</b></label>
                 <select id="archivo_excel" name="archivo_excel" style="min-width:200px;"></select>
                 <button type="submit" class="btn btn-success">Activar tema</button>
@@ -40,35 +40,24 @@
         </div>
         <section aria-labelledby="candidates-title">
             <h2 id="candidates-title">Candidatos Registrados</h2>
-            {% if candidatos %}
-            <div class="candidatos-grid">
-                {% for candidato in candidatos %}
-                <div class="candidato-card">
-                    <h3>👤 {{ candidato.nombre_completo }}</h3>
-                    <div class="datos-candidato">
-                        <div class="dato email"><span class="icono">✉️</span>{{ candidato.email }}</div>
-                        <div class="dato documento"><span class="icono">🪪</span>{{ candidato.tipo_documento }}</div>
-                        <div class="dato documento"><span class="icono">🔢</span>{{ candidato.numero_documento }}</div>
-                        <div class="dato cargo"><span class="icono">💼</span>{{ candidato.cargo }}</div>
-                        <div class="dato"><span class="icono">🔑</span>{{ candidato.codigo }}</div>
-                    </div>
-                    {% if candidato.evaluacion_completada %}
-                        <div class="estado-completada badge badge-success">✔ Completado</div>
-                    {% else %}
-                        <div class="estado-pendiente"><span class="icono">⏳</span>Pendiente</div>
-                    {% endif %}
-                    <div class="acciones">
-                        <button class="copiar-url-btn" onclick="copiarURL(this)"><span class="icono-copiar">📋</span>Copiar URL</button>
-                        <a href="{{ candidato.url_evaluacion }}" class="abrir-evaluacion-link" target="_blank"><span class="icono-link">🔗</span>Abrir Evaluación</a>
-                    </div>
-                </div>
-                {% endfor %}
+            <div class="panel-filtros" style="margin-bottom:18px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
+                <input type="text" id="busqueda-candidato" placeholder="Buscar por nombre, email o código" style="padding:8px 12px;border-radius:6px;border:1px solid #ccc;min-width:220px;">
+                <select id="filtro-estado" style="padding:8px 12px;border-radius:6px;border:1px solid #ccc;">
+                    <option value="">Todos</option>
+                    <option value="completada">Completada</option>
+                    <option value="pendiente">Pendiente</option>
+                </select>
+                <select id="filtro-cargo" style="padding:8px 12px;border-radius:6px;border:1px solid #ccc;">
+                    <option value="">Todos los cargos</option>
+                    {% for cargo in cargos_unicos %}
+                    <option value="{{ cargo }}">{{ cargo }}</option>
+                    {% endfor %}
+                </select>
             </div>
-            {% else %}
-            <div class="no-candidates">
-                <p>📝 No hay candidatos registrados</p>
+            <div id="candidatos-lista">
+                <!-- Renderizado dinámico por JS -->
             </div>
-            {% endif %}
+            <div id="paginacion-candidatos" style="margin-top:18px;text-align:center;"></div>
         </section>
     </div>
 

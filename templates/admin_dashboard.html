@@ -6,22 +6,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel de Administración</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/form-candidato.css') }}">
 </head>
 <body>
     <div class="container">
         <section class="panel-temas" style="margin-bottom:30px;">
-            <h2>🗂 Gestión de Temas de Evaluación</h2>
-            <form id="form-subir-tema" enctype="multipart/form-data" method="post" style="margin-bottom:15px;">
+            <h2> Gestión de Temas de Evaluación</h2>
+            <form id="form-subir-tema" enctype="multipart/form-data" method="post" action="/admin/subir_tema" style="margin-bottom:15px;">
                 <label for="archivo_tema"><b>Subir nuevo archivo Excel de preguntas:</b></label>
                 <input type="file" id="archivo_tema" name="archivo_tema" accept=".xlsx,.xls" required>
                 <button type="submit" class="btn btn-primary">Subir archivo</button>
             </form>
-            <form id="form-seleccionar-tema" method="post">
+            <form id="form-seleccionar-tema" method="post" action="/admin/seleccionar_tema">
                 <label for="archivo_excel"><b>Seleccionar tema activo:</b></label>
                 <select id="archivo_excel" name="archivo_excel" style="min-width:200px;"></select>
                 <button type="submit" class="btn btn-success">Activar tema</button>
             </form>
             <div id="tema-resultado" style="margin-top:10px;color:#155724;"></div>
+            <div id="archivos-temas-lista" style="margin-top:20px;">
+                <h3>Archivos de temas subidos</h3>
+                <table class="tabla-archivos-temas">
+                    <thead>
+                        <tr>
+                            <th>Archivo</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lista-temas">
+                    </tbody>
+                </table>
+            </div>
         </section>
         <div class="header">
             <h1>📊 Panel de Administración</h1>
@@ -34,35 +48,50 @@
         </div>
         <section class="form-section" id="formularioRegistro" style="display: none;">
                         <h2 style="margin-bottom: 1.5rem;">Registrar Nuevo Candidato</h2>
-                        <form id="candidatoForm">
+                        <form id="candidatoForm" method="post" action="/admin/registrar_candidato">
                             <div class="form-registro-candidato">
-                                <div class="form-row">
-                                    <label for="tipo_documento" class="form-label">Tipo de documento:</label>
-                                    <select id="tipo_documento" name="tipo_documento" required class="form-input">
-                                            <option value="CC">Cédula de ciudadanía</option>
-                                            <option value="TI">Tarjeta de identidad</option>
-                                            <option value="CE">Cédula de extranjería</option>
-                                            <option value="PA">Pasaporte</option>
-                                            <option value="RC">Registro civil</option>
-                                            <option value="NIT">NIT</option>
-                                            <option value="Otro">Otro</option>
-                                    </select>
-                                </div>
-                                <div class="form-row">
-                                    <label for="numero_documento" class="form-label">Número de Documento:</label>
-                                    <input type="text" id="numero_documento" name="numero_documento" placeholder="Número de Documento" required class="form-input">
-                                </div>
-                                <div class="form-row">
-                                    <label for="nombre_completo" class="form-label">Nombre Completo:</label>
-                                    <input type="text" id="nombre_completo" name="nombre_completo" placeholder="Nombre Completo" required class="form-input">
-                                </div>
-                                <div class="form-row">
-                                    <label for="email" class="form-label">Email:</label>
-                                    <input type="email" id="email" name="email" placeholder="Email" required class="form-input">
-                                </div>
-                                <div class="form-row">
-                                    <label for="cargo" class="form-label">Cargo:</label>
-                                    <input type="text" id="cargo" name="cargo" placeholder="Cargo" required class="form-input">
+                                <div class="form-registro-candidato grid-dos-columnas">
+                                    <div class="form-col">
+                                        <div class="form-row">
+                                            <label class="form-label">Tema de evaluación:</label>
+                                            <span id="tema-activo" style="font-weight:bold;color:#007bff;">{{ tema_activo }}</span>
+                                        <input type="hidden" id="tema" name="tema" value="{{ tema_activo|default('')}}">
+                                        </div>
+                                        <div class="form-row">
+                                            <label for="tipo_documento" class="form-label">Tipo de documento:</label>
+                                            <select id="tipo_documento" name="tipo_documento" required class="form-input">
+                                                    <option value="CC">Cédula de ciudadanía</option>
+                                                    <option value="TI">Tarjeta de identidad</option>
+                                                    <option value="CE">Cédula de extranjería</option>
+                                                    <option value="PA">Pasaporte</option>
+                                                    <option value="RC">Registro civil</option>
+                                                    <option value="NIT">NIT</option>
+                                                    <option value="Otro">Otro</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-row">
+                                            <label for="numero_documento" class="form-label">Número de Documento:</label>
+                                            <input type="text" id="numero_documento" name="numero_documento" placeholder="Número de Documento" required class="form-input">
+                                            <span id="numero-documento-error" class="field-error"></span>
+                                        </div>
+                                        <div class="form-row">
+                                            <label for="cargo" class="form-label">Cargo:</label>
+                                            <input type="text" id="cargo" name="cargo" placeholder="Cargo" required class="form-input">
+                                            <span id="cargo-error" class="field-error"></span>
+                                        </div>
+                                    </div>
+                                    <div class="form-col">
+                                        <div class="form-row">
+                                            <label for="nombre_completo" class="form-label">Nombre Completo:</label>
+                                            <input type="text" id="nombre_completo" name="nombre_completo" placeholder="Nombre Completo" required class="form-input">
+                                            <span id="nombre-completo-error" class="field-error"></span>
+                                        </div>
+                                        <div class="form-row">
+                                            <label for="email" class="form-label">Email:</label>
+                                            <input type="email" id="email" name="email" placeholder="Email" required class="form-input">
+                                            <span id="email-error" class="field-error"></span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <div class="form-actions" style="display: flex; justify-content: center; gap: 24px; margin-top: 2rem;">
@@ -76,8 +105,65 @@
                 ➕ Registrar Candidato
             </button>
             <h2>📋 Candidatos Registrados</h2>
-            <div id="listaCandidatos" class="candidatos-list">
-                <div class="loading">Cargando...</div>
+            <div id="candidatos-lista" class="candidatos-list">
+                {% for candidato in candidatos %}
+                <div class="candidato-card">
+                    <strong>{{ candidato.nombre_completo }}</strong><br>
+                    <span>📧 {{ candidato.email }}</span><br>
+                    <span>🔑 {{ candidato.codigo }}</span><br>
+                    {% if candidato.cargo and candidato.cargo != 'N/A' %}
+                        <span>🏢 {{ candidato.cargo }}</span><br>
+                    {% endif %}
+                    {% if candidato.evaluacion_completada %}
+                        <span style="color:green;font-weight:bold;">✅ Completada</span>
+                    {% else %}
+                        <span style="color:orange;font-weight:bold;">⏳ Pendiente</span>
+                        <div style="margin-top:8px;display:flex;gap:8px;">
+                            <button type="button" onclick="navigator.clipboard.writeText('{{ candidato.url_evaluacion }}');this.innerHTML='✅ Copiado!'" class="copy-btn" style="background:#007bff;color:white;padding:4px 10px;border-radius:5px;border:none;cursor:pointer;">📋 Copiar URL</button>
+                            <a href="{{ candidato.url_evaluacion }}" target="_blank" class="eval-link" style="background:#28a745;color:white;padding:4px 10px;border-radius:5px;text-decoration:none;">🔗 Abrir Evaluación</a>
+                        </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section style="margin-top:40px;">
+            <h2>📈 Resultados de Evaluaciones</h2>
+            <div style="overflow-x:auto;">
+                <table class="table table-bordered" style="min-width:900px;margin-top:15px;font-size:0.95em;">
+                    <thead>
+                        <tr>
+                            <th style="white-space:nowrap;">Candidato</th>
+                            <th style="white-space:nowrap;">Email</th>
+                            <th style="white-space:nowrap;">Tema</th>
+                            <th style="white-space:nowrap;">Correctas</th>
+                            <th style="white-space:nowrap;">Total</th>
+                            <th style="white-space:nowrap;">Porcentaje</th>
+                            <th style="white-space:nowrap;">Puntos</th>
+                            <th style="white-space:nowrap;">Nivel Final</th>
+                            <th style="white-space:nowrap;">Fecha Evaluación</th>
+                            <th style="white-space:nowrap;">Acepta Términos</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for candidato in candidatos %}
+                            {% set resultado = resultados.get(candidato.id) %}
+                            <tr>
+                                <td style="white-space:nowrap;">{{ candidato.nombre_completo }}</td>
+                                <td style="white-space:nowrap;">{{ candidato.email }}</td>
+                                <td style="white-space:nowrap;">{{ resultado.tema if resultado else '-' }}</td>
+                                <td style="text-align:center;">{{ resultado.correctas if resultado else '-' }}</td>
+                                <td style="text-align:center;">{{ resultado.total if resultado else '-' }}</td>
+                                <td style="text-align:center;">{{ resultado.porcentaje|round(1) if resultado else '-' }}%</td>
+                                <td style="text-align:center;">{{ resultado.puntos if resultado else '-' }}</td>
+                                <td style="text-align:center;">{{ resultado.nivel_final if resultado else '-' }}</td>
+                                <td style="white-space:nowrap;">{{ resultado.fecha_evaluacion.strftime('%Y-%m-%d %H:%M') if resultado and resultado.fecha_evaluacion else '-' }}</td>
+                                <td style="text-align:center;">{{ candidato.acepta_terminos and 'Sí' or 'No' }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </section>
     </div>

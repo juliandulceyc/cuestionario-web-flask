@@ -1,0 +1,46 @@
+/* Estilos para el formulario de registro de candidato en dos columnas */
+.grid-dos-columnas {
+    max-width: 700px;
+    margin: auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    align-items: start;
+}
+.form-col {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+.form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.form-label {
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+.form-input {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 1rem;
+    background: #fff;
+    transition: border-color 0.2s;
+}
+.form-input:focus {
+    border-color: #3b5bdb;
+    outline: none;
+}
+.field-error {
+    color: #dc3545;
+    font-size: 0.95em;
+    margin-top: 2px;
+}
+@media (max-width: 700px) {
+    .grid-dos-columnas {
+        grid-template-columns: 1fr;
+        gap: 18px;
+    }
+}

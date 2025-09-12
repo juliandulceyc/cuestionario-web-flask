@@ -177,11 +177,19 @@ document.addEventListener('DOMContentLoaded', function () {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(formData)
         })
-            .then(r => {
+            .then(async r => {
+                let data;
+                try {
+                    data = await r.json();
+                } catch (e) {
+                    data = {};
+                }
+                if (r.status === 404) {
+                    announceToScreenReader('Candidato no registrado. Verifica tu código.');
+                    mostrarError('❌ Candidato no registrado. Verifica tu código o contacta al administrador.');
+                    throw new Error('Candidato no registrado');
+                }
                 if (!r.ok) throw new Error('HTTP ' + r.status);
-                return r.json();
-            })
-            .then(data => {
                 if (data.mensaje) {
                     if (confirmationSection) confirmationSection.style.display = 'none';
                     if (progressContainer) progressContainer.style.display = 'block';
@@ -194,6 +202,7 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .catch(err => {
                 console.error('Error:', err);
+                if (err.message === 'Candidato no registrado') return;
                 announceToScreenReader('Error iniciando evaluación');
                 mostrarError('❌ Error iniciando evaluación: ' + err.message);
             })
@@ -237,9 +246,19 @@ document.addEventListener('DOMContentLoaded', function () {
             progressBar.setAttribute('aria-valuemax', data.total_preguntas);
             progressText.textContent = 'Pregunta ' + data.pregunta_numero + ' de ' + data.total_preguntas;
         }
-        // Mostrar badge de múltiple si corresponde
-        if (window.mostrarBadgeMultiple) {
-            window.mostrarBadgeMultiple(!!data.multiple, data.respuestas_correctas_count || 1);
+        // Mostrar aviso si es pregunta de selección múltiple
+        if (data.multiple && data.respuestas_correctas_count > 1) {
+            let badge = document.getElementById('badge-multiple');
+            if (badge) {
+                badge.style.display = 'block';
+                badge.innerHTML = '<span style="background:#ffc107;color:#212529;padding:6px 14px;border-radius:8px;font-weight:bold;">⚠️ Selección múltiple: Elige ' + data.respuestas_correctas_count + ' opciones</span>';
+            }
+        } else {
+            let badge = document.getElementById('badge-multiple');
+            if (badge) {
+                badge.style.display = 'none';
+                badge.innerHTML = '';
+            }
         }
         if (questionText) {
             questionText.innerHTML =
