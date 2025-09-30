@@ -1,4 +1,3 @@
-
 from flask import Flask, abort, render_template, request, jsonify, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 import os
@@ -63,7 +62,7 @@ class Config:
     PORT = int(os.getenv('PORT', 5000))
     
     # Configuración de evaluación
-    TOTAL_PREGUNTAS = 5
+    TOTAL_PREGUNTAS = 40
     ARCHIVO_EXCEL = 'Evaluación FWS PAN V2.xlsx'
     
     # Credenciales admin (en producción usar variables de entorno)
@@ -319,39 +318,56 @@ class EvaluadorRespuestas:
 @app.route('/responder', methods=['POST'])
 @handle_errors
 def responder():
+    global candidato_actual
     data = request.get_json()
-    pregunta_id = data.get('pregunta_id')
-    respuesta_usuario = data.get('respuesta')
-    respuesta_letra = data.get('respuesta_letra')
-    respuestas_seleccionadas = data.get('respuestas_seleccionadas', [])
-
-    # Validar pregunta
-    pregunta = next((p for p in PREGUNTAS if p["id"] == pregunta_id), None)
+    pregunta_numero = len(candidato_actual.get("preguntas_mostradas", [])) - 1
+    orden_preguntas = candidato_actual.get("orden_preguntas", [])
+    # Usar el índice actual para obtener el ID y la pregunta
+    if 0 <= pregunta_numero < len(orden_preguntas):
+        pregunta_id = orden_preguntas[pregunta_numero]
+        pregunta = next((p for p in PREGUNTAS if p["id"] == pregunta_id), None)
+    else:
+        pregunta = None
+    respuestas_usuario = data.get("respuestas", [])
     if not pregunta:
-        return jsonify({"error": "Pregunta no encontrada"}), 404
-
-    # Evaluar respuesta
-    es_correcta, puntos_obtenidos = EvaluadorRespuestas.evaluar_respuesta(pregunta, respuesta_usuario, respuesta_letra)
-
-    # Actualizar candidato actual
-    if "respuestas" not in candidato_actual:
-        candidato_actual["respuestas"] = []
-    nueva_respuesta = {
-        "pregunta_id": pregunta_id,
-        "pregunta": pregunta["pregunta"],
-        "respuesta": respuesta_usuario,
-        "respuesta_letra": respuesta_letra,
-        "respuestas_seleccionadas": respuestas_seleccionadas,
-        "correcta": es_correcta,
-        "puntos": puntos_obtenidos,
-        "nivel_pregunta": pregunta["nivel"],
-        "nivel_candidato": candidato_actual.get("nivel", 1),
-        "respuestas_correctas": pregunta.get("respuestas_correctas", [pregunta["respuesta_correcta"]]),
-        "multiple": pregunta.get("multiple", False)
-    }
-    candidato_actual["respuestas"].append(nueva_respuesta)
-    candidato_actual["puntos"] = candidato_actual.get("puntos", 0) + puntos_obtenidos
-
+        logger.error(f"Pregunta no encontrada. pregunta_numero={pregunta_numero}, orden_preguntas={orden_preguntas}")
+        return jsonify({"error": "Pregunta no encontrada"}), 400
+    # Calcular puntaje
+    puntaje = 0
+    es_multiple = pregunta.get("multiple", False)
+    respuestas_correctas = pregunta.get("respuestas_correctas", [])
+    if es_multiple:
+        if set(respuestas_usuario) == set(respuestas_correctas):
+            puntaje = 1
+        elif any(r in respuestas_correctas for r in respuestas_usuario):
+            puntaje = 0.5
+    else:
+        if respuestas_usuario and respuestas_usuario[0] in respuestas_correctas:
+            puntaje = 1
+    candidato_actual["puntos"] = candidato_actual.get("puntos", 0) + puntaje
+    candidato_actual.setdefault("respuestas", []).append({
+        "id": pregunta_id,
+        "respuestas": respuestas_usuario,
+        "correctas": respuestas_correctas,
+        "puntaje": puntaje,
+        "nivel": pregunta.get("nivel", 1)
+    })
+    # Lógica adaptativa de avance de nivel
+    adaptativo = candidato_actual.get("adaptativo", False)
+    nivel_actual = candidato_actual.get("nivel_actual", 1)
+    if adaptativo:
+        if pregunta.get("nivel", 1) == nivel_actual:
+            candidato_actual["preguntas_nivel"] += 1
+            if puntaje == 1:
+                candidato_actual["correctas_nivel"] += 1
+            # Si ya respondió 8 preguntas de este nivel
+            if candidato_actual["preguntas_nivel"] == 8:
+                if candidato_actual["correctas_nivel"] >= 5:
+                    candidato_actual["nivel_actual"] += 1
+                else:
+                    candidato_actual["evaluacion_completa"] = True
+                candidato_actual["preguntas_nivel"] = 0
+                candidato_actual["correctas_nivel"] = 0
     # Determinar si hay más preguntas
     preguntas_mostradas = candidato_actual.get("preguntas_mostradas", [])
     total_preguntas = Config.TOTAL_PREGUNTAS
@@ -428,39 +444,54 @@ def cargar_preguntas_desde_excel():
         return []
     df = pd.read_excel(ruta_excel)
     preguntas = []
+    used_ids = set()
     for idx, row in df.iterrows():
-        # Adaptar a columnas reales del Excel
-        pregunta_id = row.get('NUM')
-        if pregunta_id is None or pregunta_id == '' or pd.isna(pregunta_id):
-            pregunta_id = idx + 1
-        pregunta_texto = row.get('PREGUNTA', row.get('TIPO DE PREGUNTA', ''))
         opciones = []
-        # Leer opciones directamente de columnas A, B, C, D
-        for letra in ['A', 'B', 'C', 'D']:
+        for letra in ['A', 'B', 'C', 'D', 'E']:
             if letra in df.columns:
-                opciones.append(str(row.get(letra, '')).strip())
-        # Respuestas correctas
+                opt = str(row.get(letra, '')).strip()
+                if opt:
+                    opciones.append(opt)
+        # Solo incluir preguntas que tengan al menos dos opciones (A y B)
+        if len(opciones) < 2:
+            continue
+        # Validar que las respuestas correctas sean solo letras permitidas
         respuestas_correctas = []
         for col in ['RESPUESTA CORRECTA', 'RESPUESTA CORRECTA 1', 'RESPUESTA CORRECTA 2']:
             val = row.get(col)
             if val and not pd.isna(val):
-                respuestas_correctas.append(str(val).strip())
-        # Solo marcar como múltiple si hay más de una respuesta y ninguna está vacía
+                val_str = str(val).strip().upper()
+                if val_str in ['A', 'B', 'C', 'D', 'E']:
+                    respuestas_correctas.append(val_str)
+        if not respuestas_correctas:
+            continue  # Saltar preguntas sin respuesta válida tipo letra
         respuestas_validas = [r for r in respuestas_correctas if r]
         es_multiple = len(respuestas_validas) > 1
-        # Nivel
-        nivel = row.get('NIVEL', 1)
+        pregunta_id_raw = row.get('NUM')
         try:
-            nivel = int(str(nivel).replace('Nivel', '').strip())
+            pregunta_id = int(''.join(filter(str.isdigit, str(pregunta_id_raw))))
         except:
-            nivel = 1
+            pregunta_id = idx + 1
+        # Si el ID ya existe, asignar uno nuevo consecutivo
+        while pregunta_id in used_ids or pregunta_id == 0:
+            pregunta_id += 1
+        used_ids.add(pregunta_id)
+        nivel_raw = row.get('NIVEL', 1)
+        try:
+            nivel_str = str(nivel_raw)
+            nivel_num = int(''.join(filter(str.isdigit, nivel_str)))
+            if nivel_num < 1 or nivel_num > 5:
+                nivel_num = 1
+        except:
+            nivel_num = 1
+        pregunta_texto = row.get('PREGUNTA', row.get('TIPO DE PREGUNTA', ''))
         preguntas.append({
-            'id': int(pregunta_id),
+            'id': pregunta_id,
             'pregunta': pregunta_texto,
             'opciones': opciones,
             'respuesta_correcta': respuestas_validas[0] if respuestas_validas else '',
             'respuestas_correctas': respuestas_validas,
-            'nivel': nivel,
+            'nivel': nivel_num,
             'categoria': row.get('CATEGORIA', ''),
             'multiple': es_multiple
         })
@@ -688,6 +719,32 @@ def iniciar_evaluacion():
             candidato_db.acepta_terminos = bool(acepta_terminos)
             db.session.commit()
 
+        # Generar orden aleatorio de preguntas agrupadas por nivel
+        global PREGUNTAS
+        PREGUNTAS = cargar_preguntas_desde_excel()
+        preguntas_por_nivel = {}
+        for p in PREGUNTAS:
+            nivel = p.get("nivel", 1)
+            preguntas_por_nivel.setdefault(nivel, []).append(p["id"])
+        orden_preguntas = []
+        adaptativo = sum(len(ids) for ids in preguntas_por_nivel.values()) >= 40
+        if adaptativo:
+            # Seleccionar 8 aleatorias por nivel y mezclar
+            for nivel in sorted(preguntas_por_nivel.keys()):
+                ids = preguntas_por_nivel[nivel]
+                seleccionadas = random.sample(ids, min(8, len(ids)))
+                random.shuffle(seleccionadas)
+                orden_preguntas.extend(seleccionadas)
+        else:
+            # Secuencial, todas las preguntas por nivel en orden
+            for nivel in sorted(preguntas_por_nivel.keys()):
+                ids = preguntas_por_nivel[nivel]
+                orden_preguntas.extend(ids)
+        candidato_actual["orden_preguntas"] = orden_preguntas
+        candidato_actual["adaptativo"] = adaptativo
+        candidato_actual["nivel_actual"] = 1
+        candidato_actual["correctas_nivel"] = 0
+        candidato_actual["preguntas_nivel"] = 0
         logger.info(f"Evaluación iniciada para: {candidato_encontrado['nombre_completo']}")
         return jsonify({"mensaje": "Evaluación iniciada correctamente"})
     else:
@@ -705,50 +762,22 @@ def obtener_pregunta():
         return jsonify({"error": "Evaluación no iniciada"}), 400
     
     preguntas_mostradas = candidato_actual.get("preguntas_mostradas", [])
-    
-    # Verificar si ya terminó
-    if (len(preguntas_mostradas) >= Config.TOTAL_PREGUNTAS or 
-        candidato_actual.get("evaluacion_completa", False) or
-        candidato_actual.get("terminacion_temprana", False)):
-        return jsonify({"error": "Evaluación completada"})
-    
-    nivel_candidato_actual = candidato_actual.get("nivel", 1)
-    pregunta_numero = len(preguntas_mostradas) + 1
-    
-    # Determinar nivel de pregunta según progreso
-    nivel_busqueda = _determinar_nivel_pregunta(pregunta_numero, nivel_candidato_actual)
-    
-    # Buscar preguntas disponibles
-    preguntas_disponibles = [
-        p for p in PREGUNTAS 
-        if p["id"] not in preguntas_mostradas and p["nivel"] == nivel_busqueda
-    ]
-    
-    # Fallback si no hay preguntas del nivel buscado
-    if not preguntas_disponibles:
-        preguntas_disponibles = _buscar_pregunta_fallback(preguntas_mostradas, nivel_busqueda)
-    
-    if not preguntas_disponibles:
+    orden_preguntas = candidato_actual.get("orden_preguntas", [])
+    adaptativo = candidato_actual.get("adaptativo", False)
+    nivel_actual = candidato_actual.get("nivel_actual", 1)
+    pregunta_numero = len(preguntas_mostradas)
+    if pregunta_numero >= len(orden_preguntas):
         candidato_actual["evaluacion_completa"] = True
         return jsonify({"error": "No hay más preguntas disponibles"})
-    
-    # Seleccionar pregunta aleatoria
-    pregunta_seleccionada = random.choice(preguntas_disponibles)
+    pregunta_id = orden_preguntas[pregunta_numero]
+    pregunta_seleccionada = next((p for p in PREGUNTAS if p["id"] == pregunta_id), None)
+    if not pregunta_seleccionada:
+        candidato_actual["evaluacion_completa"] = True
+        return jsonify({"error": "No hay más preguntas disponibles"})
     candidato_actual["preguntas_mostradas"].append(pregunta_seleccionada["id"])
-    
-    logger.debug(f"Pregunta {pregunta_numero}: ID {pregunta_seleccionada['id']}, Nivel {pregunta_seleccionada['nivel']}")
-    # Log informativo de la pregunta enviada al cliente
-    try:
-        opciones_fmt = " | ".join([f"{chr(65+i)}) {opt}" for i, opt in enumerate(pregunta_seleccionada.get("opciones", []))])
-        texto_trunc = str(pregunta_seleccionada.get("pregunta", ""))[:160]
-        logger.info(
-            "ENVIANDO PREGUNTA %s/%s -> ID=%s Nivel=%s Texto='%s' Opciones=[%s]",
-            pregunta_numero, Config.TOTAL_PREGUNTAS, pregunta_seleccionada.get("id"),
-            pregunta_seleccionada.get("nivel"), texto_trunc, opciones_fmt
-        )
-    except Exception as _e:
-        logger.debug(f"No se pudo formatear log de pregunta: {_e}")
-    
+    candidato_actual["pregunta_actual_nivel"] = pregunta_seleccionada.get("nivel", 1)
+    # ...existing code...
+
     return jsonify({
         "id": pregunta_seleccionada["id"],
         "pregunta": pregunta_seleccionada["pregunta"],
@@ -785,13 +814,14 @@ def _actualizar_candidato_final():
     if codigo and codigo in candidatos_registrados:
         candidatos_registrados[codigo]["evaluacion_completada"] = True
         candidatos_registrados[codigo]["puntos_finales"] = candidato_actual.get("puntos", 0)
-        candidatos_registrados[codigo]["nivel_final"] = candidato_actual.get("nivel", 1)
+        # Guardar el nivel final alcanzado
+        nivel_final = candidato_actual.get("nivel_actual", 1)
+        candidatos_registrados[codigo]["nivel_final"] = nivel_final
 
 # ===== GENERADOR DE PDF =====
 @app.route('/generar_pdf_final', methods=['POST'])
 @handle_errors
 def generar_pdf_final():
-    """Genera el PDF final de la evaluación y lo envía a Google Drive"""
     global candidato_actual
     global candidato_actual, candidatos_registrados
     codigo = candidato_actual.get("datos_personales", {}).get("codigo")
@@ -801,10 +831,12 @@ def generar_pdf_final():
     candidato_actual["evaluacion_completa"] = True
     if codigo in candidatos_registrados:
         candidatos_registrados[codigo]["evaluacion_completada"] = True
+        candidatos_registrados[codigo]["nivel_final"] = candidato_actual.get("nivel_actual", 1)
     # Marcar como completada en la base de datos
     candidato_db = CandidatoDB.query.filter_by(codigo=codigo).first()
     if candidato_db:
         candidato_db.evaluacion_completada = True
+        candidato_db.nivel_final = candidato_actual.get("nivel_actual", 1)
         db.session.commit()
     if not candidato_actual:
         return jsonify({"error": "No hay evaluación activa"}), 400

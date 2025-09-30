@@ -68,6 +68,53 @@ Empresa/
 4. **Procesamiento:** El sistema evalúa respuestas, calcula puntos y determina avance de nivel.
 5. **Finalización:** Generación automática de reporte y visualización de resultados.
 
+### 2.4 Estructura Requerida del Archivo Excel para Evaluaciones
+
+Para que el sistema cargue correctamente una prueba, el archivo Excel debe cumplir con la siguiente estructura:
+
+| Columna                | Descripción                                                                                   | Ejemplo                                    |
+|------------------------|----------------------------------------------------------------------------------------------|--------------------------------------------|
+| NUM                    | Identificador único de la pregunta (numérico, sin repetir)                                   | 101                                        |
+| TIPO DE PREGUNTA       | Tipo de pregunta: "Selección Multiple" o "Selección Única"                                   | Selección Multiple                         |
+| PREGUNTA               | Texto de la pregunta                                                                         | ¿Qué es un firewall?                       |
+| A                      | Opción A                                                                                     | Un dispositivo de red                      |
+| B                      | Opción B                                                                                     | Un software de oficina                     |
+| C                      | Opción C                                                                                     | Un protocolo de enrutamiento               |
+| D                      | Opción D                                                                                     | Un sistema operativo                       |
+| RESPUESTA CORRECTA 1   | Letra de la opción correcta principal (A, B, C o D)                                          | A                                          |
+| RESPUESTA CORRECTA 2   | (Opcional) Letra de la segunda opción correcta (solo para selección múltiple)                | C                                          |
+| IMAGEN                 | (Opcional) Ruta o nombre de imagen asociada                                                  | imagen1.png                                |
+| CATEGORIA              | Categoría o área de la pregunta                                                              | Seguridad                                  |
+| NIVEL                  | Nivel de dificultad (1, 2, 3, 4, 5) SOLO el número, sin texto adicional                      | 1                                          |
+
+**Notas importantes:**
+- El archivo debe tener al menos 20 preguntas por cada nivel (1 a 5) para asegurar variedad y adaptatividad.
+- Solo se cargarán preguntas que tengan opciones A y B (y preferiblemente C y D).
+- Las preguntas abiertas (sin opciones A-D) no serán tomadas en cuenta.
+- El campo NIVEL debe contener solo el número del nivel (ejemplo: 1, 2, 3, 4, 5).
+- Las respuestas correctas deben ser letras (A, B, C, D) y coincidir con las opciones dadas.
+- Si el archivo tiene menos de 40 preguntas, el sistema presentará todas en orden de nivel, sin adaptatividad.
+
+---
+
+## 2.5 Ejemplo de Archivo Excel Válido
+
+| NUM | TIPO DE PREGUNTA   | PREGUNTA                      | A                    | B                   | C                        | D                  | RESPUESTA CORRECTA 1 | RESPUESTA CORRECTA 2 | IMAGEN | CATEGORIA | NIVEL |
+|-----|--------------------|-------------------------------|----------------------|---------------------|--------------------------|--------------------|----------------------|----------------------|--------|-----------|-------|
+| 101 | Selección Multiple | ¿Qué es un firewall?          | Dispositivo de red   | Software de oficina | Protocolo de enrutamiento| Sistema operativo  | A                    |                      |        | Seguridad | 1     |
+| 102 | Selección Única    | ¿Qué es una IP pública?       | Dirección privada    | Dirección pública   |                          |                    | B                    |                      |        | Redes     | 1     |
+| 103 | Selección Multiple | ¿Qué protocolos usa TCP/IP?   | TCP                  | UDP                 | HTTP                     | FTP                | A                    | B                    |        | Redes     | 2     |
+
+---
+
+## 2.6 Lógica Adaptativa y Reglas de Evaluación
+
+- El sistema selecciona 8 preguntas aleatorias por nivel si el Excel tiene al menos 40 preguntas (20 por nivel recomendado).
+- El candidato avanza al siguiente nivel si responde al menos 5 de 8 preguntas correctas; nunca regresa a niveles anteriores.
+- Si el Excel tiene menos de 40 preguntas, se presentan todas en orden de nivel, sin lógica adaptativa.
+- Cada pregunta correcta suma 1 punto; en preguntas múltiples, 1 punto si responde todas bien, 0.5 si responde solo una.
+- El nivel final alcanzado se guarda correctamente en la base de datos y en el PDF de resultados.
+
 ---
 
 ## 3. DESARROLLO PASO A PASO
@@ -211,6 +258,46 @@ python pdf_generator.py
 - El archivo Excel debe estar en el directorio raíz.
 - Puerto por defecto: 5000
 - Modo debug habilitado para desarrollo.
+
+### 7.4 Requerimientos para el Despliegue de la Aplicación
+
+Para que la empresa pueda desplegar y operar el sistema de evaluación, se recomienda lo siguiente:
+
+### Requerimientos Técnicos
+
+- **Plataforma recomendada:**
+  - Preferiblemente desplegar en Microsoft Azure (App Service, VM o Container Instance)
+
+- **Servidor o máquina virtual con:**
+  - 8 GB de RAM
+  - Procesador de 4 núcleos
+  - Python 3.8 o superior instalado
+  - Sistema operativo Windows 10/11, Linux o macOS
+  - Al menos 10 GB de espacio libre en disco
+  - Acceso a red local o Internet para los usuarios
+
+- **Dependencias Python:**
+  - Flask
+  - pandas
+  - openpyxl
+  - xlrd
+  - fpdf2 (para reportes PDF)
+  - (Opcional) gunicorn o waitress para despliegue en producción
+
+- **Navegador web moderno** (Chrome, Firefox, Edge)
+
+### Requerimientos de Configuración
+
+- El archivo Excel de preguntas debe estar en la carpeta `/temas` del proyecto y cumplir la estructura indicada.
+- Configurar el archivo de tema activo desde el panel de administración.
+- Definir el puerto de escucha (por defecto 5000) y asegurarse de que esté libre.
+- (Opcional) Configurar backup automático de archivos Excel y reportes PDF.
+
+### Requerimientos de Seguridad y Acceso
+
+- Acceso restringido al panel de administración mediante usuario y contraseña.
+- Realizar backups periódicos de la carpeta `/temas` y de los reportes generados.
+- Mantener actualizado el entorno Python y las dependencias.
 
 ---
 
