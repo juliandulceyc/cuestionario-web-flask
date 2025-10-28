@@ -48,6 +48,214 @@ document.addEventListener('DOMContentLoaded', function() {
     var candidatoForm = document.getElementById('candidatoForm');
     var listaCandidatos = document.getElementById('candidatos-lista');
     var addCandidateBtn = document.querySelector('.add-candidate-btn');
+    
+    // ===== FUNCIONES DE FILTRADO PARA RESULTADOS DE EVALUACIONES =====
+    window.aplicarFiltrosResultados = function() {
+        var filtroNombre = document.getElementById('filtro-resultado-nombre');
+        var filtroCedula = document.getElementById('filtro-resultado-cedula');
+        var filtroEmail = document.getElementById('filtro-resultado-email');
+        var filtroTema = document.getElementById('filtro-resultado-tema');
+        var filtroEstado = document.getElementById('filtro-resultado-estado');
+        var filtroNivel = document.getElementById('filtro-resultado-nivel');
+        
+        if (!filtroNombre || !filtroCedula || !filtroEmail || !filtroTema || !filtroEstado || !filtroNivel) {
+            return;
+        }
+        
+        var valorNombre = filtroNombre.value.toLowerCase();
+        var valorCedula = filtroCedula.value.toLowerCase();
+        var valorEmail = filtroEmail.value.toLowerCase();
+        var valorTema = filtroTema.value.toLowerCase();
+        var valorEstado = filtroEstado.value;
+        var valorNivel = filtroNivel.value;
+        
+        var filas = document.querySelectorAll('.fila-resultado');
+        var contadorVisible = 0;
+        var contadorTotal = filas.length;
+        
+        filas.forEach(function(fila) {
+            var nombre = fila.getAttribute('data-nombre') || '';
+            var cedula = fila.getAttribute('data-cedula') || '';
+            var email = fila.getAttribute('data-email') || '';
+            var tema = fila.getAttribute('data-tema') || '';
+            var nivel = fila.getAttribute('data-nivel') || '';
+            var tieneResultado = fila.getAttribute('data-tiene-resultado') || 'no';
+            
+            var cumpleNombre = !valorNombre || nombre.includes(valorNombre);
+            var cumpleCedula = !valorCedula || cedula.includes(valorCedula);
+            var cumpleEmail = !valorEmail || email.includes(valorEmail);
+            var cumpleTema = !valorTema || tema.includes(valorTema);
+            var cumpleEstado = !valorEstado || tieneResultado === valorEstado;
+            var cumpleNivel = !valorNivel || nivel === valorNivel;
+            
+            // Mostrar todas las filas que cumplan los filtros
+            var mostrar = cumpleNombre && cumpleCedula && cumpleEmail && cumpleTema && cumpleEstado && cumpleNivel;
+            
+            if (mostrar) {
+                fila.style.display = '';
+                contadorVisible++;
+            } else {
+                fila.style.display = 'none';
+            }
+        });
+        
+        // Actualizar contador
+        var contadorDiv = document.getElementById('contador-resultados');
+        if (contadorDiv) {
+            if (contadorVisible === contadorTotal) {
+                contadorDiv.textContent = '📊 Mostrando todos los resultados (' + contadorTotal + ')';
+            } else {
+                contadorDiv.textContent = '📊 Mostrando ' + contadorVisible + ' de ' + contadorTotal + ' resultados';
+            }
+        }
+    };
+    
+    window.limpiarFiltrosResultados = function() {
+        var filtros = [
+            'filtro-resultado-nombre',
+            'filtro-resultado-cedula',
+            'filtro-resultado-email',
+            'filtro-resultado-tema',
+            'filtro-resultado-estado',
+            'filtro-resultado-nivel'
+        ];
+        
+        filtros.forEach(function(id) {
+            var elemento = document.getElementById(id);
+            if (elemento) {
+                elemento.value = '';
+            }
+        });
+        
+        aplicarFiltrosResultados();
+    };
+    
+    // Aplicar filtros en tiempo real para resultados
+    var filtrosResultados = [
+        'filtro-resultado-nombre',
+        'filtro-resultado-cedula',
+        'filtro-resultado-email',
+        'filtro-resultado-tema',
+        'filtro-resultado-estado',
+        'filtro-resultado-nivel'
+    ];
+    
+    filtrosResultados.forEach(function(id) {
+        var elemento = document.getElementById(id);
+        if (elemento) {
+            elemento.addEventListener('input', aplicarFiltrosResultados);
+            elemento.addEventListener('change', aplicarFiltrosResultados);
+        }
+    });
+    
+    // Inicializar contador al cargar la página
+    setTimeout(function() {
+        if (typeof aplicarFiltrosResultados === 'function') {
+            aplicarFiltrosResultados();
+        }
+    }, 500);
+    
+    // ===== FUNCIONES DE FILTRADO  =====
+    
+    // ===== FUNCIÓN DE ELIMINACIÓN EN TIEMPO REAL =====
+    window.eliminarCandidato = function(codigo, botonElement) {
+        if (!confirm('¿Estás seguro de que deseas eliminar este candidato?\n\nEsta acción no se puede deshacer.')) {
+            return;
+        }
+        
+        // Deshabilitar el botón mientras se procesa
+        botonElement.disabled = true;
+        botonElement.textContent = '⏳ Eliminando...';
+        
+        fetch('/admin/eliminar_candidato', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ codigo: codigo })
+        })
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error('Error HTTP: ' + response.status);
+            }
+            return response.json();
+        })
+        .then(function(data) {
+            if (data.success) {
+                // Encontrar y eliminar la card del candidato con animación
+                var cardElement = botonElement.closest('.candidato-card');
+                if (cardElement) {
+                    cardElement.style.transition = 'opacity 0.3s, transform 0.3s';
+                    cardElement.style.opacity = '0';
+                    cardElement.style.transform = 'scale(0.9)';
+                    
+                    setTimeout(function() {
+                        cardElement.remove();
+                        
+                        // Mostrar mensaje de éxito
+                        mostrarMensajeFlotante('✅ Candidato eliminado exitosamente', 'success');
+                        
+                        // Verificar si quedan candidatos
+                        var candidatosRestantes = document.querySelectorAll('.candidato-card');
+                        if (candidatosRestantes.length === 0) {
+                            var mensajeVacio = document.createElement('div');
+                            mensajeVacio.style.cssText = 'text-align:center;padding:40px;color:#999;font-size:18px;';
+                            mensajeVacio.innerHTML = '<p>📭 No hay candidatos registrados</p>';
+                            listaCandidatos.appendChild(mensajeVacio);
+                        }
+                    }, 300);
+                }
+            } else {
+                throw new Error(data.error || 'Error desconocido al eliminar');
+            }
+        })
+        .catch(function(error) {
+            console.error('Error:', error);
+            mostrarMensajeFlotante('❌ Error al eliminar candidato: ' + error.message, 'error');
+            botonElement.disabled = false;
+            botonElement.textContent = '🗑️ Eliminar';
+        });
+    };
+    
+    // Función auxiliar para mostrar mensajes flotantes
+    function mostrarMensajeFlotante(mensaje, tipo) {
+        var div = document.createElement('div');
+        div.textContent = mensaje;
+        div.style.cssText = 'position:fixed;top:20px;right:20px;padding:15px 25px;border-radius:8px;' +
+                           'font-weight:bold;z-index:10000;box-shadow:0 4px 12px rgba(0,0,0,0.15);' +
+                           'animation:slideIn 0.3s ease-out;';
+        
+        if (tipo === 'success') {
+            div.style.backgroundColor = '#d4edda';
+            div.style.color = '#155724';
+            div.style.border = '2px solid #c3e6cb';
+        } else {
+            div.style.backgroundColor = '#f8d7da';
+            div.style.color = '#721c24';
+            div.style.border = '2px solid #f5c6cb';
+        }
+        
+        document.body.appendChild(div);
+        
+        setTimeout(function() {
+            div.style.animation = 'slideOut 0.3s ease-in';
+            setTimeout(function() {
+                div.remove();
+            }, 300);
+        }, 3000);
+    }
+    
+    // Agregar estilos de animación
+    var style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(400px); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(style);
 
     // Inicializar
     init();
@@ -320,8 +528,11 @@ document.addEventListener('DOMContentLoaded', function() {
             html += '<div class="candidato-card">';
             html += '  <div class="candidato-info">';
             html += '    <h3>' + escapeHtml(candidato.nombre_completo) + '</h3>';
+            if (candidato.tipo_documento && candidato.numero_documento) {
+                html += '    <p>🆔 ' + escapeHtml(candidato.tipo_documento) + ': ' + escapeHtml(candidato.numero_documento) + '</p>';
+            }
             html += '    <p>📧 ' + escapeHtml(candidato.email) + '</p>';
-            html += '    <p>🔑 ' + escapeHtml(candidato.codigo) + '</p>';
+            html += '    <p>🔑 Código: ' + escapeHtml(candidato.codigo) + '</p>';
             html += '    <p>👔 ' + escapeHtml(candidato.cargo || 'N/A') + '</p>';
             if (candidato.telefono && candidato.telefono !== 'N/A') {
                 html += '    <p>📞 ' + escapeHtml(candidato.telefono) + '</p>';
@@ -335,8 +546,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 html += '<a href="' + (candidato.url_evaluacion || '#') + '" target="_blank" class="eval-link" style="background:#28a745;color:white;padding:4px 10px;border-radius:5px;text-decoration:none;display:inline-block;">🔗 Abrir Evaluación</a>';
                 html += '</div>';
             }
-            // Botón eliminar disponible para todos los candidatos
+            // Acciones: editar y eliminar
+            html += '<div style="margin-top:8px;display:flex;gap:8px;">';
+            html += '<button type="button" class="edit-btn"' +
+                    ' data-codigo="' + (candidato.codigo || '') + '"' +
+                    ' data-tipo-documento="' + (candidato.tipo_documento || '') + '"' +
+                    ' data-numero-documento="' + (candidato.numero_documento || '') + '"' +
+                    ' data-nombre-completo="' + (candidato.nombre_completo || '') + '"' +
+                    ' data-email="' + (candidato.email || '') + '"' +
+                    ' data-telefono="' + (candidato.telefono || '') + '"' +
+                    ' data-cargo="' + (candidato.cargo || '') + '"' +
+                    ' style="background:#6c757d;color:white;padding:4px 10px;border-radius:5px;border:none;cursor:pointer;">✏️ Editar</button>';
             html += '<button type="button" class="delete-btn" data-codigo="' + candidato.codigo + '" style="background:#dc3545;color:white;padding:4px 10px;border-radius:5px;border:none;cursor:pointer;">🗑️ Eliminar</button>';
+            html += '</div>';
             html += '  </div>';
             html += '</div>';
         });
@@ -384,6 +606,25 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 };
             });
+            // Evento para editar candidato
+            document.querySelectorAll('.edit-btn').forEach(function(btn) {
+                btn.onclick = function() {
+                    var c = {
+                        codigo: btn.getAttribute('data-codigo') || '',
+                        tipo_documento: btn.getAttribute('data-tipo-documento') || '',
+                        numero_documento: btn.getAttribute('data-numero-documento') || '',
+                        nombre_completo: btn.getAttribute('data-nombre-completo') || '',
+                        email: btn.getAttribute('data-email') || '',
+                        telefono: btn.getAttribute('data-telefono') || '',
+                        cargo: btn.getAttribute('data-cargo') || ''
+                    };
+                    if (window.abrirEditarCandidato) {
+                        window.abrirEditarCandidato(c);
+                    } else if (window.abrirEditarCandidatoDesdeBoton) {
+                        window.abrirEditarCandidatoDesdeBoton(btn);
+                    }
+                };
+            });
         // El enlace <a> ya navega por sí solo, no necesita evento JS
         }, 100);
     }
@@ -400,6 +641,16 @@ document.addEventListener('DOMContentLoaded', function() {
             "'": '&#039;'
         };
         return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    }
+    // Escapar valores para atributos HTML (incluye comillas)
+    function escapeAttr(text) {
+        if (!text && text !== 0) return '';
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
     }
 
     function mostrarNotificacion(mensaje, tipo) {
@@ -490,7 +741,7 @@ document.addEventListener('DOMContentLoaded', function() {
             var formStatus = document.getElementById('form-status');
             if (formStatus) {
                 formStatus.textContent = message;
-                setTimeout(() => {
+                setTimeout(function() {
                     formStatus.textContent = '';
                 }, 3000);
             }

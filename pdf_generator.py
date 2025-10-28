@@ -122,7 +122,8 @@ class PDFGenerator:
         correctas = len([r for r in respuestas if r.get('correcta', False)])
         porcentaje = (correctas / max(total_preguntas, 1)) * 100
         puntos_totales = evaluacion_data.get('puntos', 0)
-        nivel_final = evaluacion_data.get('nivel', 1)
+        # Determinar nivel final correctamente; usa nivel_final si existe, o nivel_actual
+        nivel_final = evaluacion_data.get('nivel_final', evaluacion_data.get('nivel_actual', 1))
         
         # Determinar calificación
         if porcentaje >= 90:
@@ -167,7 +168,7 @@ class PDFGenerator:
         return elementos
     
     def _crear_detalle_niveles(self, evaluacion_data: Dict[str, Any], styles) -> List:
-        """Crea detalle de rendimiento por nivel"""
+        """Crea detalle de rendimiento por nivel y preguntas fallidas"""
         elementos = []
         
         elementos.append(Paragraph("RENDIMIENTO POR NIVELES", styles['Heading2']))
@@ -178,7 +179,7 @@ class PDFGenerator:
         # Agrupar respuestas por nivel
         respuestas_por_nivel = {}
         for respuesta in respuestas:
-            nivel = respuesta.get('nivel_pregunta', 1)
+            nivel = respuesta.get('nivel', 1)
             if nivel not in respuestas_por_nivel:
                 respuestas_por_nivel[nivel] = []
             respuestas_por_nivel[nivel].append(respuesta)
@@ -194,59 +195,46 @@ class PDFGenerator:
             elementos.append(Paragraph(nivel_text, styles['Heading3']))
             elementos.append(Spacer(1, 10))
         
+        # AGREGAR SECCIÓN DE PREGUNTAS FALLIDAS
+        elementos.append(Spacer(1, 20))
+        elementos.append(Paragraph("DETALLE DE PREGUNTAS INCORRECTAS", styles['Heading2']))
+        elementos.append(Spacer(1, 15))
+        
+        preguntas_fallidas = [r for r in respuestas if not r.get('correcta', False)]
+        
+        if preguntas_fallidas:
+            for idx, respuesta in enumerate(preguntas_fallidas, 1):
+                # Pregunta fallida
+                pregunta_text = f"<b>{idx}. {respuesta.get('pregunta', 'N/A')}</b>"
+                elementos.append(Paragraph(pregunta_text, styles['Normal']))
+                elementos.append(Spacer(1, 5))
+                
+                # Respuesta del usuario
+                respuestas_usuario = respuesta.get('respuestas', [])
+                resp_usuario_text = f"<i>Tu respuesta: {', '.join(respuestas_usuario)}</i>"
+                elementos.append(Paragraph(resp_usuario_text, styles['Normal']))
+                elementos.append(Spacer(1, 3))
+                
+                # Respuesta correcta
+                correctas = respuesta.get('correctas', [])
+                resp_correcta_text = f"<font color='green'>Respuesta correcta: {', '.join(correctas)}</font>"
+                elementos.append(Paragraph(resp_correcta_text, styles['Normal']))
+                elementos.append(Spacer(1, 3))
+                
+                # Nivel de la pregunta
+                nivel_pregunta = respuesta.get('nivel', 1)
+                nivel_text = f"Nivel: {nivel_pregunta}"
+                elementos.append(Paragraph(nivel_text, styles['Normal']))
+                elementos.append(Spacer(1, 15))
+        else:
+            elementos.append(Paragraph("¡Felicitaciones! No hay preguntas incorrectas.", styles['Normal']))
+            elementos.append(Spacer(1, 10))
+        
         return elementos
     
     def _crear_estadisticas_adicionales(self, evaluacion_data: Dict[str, Any], styles) -> List:
-        """Crea estadísticas adicionales"""
-        elementos = []
-        
-        elementos.append(Paragraph("INFORMACIÓN ADICIONAL", styles['Heading2']))
-        elementos.append(Spacer(1, 15))
-        
-        respuestas = evaluacion_data.get('respuestas', [])
-        
-        # Análisis por tipo de pregunta
-        multiples = [r for r in respuestas if r.get('multiple', False)]
-        simples = [r for r in respuestas if not r.get('multiple', False)]
-        
-        estadisticas = [
-            ['Preguntas Simples:', f"{len(simples)} respondidas"],
-            ['Preguntas Múltiples:', f"{len(multiples)} respondidas"],
-            ['Inicio Evaluación:', evaluacion_data.get('fecha_inicio', 'N/A')],
-            ['Estado Final:', 'COMPLETADA' if evaluacion_data.get('evaluacion_completa', False) else 'INCOMPLETA']
-        ]
-        
-        if evaluacion_data.get('terminacion_temprana', False):
-            estadisticas.append(['Terminación:', evaluacion_data.get('razon_terminacion', 'Temprana')])
-        
-        tabla_stats = Table(estadisticas, colWidths=[2.5*inch, 2*inch])
-        tabla_stats.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (0, -1), colors.lightyellow),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
-        ]))
-        
-        elementos.append(tabla_stats)
-        elementos.append(Spacer(1, 30))
-        # Sección de preguntas falladas
-        preguntas_falladas = [r for r in respuestas if not r.get('correcta', False)]
-        if preguntas_falladas:
-            elementos.append(Paragraph("PREGUNTAS FALLADAS", styles['Heading2']))
-            elementos.append(Spacer(1, 10))
-            for idx, r in enumerate(preguntas_falladas, 1):
-                pregunta_txt = r.get('pregunta', 'Pregunta no disponible')
-                respuesta_correcta = ', '.join(r.get('respuestas_correctas', []))
-                respuesta_usuario = r.get('respuesta', '')
-                elementos.append(Paragraph(f"<b>{idx}.</b> {pregunta_txt}", styles['Normal']))
-                elementos.append(Paragraph(f"<b>Respuesta correcta:</b> {respuesta_correcta}", styles['Normal']))
-                elementos.append(Paragraph(f"<b>Respuesta dada:</b> {respuesta_usuario}", styles['Normal']))
-                elementos.append(Spacer(1, 8))
-            elementos.append(Spacer(1, 20))
-        return elementos
+        """Se omite la sección de 'INFORMACIÓN ADICIONAL' a solicitud; devuelve lista vacía."""
+        return []
     
     def _crear_pie_documento(self, styles) -> List:
         """Crea pie del documento"""

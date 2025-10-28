@@ -1,4 +1,4 @@
-from flask import Flask, abort, render_template, request, jsonify, redirect, url_for, session
+from flask import Flask, abort, render_template, request, jsonify, redirect, url_for, session, make_response
 from flask_sqlalchemy import SQLAlchemy
 import os
 import re
@@ -6,11 +6,27 @@ import json
 import random
 import logging
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Tuple, Optional, Any
 import base64
 from dataclasses import dataclass
 from functools import wraps
+from dotenv import load_dotenv
+import secrets
+import smtplib
+from email.message import EmailMessage
+
+# Cargar variables de entorno
+load_dotenv()
+
+# Importar módulo de seguridad
+from security import (
+    SecurityManager, 
+    token_requerido, 
+    aplicar_headers_seguridad,
+    validar_entrada,
+    sanitizar_entrada
+)
 
 # ===== INICIALIZACIÓN DE FLASK =====
 app = Flask(__name__)
@@ -68,12 +84,31 @@ class Config:
     # Credenciales admin (en producción usar variables de entorno)
     ADMIN_USER = os.getenv('ADMIN_USER', 'admin')
     ADMIN_PASS = os.getenv('ADMIN_PASS', '123456')
+    ADMIN_EMAIL = os.getenv('ADMIN_EMAIL')  # Email del administrador para recuperación
+
+    # Config SMTP
+    # SMTP: limpiar espacios accidentales para evitar fallos de autenticación
+    EMAIL_HOST = (os.getenv('EMAIL_HOST') or '').strip() or None
+    EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587')) if os.getenv('EMAIL_PORT') else None
+    EMAIL_USER = (os.getenv('EMAIL_USER') or '').strip() or None
+    EMAIL_PASSWORD = (os.getenv('EMAIL_PASSWORD') or '').strip() or None
+    EMAIL_FROM = (os.getenv('EMAIL_FROM') or EMAIL_USER or '').strip() or None
+    
+    # Firma de correos (personalizable por variables de entorno)
+    SIGN_NAME = os.getenv('SIGN_NAME', 'Yeivi Julieth Peinado H.')
+    SIGN_TITLE = os.getenv('SIGN_TITLE', 'Gerente de Servicios Ciberseguridad')
+    SIGN_PHONE = os.getenv('SIGN_PHONE', '+57 3013407054')
+    SIGN_LOCATION = os.getenv('SIGN_LOCATION', 'Bogotá, Colombia')
+    SIGN_WEBSITE = os.getenv('SIGN_WEBSITE', 'https://www.axity.com')
+    # URL pública de una imagen/banner de firma (opcional). Si está vacía no se mostrará imagen.
+    SIGN_BANNER_URL = (os.getenv('SIGN_BANNER_URL') or '').strip()
     
     # Configuración de evaluación
     EVALUACION_CONFIG = {
         "total_preguntas": 40,
         "evaluacion_cada": 5,
-        "min_correctas_avance": 3,
+        "min_correctas_avance": 5,  # Se necesitan 5 correctas para avanzar
+        "preguntas_por_nivel": 8,   # 8 preguntas por nivel
         "distribucion_niveles": {
             "nivel_1": {"preguntas": "1-10", "descripcion": "Básico"},
             "nivel_2": {"preguntas": "11-12", "descripcion": "Transición"},  
@@ -84,6 +119,7 @@ class Config:
         "niveles_maximos": 5,
         "preguntas_nivel_1": 10,
         "min_correctas_nivel_1": 6,
+        "limite_preguntas_total": 40,
         "terminacion_temprana": {
             "errores_consecutivos": 5,
             "porcentaje_minimo_mitad": 40
@@ -149,11 +185,25 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://empresa_user:qwerty@localh
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
+# Modelo de Usuario (admins del sistema)
+class UserDB(db.Model):
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(200), nullable=False)
+    role = db.Column(db.String(20), default='admin')
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 # Modelo de Candidato
 class CandidatoDB(db.Model):
     __tablename__ = 'candidatos'
     id = db.Column(db.Integer, primary_key=True)
     codigo = db.Column(db.String(20), unique=True, nullable=False)
+    tipo_documento = db.Column(db.String(10))  # CC, TI, CE, PA, etc.
+    numero_documento = db.Column(db.String(50))  # Número del documento
     nombre_completo = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(120), nullable=False)
     telefono = db.Column(db.String(30))
@@ -178,6 +228,20 @@ class ResultadoDB(db.Model):
     nivel_final = db.Column(db.Integer)
     fecha_evaluacion = db.Column(db.DateTime)
     tema = db.Column(db.String(120))
+
+# Modelo para tokens de recuperación de contraseña (single-use)
+class RecoveryToken(db.Model):
+    __tablename__ = 'recovery_tokens'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    token = db.Column(db.String(128), unique=True, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user = db.relationship('UserDB')
+
+    def is_expired(self) -> bool:
+        return datetime.utcnow() >= self.expires_at
 
 # ===== VARIABLES GLOBALES =====
 candidatos_registrados: Dict[str, Dict[str, Any]] = {}
@@ -256,6 +320,67 @@ def eliminar_candidato():
         logger.error(f'Error inesperado en eliminar_candidato: {e}')
         return jsonify({'error': f'Error inesperado: {str(e)}'}), 500
 
+# ===== ENDPOINT ACTUALIZAR CANDIDATO =====
+@app.route('/admin/actualizar_candidato', methods=['POST'])
+@admin_required
+@handle_errors
+def actualizar_candidato():
+    try:
+        data = request.get_json(force=True)
+        codigo = (data.get('codigo') or '').strip()
+        if not codigo:
+            return jsonify({'error': 'Código requerido'}), 400
+
+        candidato_db = CandidatoDB.query.filter_by(codigo=codigo).first()
+        if not candidato_db:
+            return jsonify({'error': 'Candidato no encontrado'}), 404
+
+        # Campos permitidos para actualización
+        campos = {
+            'tipo_documento': str,
+            'numero_documento': str,
+            'nombre_completo': str,
+            'email': str,
+            'telefono': str,
+            'cargo': str,
+        }
+
+        # Validación básica
+        email = (data.get('email') or '').strip()
+        if email:
+            ok, err = validar_email_simple(email)
+            if not ok:
+                return jsonify({'error': f'Email inválido: {err}'}), 400
+
+        # Aplicar cambios
+        for campo, tipo in campos.items():
+            if campo in data and data[campo] is not None:
+                valor = data[campo]
+                if isinstance(valor, str):
+                    valor = valor.strip()
+                setattr(candidato_db, campo, valor)
+
+        db.session.commit()
+
+        logger.info(f"Candidato actualizado: {codigo}")
+        return jsonify({
+            'success': True,
+            'candidato': {
+                'codigo': candidato_db.codigo,
+                'tipo_documento': getattr(candidato_db, 'tipo_documento', ''),
+                'numero_documento': getattr(candidato_db, 'numero_documento', ''),
+                'nombre_completo': candidato_db.nombre_completo,
+                'email': candidato_db.email,
+                'telefono': getattr(candidato_db, 'telefono', ''),
+                'cargo': getattr(candidato_db, 'cargo', ''),
+                'evaluacion_completada': getattr(candidato_db, 'evaluacion_completada', False)
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error actualizando candidato: {e}")
+        db.session.rollback()
+        return jsonify({'error': f'Error inesperado: {str(e)}'}), 500
+
 # ===== ENDPOINT ELIMINAR ARCHIVO EXCEL DE TEMA =====
 @app.route('/admin/eliminar_tema', methods=['POST'])
 @admin_required
@@ -319,19 +444,45 @@ class EvaluadorRespuestas:
 @handle_errors
 def responder():
     global candidato_actual
+    
+    if not candidato_actual:
+        return jsonify({"error": "No hay evaluación activa"}), 400
+    
     data = request.get_json()
-    pregunta_numero = len(candidato_actual.get("preguntas_mostradas", [])) - 1
-    orden_preguntas = candidato_actual.get("orden_preguntas", [])
-    # Usar el índice actual para obtener el ID y la pregunta
-    if 0 <= pregunta_numero < len(orden_preguntas):
-        pregunta_id = orden_preguntas[pregunta_numero]
-        pregunta = next((p for p in PREGUNTAS if p["id"] == pregunta_id), None)
-    else:
-        pregunta = None
-    respuestas_usuario = data.get("respuestas", [])
+    if not data:
+        return jsonify({"error": "Datos JSON requeridos"}), 400
+    
+    # Obtener la última pregunta mostrada
+    preguntas_mostradas = candidato_actual.get("preguntas_mostradas", [])
+    if not preguntas_mostradas:
+        return jsonify({"error": "No hay pregunta activa"}), 400
+    
+    # La última pregunta en la lista es la que se está respondiendo
+    pregunta_id = preguntas_mostradas[-1]
+    pregunta = next((p for p in PREGUNTAS if p["id"] == pregunta_id), None)
+    
     if not pregunta:
-        logger.error(f"Pregunta no encontrada. pregunta_numero={pregunta_numero}, orden_preguntas={orden_preguntas}")
+        logger.error(f"Pregunta no encontrada. pregunta_id={pregunta_id}")
         return jsonify({"error": "Pregunta no encontrada"}), 400
+    
+    # Obtener respuestas del usuario (compatibilidad con diferentes formatos del frontend)
+    respuestas_usuario = data.get("respuestas_seleccionadas", [])
+    
+    # Si no viene respuestas_seleccionadas, intentar otros campos
+    if not respuestas_usuario:
+        respuesta_letra = data.get("respuesta_letra", "")
+        if respuesta_letra:
+            # Si viene como string separado por comas, convertir a lista
+            respuestas_usuario = [r.strip() for r in respuesta_letra.split(",") if r.strip()]
+        else:
+            respuestas_usuario = data.get("respuestas", [])
+    
+    # Si viene como string, convertir a lista
+    if isinstance(respuestas_usuario, str):
+        respuestas_usuario = [respuestas_usuario]
+    
+    # Logging para debug
+    logger.info(f"Respuesta recibida - ID: {pregunta_id}, Respuestas: {respuestas_usuario}, Data: {data}")
     # Calcular puntaje
     puntaje = 0
     es_multiple = pregunta.get("multiple", False)
@@ -345,35 +496,115 @@ def responder():
         if respuestas_usuario and respuestas_usuario[0] in respuestas_correctas:
             puntaje = 1
     candidato_actual["puntos"] = candidato_actual.get("puntos", 0) + puntaje
+    
+    # Determinar si la respuesta es correcta (FIJACIÓN DEL CONTADOR)
+    es_correcta = puntaje >= 1.0  # Solo contar como correcta si obtuvo el puntaje completo
+    
     candidato_actual.setdefault("respuestas", []).append({
         "id": pregunta_id,
+        "pregunta": pregunta.get("pregunta", ""),
         "respuestas": respuestas_usuario,
         "correctas": respuestas_correctas,
         "puntaje": puntaje,
+        "correcta": es_correcta,  # ← AGREGAR CAMPO CORRECTA
         "nivel": pregunta.get("nivel", 1)
     })
     # Lógica adaptativa de avance de nivel
     adaptativo = candidato_actual.get("adaptativo", False)
     nivel_actual = candidato_actual.get("nivel_actual", 1)
+    
     if adaptativo:
+        # Solo contar si la pregunta es del nivel actual
         if pregunta.get("nivel", 1) == nivel_actual:
-            candidato_actual["preguntas_nivel"] += 1
-            if puntaje == 1:
-                candidato_actual["correctas_nivel"] += 1
-            # Si ya respondió 8 preguntas de este nivel
-            if candidato_actual["preguntas_nivel"] == 8:
-                if candidato_actual["correctas_nivel"] >= 5:
-                    candidato_actual["nivel_actual"] += 1
-                else:
-                    candidato_actual["evaluacion_completa"] = True
+            candidato_actual["preguntas_nivel"] = candidato_actual.get("preguntas_nivel", 0) + 1
+            if puntaje == 1:  # Respuesta completamente correcta
+                candidato_actual["correctas_nivel"] = candidato_actual.get("correctas_nivel", 0) + 1
+            
+            # Verificar si alcanzó las 5 correctas requeridas para avanzar
+            correctas_nivel = candidato_actual.get("correctas_nivel", 0)
+            preguntas_nivel = candidato_actual.get("preguntas_nivel", 0)
+            
+            if correctas_nivel >= 5:
+                # Avanzar al siguiente nivel
+                logger.info(f"Candidato avanzó de nivel {nivel_actual} a {nivel_actual + 1} con {correctas_nivel}/5 correctas en {preguntas_nivel} preguntas")
+                candidato_actual["nivel_actual"] += 1
                 candidato_actual["preguntas_nivel"] = 0
                 candidato_actual["correctas_nivel"] = 0
+                
+                # Si alcanzó el nivel máximo (5), completar evaluación
+                if candidato_actual["nivel_actual"] > 5:
+                    candidato_actual["evaluacion_completa"] = True
+                    logger.info(f"Evaluación completada - Candidato alcanzó nivel máximo (5)")
+                    
+            elif preguntas_nivel >= 8:
+                # Si completó 8 preguntas sin alcanzar 5 correctas, terminar evaluación
+                logger.warning(f"Evaluación terminada - Candidato obtuvo {correctas_nivel}/5 correctas en nivel {nivel_actual}")
+                candidato_actual["evaluacion_completa"] = True
+                candidato_actual["razon_finalizacion"] = f"No alcanzó el mínimo de 5 respuestas correctas en nivel {nivel_actual} ({correctas_nivel}/8 correctas)"
+                # Banderas para reportes y PDF
+                candidato_actual["terminacion_temprana"] = True
+                candidato_actual["razon_terminacion"] = candidato_actual["razon_finalizacion"]
+        else:
+            # Si por alguna razón se muestra una pregunta de otro nivel, no contar
+            logger.warning(f"Pregunta de nivel {pregunta.get('nivel', 1)} mostrada cuando el candidato está en nivel {nivel_actual}")
+    
+    # Verificar límite total de preguntas (40 preguntas máximo)
+    limite_total = Config.EVALUACION_CONFIG.get("limite_preguntas_total", 40)
+    if len(candidato_actual.get("preguntas_mostradas", [])) >= limite_total:
+        candidato_actual["evaluacion_completa"] = True
+        candidato_actual["razon_finalizacion"] = f"Límite de {limite_total} preguntas alcanzado"
     # Determinar si hay más preguntas
     preguntas_mostradas = candidato_actual.get("preguntas_mostradas", [])
     total_preguntas = Config.TOTAL_PREGUNTAS
-    hay_mas = len(preguntas_mostradas) < total_preguntas
+    # Si la evaluación fue marcada como completa por cualquier razón, no hay más preguntas
+    hay_mas = (not candidato_actual.get("evaluacion_completa", False)) and (len(preguntas_mostradas) < total_preguntas)
 
-    return jsonify({"success": True, "hay_mas": hay_mas})
+    # Información adicional para el frontend
+    info_nivel = {}
+    if adaptativo:
+        info_nivel = {
+            "nivel_actual": candidato_actual.get("nivel_actual", 1),
+            "preguntas_respondidas_nivel": candidato_actual.get("preguntas_nivel", 0),
+            "correctas_nivel": candidato_actual.get("correctas_nivel", 0),
+            "evaluacion_completa": candidato_actual.get("evaluacion_completa", False)
+        }
+
+    return jsonify({
+        "success": True, 
+        "hay_mas": hay_mas,
+        "info_nivel": info_nivel,
+        "puntaje": puntaje,
+        "es_correcta": puntaje > 0
+    })
+@app.route('/estado_evaluacion')
+@handle_errors
+def estado_evaluacion():
+    """Obtiene el estado actual de la evaluación"""
+    if not candidato_actual:
+        return jsonify({"error": "No hay evaluación activa"}), 400
+    
+    adaptativo = candidato_actual.get("adaptativo", False)
+    
+    estado = {
+        "candidato": candidato_actual.get("datos_personales", {}),
+        "preguntas_respondidas": len(candidato_actual.get("preguntas_mostradas", [])),
+        "total_preguntas": Config.TOTAL_PREGUNTAS,
+        "puntos_totales": candidato_actual.get("puntos", 0),
+        "evaluacion_completa": candidato_actual.get("evaluacion_completa", False),
+        "adaptativo": adaptativo
+    }
+    
+    if adaptativo:
+        estado.update({
+            "nivel_actual": candidato_actual.get("nivel_actual", 1),
+            "preguntas_nivel_actual": candidato_actual.get("preguntas_nivel", 0),
+            "correctas_nivel_actual": candidato_actual.get("correctas_nivel", 0),
+            "necesitas_para_avanzar": max(0, 5 - candidato_actual.get("correctas_nivel", 0)),
+            "preguntas_restantes_nivel": max(0, 8 - candidato_actual.get("preguntas_nivel", 0))
+        })
+    
+    return jsonify(estado)
+
 # Endpoint para listar archivos Excel disponibles
 @app.route('/temas/', methods=['GET'])
 def listar_archivos_temas():
@@ -502,6 +733,12 @@ def cargar_preguntas_desde_excel():
 
 @app.route('/')
 def home():
+    # Si no hay usuarios, iniciar flujo de primer usuario
+    try:
+        if UserDB.query.count() == 0:
+            return redirect(url_for('first_run_register'))
+    except Exception:
+        pass
     return redirect(url_for('admin_login'))
 
 @app.route('/admin/login')
@@ -514,13 +751,295 @@ def admin_authenticate():
     username = request.form.get('username')
     password = request.form.get('password')
     
-    if username == Config.ADMIN_USER and password == Config.ADMIN_PASS:
+    # 1) Intentar con usuarios en BD
+    user = UserDB.query.filter((UserDB.username==username)).first()
+    if user and user.is_active and SecurityManager.verificar_password(password, user.password_hash):
         session['admin_logged_in'] = True
-        logger.info(f"Admin login exitoso: {username}")
+        session['admin_username'] = user.username
+        session['admin_user_id'] = user.id
+        tokens = SecurityManager.generar_token(usuario_id=user.username, rol=user.role or 'admin')
+        session['access_token'] = tokens['access_token']
+        session['refresh_token'] = tokens['refresh_token']
+        session['token_expires_at'] = (datetime.utcnow() + timedelta(minutes=15)).isoformat()
+        logger.info(f"Admin login (BD) exitoso: {user.username}")
+        return redirect(url_for('admin_dashboard'))
+
+    # 2) Fallback: admin legacy por Config si no hay usuarios en BD
+    if UserDB.query.count() == 0 and username == Config.ADMIN_USER and password == Config.ADMIN_PASS:
+        session['admin_logged_in'] = True
+        session['admin_username'] = username
+        session['admin_user_id'] = 0
+        
+        # Generar token JWT para APIs
+        tokens = SecurityManager.generar_token(usuario_id=username, rol='admin')
+        session['access_token'] = tokens['access_token']
+        session['refresh_token'] = tokens['refresh_token']
+        session['token_expires_at'] = (datetime.utcnow() + timedelta(minutes=15)).isoformat()
+        
+        logger.info(f"Admin login (legacy) exitoso: {username} - Token generado")
         return redirect(url_for('admin_dashboard'))
     else:
         logger.warning(f"Intento de login fallido: {username}")
         return render_template('admin_login.html', error="Credenciales incorrectas")
+
+
+# ===== RENOVACIÓN DE TOKEN JWT =====
+@app.route('/api/renovar-token', methods=['POST'])
+@handle_errors
+def renovar_token():
+    """Endpoint para renovar el token de acceso cada 15 minutos"""
+    refresh_token = request.json.get('refresh_token') or session.get('refresh_token')
+    
+    if not refresh_token:
+        return jsonify({'error': 'Refresh token no proporcionado'}), 401
+    
+    try:
+        nuevos_tokens = SecurityManager.renovar_token(refresh_token)
+        
+        # Actualizar sesión
+        session['access_token'] = nuevos_tokens['access_token']
+        session['token_expires_at'] = (datetime.utcnow() + timedelta(minutes=15)).isoformat()
+        
+        logger.info("Token renovado exitosamente")
+        
+        return jsonify({
+            'success': True,
+            'access_token': nuevos_tokens['access_token'],
+            'expires_in': nuevos_tokens['expires_in'],
+            'renewed_at': datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Error renovando token: {e}")
+        return jsonify({'error': 'Error renovando token', 'message': str(e)}), 401
+
+
+# ===== UTILIDADES DE EMAIL =====
+def validar_email_simple(email):
+    """Valida formato básico de email: contiene @ y cumple una regex simple.
+    Retorna (True, '') si es válido; (False, 'motivo') si no lo es.
+    """
+    import re as _re
+    if not email or '@' not in email:
+        return False, 'Formato de email inválido'
+    regex = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+    if not _re.match(regex, email):
+        return False, 'Formato de email inválido'
+    return True, ''
+
+def enviar_email(destinatario: str, asunto: str, cuerpo_texto: str, cuerpo_html: Optional[str] = None) -> Tuple[bool, Optional[str]]:
+    """Envía un email simple usando configuración SMTP.
+    Retorna (True, None) si se envió; (False, 'motivo') si falló.
+    """
+    try:
+        if not (Config.EMAIL_HOST and Config.EMAIL_PORT and Config.EMAIL_FROM):
+            logger.warning("SMTP no configurado correctamente. EMAIL_HOST/PORT/FROM faltantes")
+            return False, "SMTP no configurado (falta HOST/PORT/FROM)"
+        msg = EmailMessage()
+        msg['Subject'] = asunto
+        msg['From'] = Config.EMAIL_FROM
+        msg['To'] = destinatario
+        msg.set_content(cuerpo_texto)
+        if cuerpo_html:
+            msg.add_alternative(cuerpo_html, subtype='html')
+
+        if str(Config.EMAIL_PORT) == '465':
+            # SSL implícito
+            with smtplib.SMTP_SSL(Config.EMAIL_HOST, Config.EMAIL_PORT, timeout=20) as smtp:
+                try:
+                    if Config.DEBUG:
+                        smtp.set_debuglevel(1)
+                except Exception:
+                    pass
+                if Config.EMAIL_USER and Config.EMAIL_PASSWORD:
+                    smtp.login(Config.EMAIL_USER, Config.EMAIL_PASSWORD)
+                smtp.send_message(msg)
+        else:
+            # STARTTLS (por defecto 587)
+            with smtplib.SMTP(Config.EMAIL_HOST, Config.EMAIL_PORT, timeout=20) as smtp:
+                try:
+                    if Config.DEBUG:
+                        smtp.set_debuglevel(1)
+                except Exception:
+                    pass
+                smtp.starttls()
+                if Config.EMAIL_USER and Config.EMAIL_PASSWORD:
+                    smtp.login(Config.EMAIL_USER, Config.EMAIL_PASSWORD)
+                smtp.send_message(msg)
+        logger.info(f"Email enviado a {destinatario} usando {Config.EMAIL_HOST}:{Config.EMAIL_PORT} como {Config.EMAIL_FROM}")
+        return True, None
+    except Exception as e:
+        logger.error(f"Error enviando email: {e}")
+        return False, str(e)
+
+# ===== RECUPERACIÓN DE CONTRASEÑA =====
+
+@app.route('/admin/recuperar-password', methods=['GET', 'POST'])
+@handle_errors
+def recuperar_password():
+    """Solicitar enlace de recuperación de contraseña (envío por email). Acepta usuario o email."""
+    if request.method == 'GET':
+        return render_template('recuperar_password.html')
+
+    identifier = request.form.get('username', '').strip()
+
+    if not identifier:
+        return render_template('recuperar_password.html', error="Usuario o email requerido")
+
+    # Buscar usuario por username o email
+    user = UserDB.query.filter((UserDB.username==identifier) | (UserDB.email==identifier)).first()
+    if not user:
+        logger.warning(f"Intento de recuperación para usuario inexistente: {identifier}")
+        return render_template('recuperar_password.html', error="El usuario o correo no existe en el sistema.")
+
+    # Generar token aleatorio single-use y guardarlo con expiración
+    token = secrets.token_urlsafe(32)
+    expira = datetime.utcnow() + timedelta(minutes=30)
+    try:
+        rec = RecoveryToken(user_id=user.id, token=token, expires_at=expira)
+        db.session.add(rec)
+        db.session.commit()
+    except Exception as e:
+        logger.error(f"Error guardando RecoveryToken: {e}")
+        db.session.rollback()
+        return render_template('recuperar_password.html', error="No se pudo generar el enlace de recuperación. Intenta más tarde.")
+
+    # Construir enlace absoluto
+    try:
+        base_url = request.host_url.rstrip('/')
+        reset_link = f"{base_url}/admin/restablecer-password?token={token}"
+    except Exception:
+        reset_link = f"/admin/restablecer-password?token={token}"
+
+    # Enviar email al usuario (usando plantillas con firma)
+    asunto = "Instrucciones para restablecer tu contraseña"
+    # Plantillas TXT y HTML con firma personalizable
+    texto = render_template(
+        'email/reset_password.txt',
+        reset_link=reset_link,
+        nombre=Config.SIGN_NAME,
+        cargo=Config.SIGN_TITLE,
+        telefono=Config.SIGN_PHONE,
+        ubicacion=Config.SIGN_LOCATION,
+        sitio_web=Config.SIGN_WEBSITE,
+    )
+    html = render_template(
+        'email/reset_password.html',
+        reset_link=reset_link,
+        nombre=Config.SIGN_NAME,
+        cargo=Config.SIGN_TITLE,
+        telefono=Config.SIGN_PHONE,
+        ubicacion=Config.SIGN_LOCATION,
+        sitio_web=Config.SIGN_WEBSITE,
+        banner_url=Config.SIGN_BANNER_URL,
+    )
+
+    enviado, error_envio = enviar_email(user.email, asunto, texto, html)
+    if not enviado:
+        logger.error("Fallo el envío de email de recuperación al usuario.")
+        # En modo DEBUG, muestra un mensaje más detallado para facilitar diagnóstico
+        if Config.DEBUG and error_envio:
+            return render_template('recuperar_password.html', error=f"No se pudo enviar el correo de recuperación. Detalle: {error_envio}")
+        return render_template('recuperar_password.html', error="No se pudo enviar el correo de recuperación. Verifica la configuración SMTP o intenta más tarde.")
+    else:
+        logger.info(f"Email de recuperación enviado a {user.email}")
+        return render_template('recuperar_password.html', mensaje_exito=f"Enviamos un enlace de recuperación a: {user.email}")
+
+
+@app.route('/admin/restablecer-password', methods=['GET'])
+@handle_errors
+def mostrar_form_restablecer_password():
+    """Muestra el formulario de restablecimiento si el token es válido (no consumido aún)."""
+    token = request.args.get('token', '').strip()
+    if not token:
+        return redirect(url_for('recuperar_password'))
+
+    rec = RecoveryToken.query.filter_by(token=token).first()
+    if not rec or rec.used or rec.is_expired():
+        return render_template('recuperar_password.html', error="Enlace inválido o expirado. Solicita uno nuevo.")
+
+    return render_template('restablecer_password.html', token=token)
+
+
+@app.route('/admin/restablecer-password', methods=['POST'])
+@handle_errors
+def restablecer_password():
+    """Restablecer contraseña a partir de un token enviado por email"""
+    token = request.form.get('token', '').strip()
+    nueva_password = request.form.get('nueva_password')
+    confirmar_password = request.form.get('confirmar_password')
+
+    if not all([token, nueva_password, confirmar_password]):
+        return render_template('restablecer_password.html', token=token, error="Todos los campos son requeridos")
+
+    if nueva_password != confirmar_password:
+        return render_template('restablecer_password.html', token=token, error="Las contraseñas no coinciden")
+
+    if len(nueva_password) < 6:
+        return render_template('restablecer_password.html', token=token, error="La contraseña debe tener al menos 6 caracteres")
+
+    rec = RecoveryToken.query.filter_by(token=token).first()
+    if not rec or rec.used or rec.is_expired():
+        return render_template('recuperar_password.html', error="Enlace inválido o expirado. Solicita uno nuevo.")
+
+    try:
+        # Actualizar contraseña del usuario
+        user = UserDB.query.get(rec.user_id)
+        if not user or not user.is_active:
+            return render_template('recuperar_password.html', error="Usuario inválido. Solicita un nuevo enlace.")
+        user.password_hash = SecurityManager.hash_password(nueva_password)
+
+        # Marcar token como usado
+        rec.used = True
+        db.session.commit()
+
+        logger.info(f"Contraseña restablecida exitosamente para usuario_id: {rec.user_id}")
+        return render_template('admin_login.html', error="✅ Contraseña cambiada exitosamente. Por favor, inicia sesión.")
+    except Exception as e:
+        logger.error(f"Error restableciendo contraseña: {e}")
+        db.session.rollback()
+        return render_template('restablecer_password.html', token=token, error="Error al restablecer contraseña")
+
+
+# ===== Bootstrap de primer usuario (solo si no hay usuarios) =====
+@app.route('/admin/first-run', methods=['GET', 'POST'])
+def first_run_register():
+    # Si ya existe algún usuario, redirigir al login
+    if UserDB.query.count() > 0:
+        return redirect(url_for('admin_login'))
+
+    if request.method == 'GET':
+        return render_template('admin_register.html')
+
+    username = request.form.get('username', '').strip()
+    email = request.form.get('email', '').strip()
+    password = request.form.get('password', '')
+    confirm = request.form.get('confirm', '')
+
+    if not all([username, email, password, confirm]):
+        return render_template('admin_register.html', error='Todos los campos son requeridos')
+    if password != confirm:
+        return render_template('admin_register.html', error='Las contraseñas no coinciden')
+    if len(password) < 6:
+        return render_template('admin_register.html', error='La contraseña debe tener al menos 6 caracteres')
+
+    try:
+        if UserDB.query.filter((UserDB.username==username) | (UserDB.email==email)).first():
+            return render_template('admin_register.html', error='Usuario o email ya existe')
+        u = UserDB(
+            username=username,
+            email=email,
+            password_hash=SecurityManager.hash_password(password),
+            role='admin',
+            is_active=True,
+        )
+        db.session.add(u)
+        db.session.commit()
+        logger.info(f"Primer usuario creado: {username}")
+        return redirect(url_for('admin_login'))
+    except Exception as e:
+        logger.error(f"Error creando primer usuario: {e}")
+        db.session.rollback()
+        return render_template('admin_register.html', error='Error creando usuario')
 
 
 @app.route('/admin/dashboard')
@@ -556,6 +1075,8 @@ def admin_candidatos():
         for candidato in candidatos_db:
             candidatos_list.append({
                 "codigo": candidato.codigo,
+                "tipo_documento": getattr(candidato, "tipo_documento", ""),
+                "numero_documento": getattr(candidato, "numero_documento", ""),
                 "nombre_completo": candidato.nombre_completo,
                 "email": candidato.email,
                 "telefono": getattr(candidato, "telefono", ""),
@@ -589,6 +1110,8 @@ def registrar_candidato():
             if not candidato_db:
                 candidato_db = CandidatoDB(
                     codigo=candidato["codigo"],
+                    tipo_documento=tipo_documento,
+                    numero_documento=numero_documento,
                     nombre_completo=nombre,
                     email=email,
                     telefono=candidato.get("telefono", ""),
@@ -719,32 +1242,42 @@ def iniciar_evaluacion():
             candidato_db.acepta_terminos = bool(acepta_terminos)
             db.session.commit()
 
-        # Generar orden aleatorio de preguntas agrupadas por nivel
+        # Verificar disponibilidad de preguntas y configurar modo adaptativo
         global PREGUNTAS
         PREGUNTAS = cargar_preguntas_desde_excel()
+        
+        # Agrupar preguntas por nivel para verificar disponibilidad
         preguntas_por_nivel = {}
         for p in PREGUNTAS:
             nivel = p.get("nivel", 1)
             preguntas_por_nivel.setdefault(nivel, []).append(p["id"])
-        orden_preguntas = []
-        adaptativo = sum(len(ids) for ids in preguntas_por_nivel.values()) >= 40
+        
+        # Verificar si hay suficientes preguntas para modo adaptativo
+        # Necesitamos al menos 8 preguntas en el nivel 1 para empezar
+        nivel_1_disponibles = len(preguntas_por_nivel.get(1, []))
+        adaptativo = nivel_1_disponibles >= 8
+        
         if adaptativo:
-            # Seleccionar 8 aleatorias por nivel y mezclar
-            for nivel in sorted(preguntas_por_nivel.keys()):
-                ids = preguntas_por_nivel[nivel]
-                seleccionadas = random.sample(ids, min(8, len(ids)))
-                random.shuffle(seleccionadas)
-                orden_preguntas.extend(seleccionadas)
+            # Modo adaptativo: las preguntas se seleccionan dinámicamente
+            candidato_actual["adaptativo"] = True
+            candidato_actual["orden_preguntas"] = []  # No se usa en modo adaptativo
+            logger.info(f"Modo adaptativo activado. Preguntas por nivel: {[(k, len(v)) for k, v in preguntas_por_nivel.items()]}")
         else:
-            # Secuencial, todas las preguntas por nivel en orden
+            # Modo secuencial: usar todas las preguntas disponibles
+            candidato_actual["adaptativo"] = False
+            orden_preguntas = []
             for nivel in sorted(preguntas_por_nivel.keys()):
                 ids = preguntas_por_nivel[nivel]
+                random.shuffle(ids)  # Mezclar preguntas del mismo nivel
                 orden_preguntas.extend(ids)
-        candidato_actual["orden_preguntas"] = orden_preguntas
-        candidato_actual["adaptativo"] = adaptativo
+            candidato_actual["orden_preguntas"] = orden_preguntas
+            logger.info(f"Modo secuencial activado. Total preguntas: {len(orden_preguntas)}")
+        
+        # Inicializar variables de control adaptativo
         candidato_actual["nivel_actual"] = 1
         candidato_actual["correctas_nivel"] = 0
         candidato_actual["preguntas_nivel"] = 0
+        candidato_actual["intentos_nivel"] = 0  # Contador de intentos por nivel
         logger.info(f"Evaluación iniciada para: {candidato_encontrado['nombre_completo']}")
         return jsonify({"mensaje": "Evaluación iniciada correctamente"})
     else:
@@ -754,7 +1287,7 @@ def iniciar_evaluacion():
 @app.route('/obtener_pregunta')
 @handle_errors
 def obtener_pregunta():
-    """Obtiene la siguiente pregunta para el candidato"""
+    """Obtiene la siguiente pregunta para el candidato con lógica adaptativa real"""
     # Recargar preguntas en tiempo real desde el Excel
     global PREGUNTAS
     PREGUNTAS = cargar_preguntas_desde_excel()
@@ -762,21 +1295,66 @@ def obtener_pregunta():
         return jsonify({"error": "Evaluación no iniciada"}), 400
     
     preguntas_mostradas = candidato_actual.get("preguntas_mostradas", [])
-    orden_preguntas = candidato_actual.get("orden_preguntas", [])
     adaptativo = candidato_actual.get("adaptativo", False)
     nivel_actual = candidato_actual.get("nivel_actual", 1)
-    pregunta_numero = len(preguntas_mostradas)
-    if pregunta_numero >= len(orden_preguntas):
+    preguntas_nivel_actual = candidato_actual.get("preguntas_nivel", 0)
+    
+    # Verificar si ya completó la evaluación
+    if candidato_actual.get("evaluacion_completa", False):
+        return jsonify({"error": "Evaluación completada"})
+    
+    # Verificar si ya alcanzó el nivel máximo y completó las 8 preguntas
+    if nivel_actual > 5:
         candidato_actual["evaluacion_completa"] = True
-        return jsonify({"error": "No hay más preguntas disponibles"})
-    pregunta_id = orden_preguntas[pregunta_numero]
-    pregunta_seleccionada = next((p for p in PREGUNTAS if p["id"] == pregunta_id), None)
-    if not pregunta_seleccionada:
+        return jsonify({"error": "Evaluación completada - Nivel máximo alcanzado"})
+    
+    # Verificar límite total de preguntas (40 preguntas máximo)
+    limite_total = Config.EVALUACION_CONFIG.get("limite_preguntas_total", 40)
+    if len(preguntas_mostradas) >= limite_total:
         candidato_actual["evaluacion_completa"] = True
-        return jsonify({"error": "No hay más preguntas disponibles"})
+        return jsonify({"error": f"Evaluación completada - Máximo de {limite_total} preguntas alcanzado"})
+
+    if adaptativo:
+        # LÓGICA ADAPTATIVA REAL: Seleccionar pregunta del nivel actual
+        preguntas_disponibles = [
+            p for p in PREGUNTAS 
+            if p["id"] not in preguntas_mostradas 
+            and p.get("nivel", 1) == nivel_actual
+        ]
+        
+        if not preguntas_disponibles:
+            # Si no hay más preguntas del nivel actual, buscar en otros niveles
+            preguntas_disponibles = [
+                p for p in PREGUNTAS 
+                if p["id"] not in preguntas_mostradas
+            ]
+            
+            if not preguntas_disponibles:
+                candidato_actual["evaluacion_completa"] = True
+                return jsonify({"error": "No hay más preguntas disponibles"})
+        
+        # Seleccionar una pregunta aleatoria del nivel actual
+        pregunta_seleccionada = random.choice(preguntas_disponibles)
+        
+    else:
+        # Modo no adaptativo (uso del orden predeterminado)
+        orden_preguntas = candidato_actual.get("orden_preguntas", [])
+        pregunta_numero = len(preguntas_mostradas)
+        
+        if pregunta_numero >= len(orden_preguntas):
+            candidato_actual["evaluacion_completa"] = True
+            return jsonify({"error": "No hay más preguntas disponibles"})
+            
+        pregunta_id = orden_preguntas[pregunta_numero]
+        pregunta_seleccionada = next((p for p in PREGUNTAS if p["id"] == pregunta_id), None)
+        
+        if not pregunta_seleccionada:
+            candidato_actual["evaluacion_completa"] = True
+            return jsonify({"error": "Pregunta no encontrada"})
+    
+    # Registrar la pregunta mostrada
     candidato_actual["preguntas_mostradas"].append(pregunta_seleccionada["id"])
     candidato_actual["pregunta_actual_nivel"] = pregunta_seleccionada.get("nivel", 1)
-    # ...existing code...
 
     return jsonify({
         "id": pregunta_seleccionada["id"],
@@ -786,7 +1364,10 @@ def obtener_pregunta():
         "pregunta_numero": len(candidato_actual["preguntas_mostradas"]),
         "total_preguntas": Config.TOTAL_PREGUNTAS,
         "multiple": pregunta_seleccionada.get("multiple", False),
-        "respuestas_correctas_count": len(pregunta_seleccionada.get("respuestas_correctas", []))
+        "respuestas_correctas_count": len(pregunta_seleccionada.get("respuestas_correctas", [])),
+        "nivel_actual": nivel_actual,
+        "preguntas_del_nivel": preguntas_nivel_actual + 1,
+        "correctas_nivel": candidato_actual.get("correctas_nivel", 0)
     })
 
 def _determinar_nivel_pregunta(pregunta_numero: int, nivel_candidato: int) -> int:
@@ -865,7 +1446,7 @@ def generar_pdf_final():
                     total=total,
                     porcentaje=porcentaje,
                     puntos=candidato_actual.get("puntos", 0),
-                    nivel_final=candidato_actual.get("nivel", 1),
+                    nivel_final=candidato_actual.get("nivel_actual", 1),
                     fecha_evaluacion=datetime.now(),
                     tema=get_tema_activo()
                 )
@@ -909,7 +1490,8 @@ def generar_pdf_final():
             "correctas": correctas,
             "total": total,
             "porcentaje": round(porcentaje, 1),
-            "nivel_final": candidato_actual.get("nivel", 1),
+            # Nivel final alcanzado; prioriza el nivel_actual, cae a nivel_final almacenado y por defecto 1
+            "nivel_final": candidato_actual.get("nivel_actual", candidato_actual.get("nivel_final", 1)),
             "puntos": candidato_actual.get("puntos", 0),
             "pdf_generado": pdf_path is not None,
             "drive_upload": drive_result.get("success", False),
@@ -1010,6 +1592,34 @@ def get_configuracion_evaluacion():
 
 # ===== INICIALIZACIÓN =====
 
+# ===== MIDDLEWARES DE SEGURIDAD =====
+@app.after_request
+def aplicar_seguridad(response):
+    """Aplica headers de seguridad HTTP a todas las respuestas"""
+    return aplicar_headers_seguridad(response)
+
+
+@app.before_request
+def verificar_expiracion_token():
+    """Verifica si el token está próximo a expirar y notifica al cliente"""
+    if 'admin_logged_in' in session and 'token_expires_at' in session:
+        try:
+            expires_at = datetime.fromisoformat(session['token_expires_at'])
+            tiempo_restante = (expires_at - datetime.utcnow()).total_seconds()
+            
+            # Si quedan menos de 5 minutos, agregar header para renovar
+            if tiempo_restante < 300 and tiempo_restante > 0:
+                request.debe_renovar_token = True
+                
+            # Si ya expiró, cerrar sesión
+            if tiempo_restante <= 0:
+                logger.warning("Token expirado - cerrando sesión")
+                session.clear()
+                
+        except Exception as e:
+            logger.error(f"Error verificando expiración de token: {e}")
+
+
 def inicializar_sistema():
     """Inicializa el sistema de evaluación"""
     logger.info("🚀 Iniciando sistema de evaluación...")
@@ -1026,10 +1636,65 @@ def inicializar_sistema():
 
 # ===== PUNTO DE ENTRADA =====
 
+def seed_or_update_admin_user(admin_email: str):
+    """Crea o actualiza el usuario 'admin' con el email proporcionado.
+    Si no existe, lo crea con la contraseña de Config.ADMIN_PASS.
+    """
+    try:
+        admin_username = Config.ADMIN_USER
+        user = UserDB.query.filter_by(username=admin_username).first()
+        if user:
+            if admin_email and user.email != admin_email:
+                # Verificar conflicto de email
+                if UserDB.query.filter((UserDB.email==admin_email) & (UserDB.id!=user.id)).first():
+                    logger.warning(f"No se puede asignar email {admin_email} al usuario admin: ya está en uso.")
+                else:
+                    user.email = admin_email
+                    db.session.commit()
+                    logger.info(f"Email del admin actualizado a {admin_email}")
+        else:
+            if not admin_email:
+                logger.warning("ADMIN_EMAIL vacío; no se crea usuario admin en BD")
+                return
+            if UserDB.query.filter_by(email=admin_email).first():
+                logger.warning(f"No se crea usuario admin: email {admin_email} ya está en uso por otro usuario")
+                return
+            pwd_hash = SecurityManager.hash_password(Config.ADMIN_PASS)
+            new_admin = UserDB(
+                username=admin_username,
+                email=admin_email,
+                password_hash=pwd_hash,
+                role='admin',
+                is_active=True,
+            )
+            db.session.add(new_admin)
+            db.session.commit()
+            logger.info(f"Usuario admin creado con email {admin_email}")
+    except Exception as e:
+        logger.error(f"Error en seed_or_update_admin_user: {e}")
+        db.session.rollback()
+
 if __name__ == "__main__":
     # Crear las tablas en la base de datos PostgreSQL si no existen
     with app.app_context():
+        # Verificar/migrar esquema simple de recovery_tokens si quedó antiguo
+        try:
+            from sqlalchemy import inspect, text
+            inspector = inspect(db.engine)
+            tables = inspector.get_table_names()
+            if 'recovery_tokens' in tables:
+                cols = [col['name'] for col in inspector.get_columns('recovery_tokens')]
+                # Si encontramos 'username' y no 'user_id', dropeamos la tabla para recrearla correctamente
+                if ('username' in cols) and ('user_id' not in cols):
+                    logger.warning("Esquema antiguo de recovery_tokens detectado. Eliminando tabla para recrear correctamente...")
+                    with db.engine.begin() as conn:
+                        conn.execute(text('DROP TABLE recovery_tokens'))
+                    logger.info("Tabla recovery_tokens eliminada. Será recreada por create_all().")
+        except Exception as e:
+            logger.error(f"Error verificando esquema de recovery_tokens: {e}")
         db.create_all()
+        # Asignar email al usuario admin por solicitud
+        seed_or_update_admin_user('brad.castellanos@axity.com')
     if inicializar_sistema():
         logger.info("\n🚀 SERVIDOR INICIADO")
         logger.info("=" * 50)
