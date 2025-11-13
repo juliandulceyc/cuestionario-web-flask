@@ -108,6 +108,10 @@ class Config:
         "total_preguntas": 40,
         "evaluacion_cada": 5,
         "min_correctas_avance": 5,  # Se necesitan 5 correctas para avanzar
+        # Parámetros nuevos para la política B (no interrumpir bloque)
+        "racha_para_flag": 3,                  # 3 correctas consecutivas marcan suficiencia (flag), pero no interrumpen el bloque
+        "min_correctas_para_avanzar": 4,       # Suma de puntajes (parciales cuentan 0.5) necesaria para avanzar al final del bloque
+        "contar_parciales_para_avance": True,  # Si True, los parciales (0.5) cuentan para la suma de avance
         "preguntas_por_nivel": 8,   # 8 preguntas por nivel
         "distribucion_niveles": {
             "nivel_1": {"preguntas": "1-10", "descripcion": "Básico"},
@@ -121,7 +125,9 @@ class Config:
         "min_correctas_nivel_1": 6,
         "limite_preguntas_total": 40,
         "terminacion_temprana": {
-            "errores_consecutivos": 5,
+            # Si se desea habilitar terminación por errores consecutivos, poner un entero >0.
+            # Para comportamiento clásico (igual a FWS) poner None o 0 para deshabilitar.
+            "errores_consecutivos": None,
             "porcentaje_minimo_mitad": 40
         }
     }
@@ -519,31 +525,116 @@ def responder():
             candidato_actual["preguntas_nivel"] = candidato_actual.get("preguntas_nivel", 0) + 1
             if puntaje == 1:  # Respuesta completamente correcta
                 candidato_actual["correctas_nivel"] = candidato_actual.get("correctas_nivel", 0) + 1
+                candidato_actual["racha_actual"] = candidato_actual.get("racha_actual", 0) + 1
+                # Si alcanza la racha configurada, marcar flag_racha
+                racha_cfg = Config.EVALUACION_CONFIG.get("racha_para_flag", 3)
+                try:
+                    if candidato_actual["racha_actual"] >= int(racha_cfg):
+                        candidato_actual["flag_racha"] = True
+                except Exception:
+                    pass
+            else:
+                # Caso especial: si es parcial en pregunta múltiple y viene después
+                # de (racha_cfg - 1) correctas consecutivas, considerarlo como
+                # cumplimiento de la racha para efectos de avance, pero sin
+                # incrementar "correctas_nivel" (parcial sigue contando 0.5 en puntaje).
+                racha_cfg = Config.EVALUACION_CONFIG.get("racha_para_flag", 3)
+                if es_multiple and puntaje > 0 and candidato_actual.get("racha_actual", 0) >= max(0, int(racha_cfg) - 1):
+                    # marcar la racha como cumplida
+                    candidato_actual["racha_actual"] = candidato_actual.get("racha_actual", 0) + 1
+                    candidato_actual["flag_racha"] = True
+                    logger.info(f"Parcial considerado para racha: pregunta {pregunta_id}, puntaje={puntaje}, racha now={candidato_actual['racha_actual']}")
+                else:
+                    # si no fue completa y no entra en el caso especial, la racha se rompe
+                    candidato_actual["racha_actual"] = 0
+
+            # Sumar puntaje al acumulado del nivel y total
+            candidato_actual["suma_puntaje_nivel"] = candidato_actual.get("suma_puntaje_nivel", 0.0) + float(puntaje)
+            candidato_actual["suma_puntaje_total"] = candidato_actual.get("suma_puntaje_total", 0.0) + float(puntaje)
+            # Actualizar contador de errores consecutivos (para terminación temprana)
+            if puntaje >= 1:
+                candidato_actual["errores_consecutivos"] = 0
+            else:
+                candidato_actual["errores_consecutivos"] = candidato_actual.get("errores_consecutivos", 0) + 1
+
+            # Verificar regla de terminación temprana por errores consecutivos
+            errores_limite = Config.EVALUACION_CONFIG.get("terminacion_temprana", {}).get("errores_consecutivos")
+            if errores_limite and candidato_actual.get("errores_consecutivos", 0) >= errores_limite:
+                candidato_actual["evaluacion_completa"] = True
+                candidato_actual["terminacion_temprana"] = True
+                candidato_actual["razon_finalizacion"] = f"Terminación temprana: {candidato_actual.get('errores_consecutivos',0)} respuestas incorrectas consecutivas en nivel {nivel_actual}"
+                candidato_actual["razon_terminacion"] = candidato_actual["razon_finalizacion"]
+                logger.warning(f"Evaluación terminada por errores consecutivos ({candidato_actual.get('errores_consecutivos',0)}) en nivel {nivel_actual}")
             
-            # Verificar si alcanzó las 5 correctas requeridas para avanzar
+            # Verificar condiciones de finalización/avance al completar el bloque de preguntas del nivel
             correctas_nivel = candidato_actual.get("correctas_nivel", 0)
             preguntas_nivel = candidato_actual.get("preguntas_nivel", 0)
-            
-            if correctas_nivel >= 5:
-                # Avanzar al siguiente nivel
-                logger.info(f"Candidato avanzó de nivel {nivel_actual} a {nivel_actual + 1} con {correctas_nivel}/5 correctas en {preguntas_nivel} preguntas")
-                candidato_actual["nivel_actual"] += 1
-                candidato_actual["preguntas_nivel"] = 0
-                candidato_actual["correctas_nivel"] = 0
-                
-                # Si alcanzó el nivel máximo (5), completar evaluación
-                if candidato_actual["nivel_actual"] > 5:
-                    candidato_actual["evaluacion_completa"] = True
-                    logger.info(f"Evaluación completada - Candidato alcanzó nivel máximo (5)")
-                    
-            elif preguntas_nivel >= 8:
-                # Si completó 8 preguntas sin alcanzar 5 correctas, terminar evaluación
-                logger.warning(f"Evaluación terminada - Candidato obtuvo {correctas_nivel}/5 correctas en nivel {nivel_actual}")
-                candidato_actual["evaluacion_completa"] = True
-                candidato_actual["razon_finalizacion"] = f"No alcanzó el mínimo de 5 respuestas correctas en nivel {nivel_actual} ({correctas_nivel}/8 correctas)"
-                # Banderas para reportes y PDF
-                candidato_actual["terminacion_temprana"] = True
-                candidato_actual["razon_terminacion"] = candidato_actual["razon_finalizacion"]
+            preguntas_por_nivel = Config.EVALUACION_CONFIG.get("preguntas_por_nivel", 8)
+            # Permitir un umbral distinto para el nivel 1 si está configurado
+            if nivel_actual == 1:
+                min_req = Config.EVALUACION_CONFIG.get("min_correctas_nivel_1", Config.EVALUACION_CONFIG.get("min_correctas_avance", 5))
+            else:
+                min_req = Config.EVALUACION_CONFIG.get("min_correctas_avance", 5)
+
+            # Sólo decidir avance/terminación cuando se han presentado todas las preguntas del nivel
+            if preguntas_nivel >= preguntas_por_nivel:
+                # Para la política B: usar la suma de puntajes del nivel (parciales cuentan 0.5)
+                min_req_avance = Config.EVALUACION_CONFIG.get("min_correctas_para_avanzar", 4)
+                suma_puntaje = candidato_actual.get("suma_puntaje_nivel", 0.0)
+
+                logger.info(f"Evaluando bloque nivel {nivel_actual}: suma_puntaje={suma_puntaje}, min_req={min_req_avance}, correctas_completas={correctas_nivel}")
+
+                # Avanza si cumplió la suma mínima O si durante el bloque obtuvo la racha requerida
+                flag_racha = candidato_actual.get("flag_racha", False)
+                # Regla adicional: si tiene al menos 3 respuestas completamente correctas
+                # (no necesariamente consecutivas) y además existe al menos un parcial
+                # en el bloque (por ejemplo suma_puntaje >= 3.5), permitir avance.
+                correctas_nivel = candidato_actual.get("correctas_nivel", 0)
+                regla_correctas_mas_parcial = False
+                try:
+                    if correctas_nivel >= 3 and suma_puntaje >= 3.5:
+                        regla_correctas_mas_parcial = True
+                except Exception:
+                    regla_correctas_mas_parcial = False
+
+                if suma_puntaje >= float(min_req_avance) or flag_racha or regla_correctas_mas_parcial:
+                    # Avanzar al siguiente nivel
+                    logger.info(f"Candidato avanzó de nivel {nivel_actual} a {nivel_actual + 1} con suma_puntaje={suma_puntaje} en {preguntas_nivel} preguntas")
+                    candidato_actual["nivel_actual"] += 1
+                    candidato_actual["preguntas_nivel"] = 0
+                    candidato_actual["correctas_nivel"] = 0
+                    candidato_actual["suma_puntaje_nivel"] = 0.0
+                    candidato_actual["racha_actual"] = 0
+                    candidato_actual["flag_racha"] = False
+                    # Resetear errores consecutivos al cambiar de nivel
+                    candidato_actual["errores_consecutivos"] = 0
+
+                    # Si alcanzó (o excedió) el nivel máximo, mantener en nivel máximo pero no terminar automáticamente
+                    if candidato_actual["nivel_actual"] > Config.EVALUACION_CONFIG.get("niveles_maximos", 5):
+                        candidato_actual["nivel_actual"] = Config.EVALUACION_CONFIG.get("niveles_maximos", 5)
+                        logger.info("Candidato alcanzó nivel máximo; permanecerá en nivel máximo hasta completar las preguntas totales")
+                else:
+                    # NO terminar: en lugar de terminar, descender un nivel (si es posible) y continuar
+                    logger.info(f"Candidato no alcanzó el mínimo en nivel {nivel_actual} (suma_puntaje={suma_puntaje}/{min_req_avance}). Se aplicará democión en lugar de terminar y continuará hasta completar {Config.EVALUACION_CONFIG.get('limite_preguntas_total', Config.TOTAL_PREGUNTAS)} preguntas")
+                    if nivel_actual > 1:
+                        nuevo_nivel = max(1, nivel_actual - 1)
+                        candidato_actual["nivel_actual"] = nuevo_nivel
+                        candidato_actual["preguntas_nivel"] = 0
+                        candidato_actual["correctas_nivel"] = 0
+                        candidato_actual["suma_puntaje_nivel"] = 0.0
+                        candidato_actual["errores_consecutivos"] = 0
+                        candidato_actual["demoted_times"] = candidato_actual.get("demoted_times", 0) + 1
+                        logger.info(f"Candidato demotado a nivel {nuevo_nivel}. demoted_times={candidato_actual.get('demoted_times')}")
+                    else:
+                        # Si ya está en nivel 1, simplemente resetear contadores y continuar
+                        candidato_actual["preguntas_nivel"] = 0
+                        candidato_actual["correctas_nivel"] = 0
+                        candidato_actual["suma_puntaje_nivel"] = 0.0
+                        candidato_actual["errores_consecutivos"] = 0
+                        logger.info("Candidato en nivel 1 no alcanzó mínimo; se mantiene en nivel 1 y continuará hasta completar el total de preguntas")
+            else:
+                # Aún quedan preguntas del nivel por mostrar; no cambiar nivel todavía
+                logger.debug(f"Nivel {nivel_actual}: {correctas_nivel} correctas en {preguntas_nivel}/{preguntas_por_nivel} preguntas — esperando completar el bloque del nivel antes de decidir avance")
         else:
             # Si por alguna razón se muestra una pregunta de otro nivel, no contar
             logger.warning(f"Pregunta de nivel {pregunta.get('nivel', 1)} mostrada cuando el candidato está en nivel {nivel_actual}")
@@ -1226,10 +1317,20 @@ def iniciar_evaluacion():
                 "telefono": candidato_encontrado.get("telefono", data.get('telefono', ''))
             },
             "nivel": 1,
+            "nivel_actual": 1,
             "puntos": 0,
             "preguntas_mostradas": [],
             "evaluacion_completa": False,
             "respuestas": [],
+            # Contadores adaptativos por nivel
+            "preguntas_nivel": 0,
+            "correctas_nivel": 0,
+            "suma_puntaje_nivel": 0.0,
+            "suma_puntaje_total": 0.0,
+            "racha_actual": 0,
+            "flag_racha": False,
+            "demoted_times": 0,
+            "errores_consecutivos": 0,
             "fecha_inicio": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "acepta_terminos": acepta_terminos
         }
@@ -1251,11 +1352,33 @@ def iniciar_evaluacion():
         for p in PREGUNTAS:
             nivel = p.get("nivel", 1)
             preguntas_por_nivel.setdefault(nivel, []).append(p["id"])
-        
+
+        # Verificar disponibilidad por nivel y rechazar inicio si hay niveles incompletos
+        required_per_level = Config.EVALUACION_CONFIG.get("preguntas_por_nivel", 8)
+        max_nivel = Config.EVALUACION_CONFIG.get("niveles_maximos", 5)
+        niveles_faltantes = {}
+        for lvl in range(1, max_nivel + 1):
+            cnt = len(preguntas_por_nivel.get(lvl, []))
+            if cnt < required_per_level:
+                niveles_faltantes[lvl] = cnt
+        if niveles_faltantes:
+            # Bloquear inicio y comunicar qué niveles están incompletos
+            mensaje = {
+                "error": "Banco de preguntas incompleto",
+                "detalle": {
+                    "requeridas_por_nivel": required_per_level,
+                    "niveles_disponibles": {str(k): len(v) for k, v in preguntas_por_nivel.items()},
+                    "niveles_faltantes": niveles_faltantes
+                },
+                "accion_sugerida": "Agregar preguntas faltantes al archivo de preguntas o ajustar Config.EVALUACION_CONFIG['preguntas_por_nivel']"
+            }
+            logger.warning(f"Intento de iniciar evaluación pero banco incompleto: {niveles_faltantes}")
+            return jsonify(mensaje), 400
+
         # Verificar si hay suficientes preguntas para modo adaptativo
-        # Necesitamos al menos 8 preguntas en el nivel 1 para empezar
+        # Necesitamos al menos `required_per_level` preguntas en el nivel 1 para empezar
         nivel_1_disponibles = len(preguntas_por_nivel.get(1, []))
-        adaptativo = nivel_1_disponibles >= 8
+        adaptativo = nivel_1_disponibles >= required_per_level
         
         if adaptativo:
             # Modo adaptativo: las preguntas se seleccionan dinámicamente
@@ -1278,6 +1401,9 @@ def iniciar_evaluacion():
         candidato_actual["correctas_nivel"] = 0
         candidato_actual["preguntas_nivel"] = 0
         candidato_actual["intentos_nivel"] = 0  # Contador de intentos por nivel
+        # Contador de errores consecutivos para terminación temprana
+        candidato_actual["errores_consecutivos"] = 0
+        candidato_actual["razon_terminacion"] = ""
         logger.info(f"Evaluación iniciada para: {candidato_encontrado['nombre_completo']}")
         return jsonify({"mensaje": "Evaluación iniciada correctamente"})
     else:
@@ -1323,18 +1449,35 @@ def obtener_pregunta():
         ]
         
         if not preguntas_disponibles:
-            # Si no hay más preguntas del nivel actual, buscar en otros niveles
-            preguntas_disponibles = [
-                p for p in PREGUNTAS 
-                if p["id"] not in preguntas_mostradas
-            ]
-            
-            if not preguntas_disponibles:
+            # Si no hay más preguntas del nivel actual, aplicar fallback preferente:
+            # 1) buscar preguntas de niveles inferiores (más cercanos primero)
+            # 2) si no hay, buscar preguntas de niveles superiores (más cercanos primero)
+            candidatos = []
+            max_nivel = Config.EVALUACION_CONFIG.get("niveles_maximos", 5)
+            # buscar niveles inferiores
+            for lvl in range(nivel_actual - 1, 0, -1):
+                candidatos = [p for p in PREGUNTAS if p["id"] not in preguntas_mostradas and p.get("nivel", 1) == lvl]
+                if candidatos:
+                    logger.info(f"Fallback: no hay preguntas nivel {nivel_actual}, usando nivel inferior {lvl}")
+                    break
+
+            # si no hay en niveles inferiores, buscar superiores
+            if not candidatos:
+                for lvl in range(nivel_actual + 1, max_nivel + 1):
+                    candidatos = [p for p in PREGUNTAS if p["id"] not in preguntas_mostradas and p.get("nivel", 1) == lvl]
+                    if candidatos:
+                        logger.info(f"Fallback: no hay preguntas nivel {nivel_actual}, usando nivel superior {lvl}")
+                        break
+
+            if not candidatos:
                 candidato_actual["evaluacion_completa"] = True
                 return jsonify({"error": "No hay más preguntas disponibles"})
-        
-        # Seleccionar una pregunta aleatoria del nivel actual
-        pregunta_seleccionada = random.choice(preguntas_disponibles)
+
+            # Seleccionar una pregunta aleatoria de los candidatos encontrados
+            pregunta_seleccionada = random.choice(candidatos)
+        else:
+            # Seleccionar una pregunta aleatoria del nivel actual
+            pregunta_seleccionada = random.choice(preguntas_disponibles)
         
     else:
         # Modo no adaptativo (uso del orden predeterminado)
@@ -1381,11 +1524,18 @@ def _determinar_nivel_pregunta(pregunta_numero: int, nivel_candidato: int) -> in
 
 def _buscar_pregunta_fallback(preguntas_mostradas: List[int], nivel_busqueda: int) -> List[Dict[str, Any]]:
     """Busca preguntas de niveles alternativos"""
-    for nivel_alt in [nivel_busqueda-1, nivel_busqueda+1, 1, 2, 3, 4, 5]:
-        if nivel_alt < 1 or nivel_alt > 5:
-            continue
-        preguntas_alt = [p for p in PREGUNTAS if p["id"] not in preguntas_mostradas and p["nivel"] == nivel_alt]
+    max_nivel = Config.EVALUACION_CONFIG.get("niveles_maximos", 5)
+    # Preferir niveles inferiores (más cercanos) primero
+    for lvl in range(nivel_busqueda - 1, 0, -1):
+        preguntas_alt = [p for p in PREGUNTAS if p["id"] not in preguntas_mostradas and p.get("nivel", 1) == lvl]
         if preguntas_alt:
+            logger.info(f"Fallback helper: usando nivel inferior {lvl} para búsqueda desde {nivel_busqueda}")
+            return preguntas_alt
+    # Si no hay, buscar niveles superiores (más cercanos primero)
+    for lvl in range(nivel_busqueda + 1, max_nivel + 1):
+        preguntas_alt = [p for p in PREGUNTAS if p["id"] not in preguntas_mostradas and p.get("nivel", 1) == lvl]
+        if preguntas_alt:
+            logger.info(f"Fallback helper: usando nivel superior {lvl} para búsqueda desde {nivel_busqueda}")
             return preguntas_alt
     return []
 

@@ -145,6 +145,8 @@ class PDFGenerator:
             ['Respuestas Correctas:', f"{correctas}/{total_preguntas}"],
             ['Porcentaje de Acierto:', f"{porcentaje:.1f}%"],
             ['Puntos Obtenidos:', f"{puntos_totales:.1f}"],
+            ['Puntaje (suma) para avance:', f"{evaluacion_data.get('suma_puntaje_total', puntos_totales):.1f}"],
+            ['Demoted Times:', f"{evaluacion_data.get('demoted_times', 0)}"],
             ['Nivel Alcanzado:', f"Nivel {nivel_final}/5"],
             ['Calificación:', calificacion]
         ]
