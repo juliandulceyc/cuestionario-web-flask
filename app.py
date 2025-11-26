@@ -31,8 +31,6 @@ from security import (
 # ===== INICIALIZACIÓN DE FLASK =====
 app = Flask(__name__)
 
-# ...existing code...
-
 # ===== INICIALIZACIÓN AUTOMÁTICA DE PREGUNTAS =====
 def inicializar_preguntas_global():
     global PREGUNTAS
@@ -45,7 +43,6 @@ def inicializar_preguntas_global():
     except Exception as e:
         print(f"[ERROR] Fallo al cargar preguntas: {e}")
 
-# ...existing code...
 
 # Al final de la definición de cargar_preguntas_desde_excel (después de la línea 430 aprox)
 # inicializar_preguntas_global()
@@ -78,7 +75,7 @@ class Config:
     PORT = int(os.getenv('PORT', 5000))
     
     # Configuración de evaluación
-    TOTAL_PREGUNTAS = 40
+    TOTAL_PREGUNTAS = 5
     ARCHIVO_EXCEL = 'Evaluación FWS PAN V2.xlsx'
     
     # Credenciales admin (en producción usar variables de entorno)
@@ -1164,6 +1161,10 @@ def admin_candidatos():
         candidatos_db = CandidatoDB.query.all()
         candidatos_list = []
         for candidato in candidatos_db:
+            try:
+                url_eval = url_for('evaluacion', codigo=candidato.codigo, _external=True)
+            except Exception:
+                url_eval = f"/evaluacion/{candidato.codigo}"
             candidatos_list.append({
                 "codigo": candidato.codigo,
                 "tipo_documento": getattr(candidato, "tipo_documento", ""),
@@ -1173,7 +1174,7 @@ def admin_candidatos():
                 "telefono": getattr(candidato, "telefono", ""),
                 "cargo": getattr(candidato, "cargo", ""),
                 "evaluacion_completada": getattr(candidato, "evaluacion_completada", False),
-                "url_evaluacion": f"/evaluacion/{candidato.codigo}"
+                "url_evaluacion": url_eval
             })
         return jsonify(candidatos_list)
     
