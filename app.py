@@ -11,6 +11,7 @@ from typing import Dict, List, Tuple, Optional, Any
 import base64
 from dataclasses import dataclass
 from functools import wraps
+from domain import Candidato, Pregunta, safe_opt as _safe_opt
 from dotenv import load_dotenv
 import secrets
 import smtplib
@@ -28,28 +29,10 @@ from security import (
     sanitizar_entrada
 )
 
-# ===== INICIALIZACIÓN DE FLASK =====
-app = Flask(__name__)
+# Importar configuración central
+from config import Config
 
-# ===== INICIALIZACIÓN AUTOMÁTICA DE PREGUNTAS =====
-def inicializar_preguntas_global():
-    global PREGUNTAS
-    try:
-        PREGUNTAS = cargar_preguntas_desde_excel()
-        if not PREGUNTAS:
-            print("[ERROR] No se cargaron preguntas. Verifica el archivo de tema activo y su contenido.")
-        else:
-            print(f"[INFO] Preguntas cargadas: {len(PREGUNTAS)}")
-    except Exception as e:
-        print(f"[ERROR] Fallo al cargar preguntas: {e}")
-
-
-# Al final de la definición de cargar_preguntas_desde_excel (después de la línea 430 aprox)
-# inicializar_preguntas_global()
-
-@app.route('/', methods=['GET', 'POST'])
-def root_block():
-    abort(404)
+# Importar generador de PDF si está disponible
 try:
     from pdf_generator import generar_pdf_evaluacion
     REPORTLAB_AVAILABLE = True
@@ -58,7 +41,7 @@ except ImportError:
     generar_pdf_evaluacion = None
     logging.warning("Generador de PDF no disponible")
 
-# Importar dependencias para PDF y Drive
+# Importar integración con Drive si está disponible
 try:
     from drive_integration import save_pdf_to_drive
     DRIVE_AVAILABLE = True
@@ -67,96 +50,9 @@ except ImportError:
     save_pdf_to_drive = None
     logging.warning("Integración con Drive no disponible")
 
-# ===== CONFIGURACIÓN Y CONSTANTES =====
-class Config:
-    """Configuración centralizada de la aplicación"""
-    SECRET_KEY = os.getenv('SECRET_KEY', 'tu_clave_secreta_aqui')
-    DEBUG = os.getenv('FLASK_DEBUG', 'True').lower() == 'true'
-    PORT = int(os.getenv('PORT', 5000))
-    
-    # Configuración de evaluación
-    TOTAL_PREGUNTAS = 5
-    ARCHIVO_EXCEL = 'Evaluación FWS PAN V2.xlsx'
-    
-    # Credenciales admin (en producción usar variables de entorno)
-    ADMIN_USER = os.getenv('ADMIN_USER', 'admin')
-    ADMIN_PASS = os.getenv('ADMIN_PASS', '123456')
-    ADMIN_EMAIL = os.getenv('ADMIN_EMAIL')  # Email del administrador para recuperación
-
-    # Config SMTP
-    # SMTP: limpiar espacios accidentales para evitar fallos de autenticación
-    EMAIL_HOST = (os.getenv('EMAIL_HOST') or '').strip() or None
-    EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587')) if os.getenv('EMAIL_PORT') else None
-    EMAIL_USER = (os.getenv('EMAIL_USER') or '').strip() or None
-    EMAIL_PASSWORD = (os.getenv('EMAIL_PASSWORD') or '').strip() or None
-    EMAIL_FROM = (os.getenv('EMAIL_FROM') or EMAIL_USER or '').strip() or None
-    
-    # Firma de correos (personalizable por variables de entorno)
-    SIGN_NAME = os.getenv('SIGN_NAME', 'Yeivi Julieth Peinado H.')
-    SIGN_TITLE = os.getenv('SIGN_TITLE', 'Gerente de Servicios Ciberseguridad')
-    SIGN_PHONE = os.getenv('SIGN_PHONE', '+57 3013407054')
-    SIGN_LOCATION = os.getenv('SIGN_LOCATION', 'Bogotá, Colombia')
-    SIGN_WEBSITE = os.getenv('SIGN_WEBSITE', 'https://www.axity.com')
-    # URL pública de una imagen/banner de firma (opcional). Si está vacía no se mostrará imagen.
-    SIGN_BANNER_URL = (os.getenv('SIGN_BANNER_URL') or '').strip()
-    
-    # Configuración de evaluación
-    EVALUACION_CONFIG = {
-        "total_preguntas": 40,
-        "evaluacion_cada": 5,
-        "min_correctas_avance": 5,  # Se necesitan 5 correctas para avanzar
-        # Parámetros nuevos para la política B (no interrumpir bloque)
-        "racha_para_flag": 3,                  # 3 correctas consecutivas marcan suficiencia (flag), pero no interrumpen el bloque
-        "min_correctas_para_avanzar": 4,       # Suma de puntajes (parciales cuentan 0.5) necesaria para avanzar al final del bloque
-        "contar_parciales_para_avance": True,  # Si True, los parciales (0.5) cuentan para la suma de avance
-        "preguntas_por_nivel": 8,   # 8 preguntas por nivel
-        "distribucion_niveles": {
-            "nivel_1": {"preguntas": "1-10", "descripcion": "Básico"},
-            "nivel_2": {"preguntas": "11-12", "descripcion": "Transición"},  
-            "nivel_3": {"preguntas": "13-22", "descripcion": "Intermedio"},
-            "nivel_4": {"preguntas": "23-30", "descripcion": "Avanzado"},
-            "nivel_5": {"preguntas": "31-40", "descripcion": "Experto"}
-        },
-        "niveles_maximos": 5,
-        "preguntas_nivel_1": 10,
-        "min_correctas_nivel_1": 6,
-        "limite_preguntas_total": 40,
-        "terminacion_temprana": {
-            # Si se desea habilitar terminación por errores consecutivos, poner un entero >0.
-            # Para comportamiento clásico (igual a FWS) poner None o 0 para deshabilitar.
-            "errores_consecutivos": None,
-            "porcentaje_minimo_mitad": 40
-        }
-    }
-
-@dataclass
-class Candidato:
-    """Clase para representar un candidato"""
-    codigo: str
-    nombre_completo: str
-    email: str
-    telefono: str = ""
-    cargo: str = ""
-    fecha_registro: str = ""
-    evaluacion_completada: bool = False
-    link_evaluacion: str = ""
-    # url_evaluacion eliminado, se genera dinámicamente
-    puntos_finales: float = 0.0
-    nivel_final: int = 1
-
-@dataclass
-class Pregunta:
-    """Clase para representar una pregunta"""
-    id: int
-    pregunta: str
-    opciones: List[str]
-    respuesta_correcta: str
-    respuestas_correctas: List[str]
-    nivel: int
-    multiple: bool = False
-    imagen: Optional[str] = None
-    categoria: str = "General"
-    fila_excel: int = 0
+# Las dataclasses `Candidato` y `Pregunta` y la utilidad `_safe_opt` fueron
+# extraídas a `domain.py` para mantener `app.py` más compacto y facilitar
+# la revisión del código durante auditorías o demos.
 
 # ===== CONFIGURACIÓN DE LOGGING =====
 def setup_logging():
@@ -183,7 +79,7 @@ logger = setup_logging()
 from flask_sqlalchemy import SQLAlchemy
 app = Flask(__name__)
 app.secret_key = Config.SECRET_KEY
-# Configuración de conexión a PostgreSQL (solo la correcta)
+# Configuración de conexión a PostgreSQL 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://empresa_user:qwerty@localhost:5432/empresa_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
@@ -253,15 +149,9 @@ PREGUNTAS: List[Dict[str, Any]] = []
 
 # Utilidad: obtener texto de opción a partir de una letra (A-D)
 def _safe_opt(opciones: List[str], letra: str) -> str:
-    try:
-        if not letra:
-            return ''
-        idx = ord(letra.upper()[0]) - ord('A')
-        if 0 <= idx < len(opciones):
-            return opciones[idx]
-        return ''
-    except Exception:
-        return ''
+    # envolver la función importada para mantener compatibilidad con el resto
+    # del código que llamaba a `_safe_opt` desde este módulo.
+    return _safe_opt(opciones, letra)
 
 # ===== DECORADORES =====
 def admin_required(f):
