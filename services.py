@@ -275,7 +275,8 @@ class EvaluacionService:
     def _actualizar_racha(pregunta, puntaje):
         racha_cfg = int(Config.EVALUACION_CONFIG.get("racha_para_flag", 3))
         
-        if puntaje == 1:
+        # Usar >= para comparación segura de floats
+        if puntaje >= 1.0:
             candidato_actual["correctas_nivel"] = candidato_actual.get("correctas_nivel", 0) + 1
             candidato_actual["racha_actual"] = candidato_actual.get("racha_actual", 0) + 1
             if candidato_actual["racha_actual"] >= racha_cfg:
