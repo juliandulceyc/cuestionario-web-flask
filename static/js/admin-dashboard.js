@@ -12,22 +12,22 @@ const Utils = {
             '"': '&quot;',
             "'": '&#039;'
         };
-        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        return text.replaceAll(/[&<>"']/g, function(m) { return map[m]; });
     },
 
     escapeAttr: function(text) {
         if (!text && text !== 0) return '';
         return String(text)
-            .replace(/&/g, '&amp;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
+            .replaceAll('&', '&amp;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#39;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;');
     },
 
     mostrarNotificacion: function(mensaje, tipo) {
-        if (typeof window.mostrarNotificacion === 'function') {
-            window.mostrarNotificacion(mensaje, tipo);
+        if (typeof globalThis.mostrarNotificacion === 'function') {
+            globalThis.mostrarNotificacion(mensaje, tipo);
             return;
         }
         // Fallback
@@ -69,13 +69,13 @@ const Utils = {
         tempInput.select();
 
         try {
-            document.execCommand('copy');
+            document.execCommand('copy'); // NOSONAR
             Utils.mostrarNotificacion('📋 URL copiada al portapapeles', 'success');
         } catch (err) {
             console.error('Error copiando URL:', err);
             Utils.mostrarNotificacion('❌ No se pudo copiar la URL', 'error');
         }
-        document.body.removeChild(tempInput);
+        tempInput.remove();
     },
 
     copiarURL: function(url) {
@@ -113,17 +113,17 @@ function actualizarFilaResultados(candidato) {
         
         if (candidato.tipo_documento && candidato.numero_documento) {
             celdas[1].textContent = `${candidato.tipo_documento}: ${candidato.numero_documento}`;
-            fila.setAttribute('data-cedula', String(candidato.numero_documento).toLowerCase());
+            fila.dataset.cedula = String(candidato.numero_documento.toLowerCase());
         } else {
             celdas[1].textContent = '-';
-            fila.setAttribute('data-cedula', '');
+            fila.dataset.cedula = '';
         }
         
         celdas[2].textContent = candidato.email || '-';
         
         // Actualizar atributos de datos
-        fila.setAttribute('data-nombre', (candidato.nombre_completo || '').toLowerCase());
-        fila.setAttribute('data-email', (candidato.email || '').toLowerCase());
+        fila.dataset.nombre = (candidato.nombre_completo || ''.toLowerCase());
+        fila.dataset.email = (candidato.email || ''.toLowerCase());
     } catch (e) {
         console.warn('No se pudo actualizar la fila de resultados:', e);
     }
@@ -149,7 +149,7 @@ function validateField(field, errorElement) {
     }
 
     if (field.type === 'tel' && value) {
-        const phoneRegex = /^[\d\s\-\+\(\)]{7,15}$/;
+        const phoneRegex = /^[\d\s\-+()]{7,15}$/;
         if (!phoneRegex.test(value)) {
             showFieldError(field, errorElement, 'Ingresa un teléfono válido');
             return false;
@@ -221,7 +221,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (!listaTemas) return;
                 listaTemas.innerHTML = '';
-                (data.archivos || []).forEach(nombre => {
+                for (const nombre of (data.archivos || [])) {
                     const tr = document.createElement('tr');
                     
                     const tdNombre = document.createElement('td');
@@ -238,7 +238,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     tr.appendChild(tdNombre);
                     tr.appendChild(tdAccion);
                     listaTemas.appendChild(tr);
-                });
+                }
             });
     }
 
@@ -312,35 +312,38 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function bindDynamicEvents() {
+        const onCopySuccess = (btn) => {
+            Utils.mostrarNotificacion('📋 URL copiada al portapapeles', 'success');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '✅ Copiado!';
+            setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+        };
         // Copy URL buttons
-        document.querySelectorAll('.copy-btn').forEach(btn => {
+        for (const btn of document.querySelectorAll('.copy-btn')) {
             btn.onclick = () => {
-                const url = btn.getAttribute('data-url');
+                const url = btn.dataset.url;
                 if (navigator.clipboard) {
-                    navigator.clipboard.writeText(url).then(() => {
-                        Utils.mostrarNotificacion('📋 URL copiada al portapapeles', 'success');
-                        const originalText = btn.innerHTML;
-                        btn.innerHTML = '✅ Copiado!';
-                        setTimeout(() => { btn.innerHTML = originalText; }, 2000);
-                    }).catch(() => Utils.fallbackCopyURL(url));
+                    navigator.clipboard.writeText(url)
+                        .then(() => onCopySuccess(btn))
+                        .catch(() => Utils.fallbackCopyURL(url));
                 } else {
                     Utils.fallbackCopyURL(url);
                 }
             };
-        });
+        }
 
         // Delete buttons
-        document.querySelectorAll('.delete-btn').forEach(btn => {
+        for (const btn of document.querySelectorAll('.delete-btn')) {
             btn.onclick = () => {
-                const codigo = btn.getAttribute('data-codigo');
+                const codigo = btn.dataset.codigo;
                 eliminarCandidato(codigo, btn);
             };
-        });
+        }
 
         // Edit buttons
-        document.querySelectorAll('.edit-btn').forEach(btn => {
-            btn.onclick = () => window.abrirEditarCandidatoDesdeBoton(btn);
-        });
+        for (const btn of document.querySelectorAll('.edit-btn')) {
+            btn.onclick = () => globalThis.abrirEditarCandidatoDesdeBoton(btn);
+        }
     }
 
     function setupEventListeners() {
@@ -368,14 +371,14 @@ document.addEventListener('DOMContentLoaded', function() {
             { id: 'cargo', errorId: 'cargo-error' }
         ];
 
-        fields.forEach(f => {
+        for (const f of fields) {
             const input = document.getElementById(f.id);
             const errorElement = document.getElementById(f.errorId);
             if (input && errorElement) {
                 input.addEventListener('blur', () => validateField(input, errorElement));
                 input.addEventListener('input', () => clearFieldError(input, errorElement));
             }
-        });
+        }
 
         // Formulario de edición
         const editForm = document.getElementById('form-editar-candidato');
@@ -384,20 +387,20 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Botones estáticos
-        document.querySelectorAll('.btn-copiar-url').forEach(btn => {
+        for (const btn of document.querySelectorAll('.btn-copiar-url')) {
             btn.addEventListener('click', function() {
-                Utils.copiarURL(this.getAttribute('data-url'));
+                Utils.copiarURL(this.dataset.url);
             });
-        });
+        }
 
         const btnCerrarModal = document.querySelector('#modal-editar .btn-secondary');
         if (btnCerrarModal) {
-            btnCerrarModal.addEventListener('click', window.cerrarModalEditar);
+            btnCerrarModal.addEventListener('click', globalThis.cerrarModalEditar);
         }
 
         const btnLimpiarFiltros = document.querySelector('.btn-limpiar-filtros');
         if (btnLimpiarFiltros) {
-            btnLimpiarFiltros.addEventListener('click', window.limpiarFiltrosResultados);
+            btnLimpiarFiltros.addEventListener('click', globalThis.limpiarFiltrosResultados);
         }
     }
 
@@ -418,10 +421,13 @@ document.addEventListener('DOMContentLoaded', function() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         })
-        .then(r => { if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+        .then(r => {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
         .then(data => {
             if (!data.success) throw new Error(data.error || 'Error al actualizar');
-            window.cerrarModalEditar();
+            globalThis.cerrarModalEditar();
             cargarCandidatos();
             if (data.candidato) actualizarFilaResultados(data.candidato);
             Utils.mostrarNotificacion('Candidato actualizado', 'success');
@@ -442,8 +448,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (formularioRegistro) formularioRegistro.style.display = 'none';
         if (candidatoForm) {
             candidatoForm.reset();
-            candidatoForm.querySelectorAll('.error-message').forEach(el => el.textContent = '');
-            candidatoForm.querySelectorAll('input').forEach(el => el.style.borderColor = '');
+            for (const el of candidatoForm.querySelectorAll('.error-message')) { el.textContent = ''; }
+            for (const el of candidatoForm.querySelectorAll('input')) { el.style.borderColor = ''; }
         }
     }
 
@@ -452,11 +458,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const data = {};
         let hasEmpty = false;
 
-        fields.forEach(id => {
+        for (const id of fields) {
             const val = document.getElementById(id).value;
             if (!val) hasEmpty = true;
             data[id] = val;
-        });
+        }
 
         if (hasEmpty) {
             Utils.mostrarNotificacion('Todos los campos son obligatorios', 'error');
@@ -468,7 +474,10 @@ document.addEventListener('DOMContentLoaded', function() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         })
-        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(r => {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
         .then(() => {
             Utils.mostrarNotificacion('✅ Candidato registrado correctamente', 'success');
             ocultarFormulario();
@@ -478,9 +487,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Exponer funciones necesarias globalmente
-    window.recargarCandidatos = cargarCandidatos;
+    globalThis.recargarCandidatos = cargarCandidatos;
     
-    window.eliminarTemaExcel = function(nombre) {
+    globalThis.eliminarTemaExcel = function(nombre) {
         if (!confirm('¿Seguro que deseas eliminar el archivo ' + nombre + '?')) return;
         fetch('/admin/eliminar_tema', {
             method: 'POST',
@@ -498,7 +507,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     };
 
-    window.eliminarCandidato = function(codigo, botonElement) {
+    globalThis.eliminarCandidato = function(codigo, botonElement) {
         if (!confirm('¿Estás seguro de que deseas eliminar este candidato?')) return;
         
         botonElement.disabled = true;
@@ -509,7 +518,10 @@ document.addEventListener('DOMContentLoaded', function() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ codigo: codigo })
         })
-        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(r => {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
         .then(data => {
             if (data.success) {
                 const cardElement = botonElement.closest('.candidato-card');
@@ -537,32 +549,32 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     };
 
-    window.aplicarFiltrosResultados = function() {
+    globalThis.aplicarFiltrosResultados = function() {
         const ids = ['nombre', 'cedula', 'email', 'tema', 'estado', 'nivel'];
         const filters = {};
         let allEmpty = true;
 
-        ids.forEach(key => {
+        for (const key of ids) {
             const el = document.getElementById(`filtro-resultado-${key}`);
-            if (el && el.value) {
+            if (el?.value) {
                 filters[key] = el.value.toLowerCase();
                 allEmpty = false;
             }
-        });
+        }
 
         if (allEmpty) return; // Opcional: mostrar todos si no hay filtros
 
         const filas = document.querySelectorAll('.fila-resultado');
         let visibleCount = 0;
 
-        filas.forEach(fila => {
+        for (const fila of filas) {
             const data = {
-                nombre: fila.getAttribute('data-nombre') || '',
-                cedula: fila.getAttribute('data-cedula') || '',
-                email: fila.getAttribute('data-email') || '',
-                tema: fila.getAttribute('data-tema') || '',
-                nivel: fila.getAttribute('data-nivel') || '',
-                estado: fila.getAttribute('data-tiene-resultado') || 'no'
+                nombre: fila.dataset.nombre || '',
+                cedula: fila.dataset.cedula || '',
+                email: fila.dataset.email || '',
+                tema: fila.dataset.tema || '',
+                nivel: fila.dataset.nivel || '',
+                estado: fila.dataset.tieneResultado || 'no'
             };
 
             const matches = ids.every(key => {
@@ -576,7 +588,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 fila.style.display = 'none';
             }
-        });
+        }
 
         const contadorDiv = document.getElementById('contador-resultados');
         if (contadorDiv) {
@@ -586,48 +598,48 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    window.limpiarFiltrosResultados = function() {
-        ['nombre', 'cedula', 'email', 'tema', 'estado', 'nivel'].forEach(key => {
+    globalThis.limpiarFiltrosResultados = function() {
+        for (const key of ['nombre', 'cedula', 'email', 'tema', 'estado', 'nivel']) {
             const el = document.getElementById(`filtro-resultado-${key}`);
             if (el) el.value = '';
-        });
-        window.aplicarFiltrosResultados();
+        }
+        globalThis.aplicarFiltrosResultados();
     };
 
     // Bind filter events
-    ['nombre', 'cedula', 'email', 'tema', 'estado', 'nivel'].forEach(key => {
+    for (const key of ['nombre', 'cedula', 'email', 'tema', 'estado', 'nivel']) {
         const el = document.getElementById(`filtro-resultado-${key}`);
         if (el) {
-            el.addEventListener('input', window.aplicarFiltrosResultados);
-            el.addEventListener('change', window.aplicarFiltrosResultados);
+            el.addEventListener('input', globalThis.aplicarFiltrosResultados);
+            el.addEventListener('change', globalThis.aplicarFiltrosResultados);
         }
-    });
+    }
 });
 
 // Global helpers needed for modal interaction
-window.abrirEditarCandidato = function(c) {
+globalThis.abrirEditarCandidato = function(c) {
     const modal = document.getElementById('modal-editar');
     if (!modal) return;
     
-    ['codigo', 'tipo_documento', 'numero_documento', 'nombre_completo', 'email', 'telefono', 'cargo'].forEach(key => {
+    for (const key of ['codigo', 'tipo_documento', 'numero_documento', 'nombre_completo', 'email', 'telefono', 'cargo']) {
         const el = document.getElementById(`edit-${key}`);
         if (el) el.value = c[key] || '';
-    });
+    }
     
     modal.style.display = 'flex';
 };
 
-window.abrirEditarCandidatoDesdeBoton = function(btn) {
+globalThis.abrirEditarCandidatoDesdeBoton = function(btn) {
     const c = {};
-    ['codigo', 'tipo_documento', 'numero_documento', 'nombre_completo', 'email', 'telefono', 'cargo'].forEach(key => {
+    for (const key of ['codigo', 'tipo_documento', 'numero_documento', 'nombre_completo', 'email', 'telefono', 'cargo']) {
         c[key] = btn.getAttribute(`data-${key.replace('_', '-')}`) || '';
-    });
-    window.abrirEditarCandidato(c);
+    }
+    globalThis.abrirEditarCandidato(c);
 };
 
-window.cerrarModalEditar = function() {
+globalThis.cerrarModalEditar = function() {
     const modal = document.getElementById('modal-editar');
     if (modal) modal.style.display = 'none';
 };
 
-window.copiarURL = Utils.copiarURL;
+globalThis.copiarURL = Utils.copiarURL;
