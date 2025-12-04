@@ -1,6 +1,219 @@
+// ==========================================
+// Utilidades Globales
+// ==========================================
+
+const Utils = {
+    escapeHtml: function(text) {
+        if (!text) return '';
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    },
+
+    escapeAttr: function(text) {
+        if (!text && text !== 0) return '';
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    },
+
+    mostrarNotificacion: function(mensaje, tipo) {
+        if (typeof window.mostrarNotificacion === 'function') {
+            window.mostrarNotificacion(mensaje, tipo);
+            return;
+        }
+        // Fallback
+        const notification = document.createElement('div');
+        const isSuccess = tipo === 'success';
+        
+        notification.style.background = isSuccess ? '#d4edda' : '#f8d7da';
+        notification.style.color = isSuccess ? '#155724' : '#721c24';
+        notification.style.border = isSuccess ? '1px solid #c3e6cb' : '1px solid #f5c6cb';
+        notification.setAttribute('role', 'alert');
+        notification.setAttribute('aria-live', tipo === 'error' ? 'assertive' : 'polite');
+        notification.textContent = mensaje;
+        
+        Object.assign(notification.style, {
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            padding: '15px 20px',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            zIndex: '1000',
+            maxWidth: '400px',
+            animation: 'slideInRight 0.3s ease-out'
+        });
+
+        document.body.appendChild(notification);
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.style.animation = 'slideOutRight 0.3s ease-in';
+                setTimeout(() => notification.remove(), 300);
+            }
+        }, 4000);
+    },
+
+    fallbackCopyURL: function(url) {
+        const tempInput = document.createElement('input');
+        tempInput.value = url;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+
+        try {
+            document.execCommand('copy');
+            Utils.mostrarNotificacion('📋 URL copiada al portapapeles', 'success');
+        } catch (err) {
+            console.error('Error copiando URL:', err);
+            Utils.mostrarNotificacion('❌ No se pudo copiar la URL', 'error');
+        }
+        document.body.removeChild(tempInput);
+    },
+
+    copiarURL: function(url) {
+        if (!url) return;
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(url).then(function() {
+                Utils.mostrarNotificacion('📋 URL copiada al portapapeles', 'success');
+            }).catch(function(err) {
+                console.error('Error copiando URL:', err);
+                Utils.fallbackCopyURL(url);
+            });
+        } else {
+            Utils.fallbackCopyURL(url);
+        }
+    }
+};
+
+// ==========================================
+// Lógica de Negocio (Funciones Puras/Independientes)
+// ==========================================
+
+function actualizarFilaResultados(candidato) {
+    try {
+        const tabla = document.getElementById('tabla-resultados');
+        if (!tabla || !candidato?.codigo) return;
+        
+        const fila = tabla.querySelector(`.fila-resultado[data-codigo="${candidato.codigo}"]`);
+        if (!fila) return;
+        
+        const celdas = fila.getElementsByTagName('td');
+        if (!celdas || celdas.length < 3) return;
+
+        // Actualizar celdas
+        celdas[0].textContent = candidato.nombre_completo || '-';
+        
+        if (candidato.tipo_documento && candidato.numero_documento) {
+            celdas[1].textContent = `${candidato.tipo_documento}: ${candidato.numero_documento}`;
+            fila.setAttribute('data-cedula', String(candidato.numero_documento).toLowerCase());
+        } else {
+            celdas[1].textContent = '-';
+            fila.setAttribute('data-cedula', '');
+        }
+        
+        celdas[2].textContent = candidato.email || '-';
+        
+        // Actualizar atributos de datos
+        fila.setAttribute('data-nombre', (candidato.nombre_completo || '').toLowerCase());
+        fila.setAttribute('data-email', (candidato.email || '').toLowerCase());
+    } catch (e) {
+        console.warn('No se pudo actualizar la fila de resultados:', e);
+    }
+}
+
+function validateField(field, errorElement) {
+    if (!field || !errorElement) return false;
+
+    const value = field.value.trim();
+    const isRequired = field.hasAttribute('required');
+
+    if (isRequired && !value) {
+        showFieldError(field, errorElement, 'Este campo es obligatorio');
+        return false;
+    }
+
+    if (field.type === 'email' && value) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(value)) {
+            showFieldError(field, errorElement, 'Ingresa un email válido');
+            return false;
+        }
+    }
+
+    if (field.type === 'tel' && value) {
+        const phoneRegex = /^[\d\s\-\+\(\)]{7,15}$/;
+        if (!phoneRegex.test(value)) {
+            showFieldError(field, errorElement, 'Ingresa un teléfono válido');
+            return false;
+        }
+    }
+
+    if ((field.id === 'nombre_completo' || field.id === 'cargo') && value && value.length < 2) {
+        const fieldName = field.id === 'nombre_completo' ? 'El nombre' : 'El cargo';
+        showFieldError(field, errorElement, `${fieldName} debe tener al menos 2 caracteres`);
+        return false;
+    }
+
+    clearFieldError(field, errorElement);
+    return true;
+}
+
+function showFieldError(field, errorElement, message) {
+    if (field && errorElement) {
+        field.style.borderColor = '#dc3545';
+        errorElement.textContent = message;
+        errorElement.style.color = '#dc3545';
+    }
+}
+
+function clearFieldError(field, errorElement) {
+    if (field && errorElement) {
+        field.style.borderColor = '';
+        errorElement.textContent = '';
+    }
+}
+
+// ==========================================
+// Inicialización y Eventos
+// ==========================================
+
 document.addEventListener('DOMContentLoaded', function() {
-    let listaTemas = document.getElementById('lista-temas');
-    cargarArchivosTemas();
+    // Referencias DOM
+    const listaTemas = document.getElementById('lista-temas');
+    const formularioRegistro = document.getElementById('formularioRegistro');
+    const candidatoForm = document.getElementById('candidatoForm');
+    const listaCandidatos = document.getElementById('candidatos-lista');
+    const addCandidateBtn = document.querySelector('.add-candidate-btn');
+
+    // Inicialización
+    init();
+
+    function init() {
+        setupEventListeners();
+        cargarCandidatos();
+        cargarArchivosTemas();
+        injectStyles();
+    }
+
+    function injectStyles() {
+        if (!document.querySelector('#admin-animations')) {
+            const style = document.createElement('style');
+            style.id = 'admin-animations';
+            style.textContent = `
+                @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+                @keyframes slideOutRight { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+            `;
+            document.head.appendChild(style);
+        }
+    }
 
     function cargarArchivosTemas() {
         fetch('/temas/')
@@ -8,16 +221,19 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (!listaTemas) return;
                 listaTemas.innerHTML = '';
-                (data.archivos || []).forEach(function(nombre) {
-                    let tr = document.createElement('tr');
-                    let tdNombre = document.createElement('td');
+                (data.archivos || []).forEach(nombre => {
+                    const tr = document.createElement('tr');
+                    
+                    const tdNombre = document.createElement('td');
                     tdNombre.textContent = nombre;
                     tdNombre.style.fontWeight = 'bold';
-                    let tdAccion = document.createElement('td');
-                    let btn = document.createElement('button');
+                    
+                    const tdAccion = document.createElement('td');
+                    const btn = document.createElement('button');
                     btn.className = 'btn-eliminar-tema';
                     btn.textContent = 'Eliminar';
-                    btn.onclick = function() { eliminarTemaExcel(nombre); };
+                    btn.onclick = () => eliminarTemaExcel(nombre);
+                    
                     tdAccion.appendChild(btn);
                     tr.appendChild(tdNombre);
                     tr.appendChild(tdAccion);
@@ -26,6 +242,244 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
+    function cargarCandidatos() {
+        if (!listaCandidatos) return;
+        listaCandidatos.innerHTML = '<div class="loading">Cargando candidatos...</div>';
+
+        fetch('/admin/candidatos?format=json')
+            .then(r => {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            })
+            .then(mostrarCandidatos)
+            .catch(error => {
+                console.error('Error cargando candidatos:', error);
+                listaCandidatos.innerHTML = '<div class="error">❌ Error cargando candidatos</div>';
+            });
+    }
+
+    function mostrarCandidatos(candidatos) {
+        if (!listaCandidatos) return;
+        if (!candidatos || candidatos.length === 0) {
+            listaCandidatos.innerHTML = '<div class="no-candidates">📝 No hay candidatos registrados</div>';
+            return;
+        }
+
+        const html = candidatos.map(c => {
+            const statusClass = c.evaluacion_completada ? 'status-completada' : 'status-pendiente';
+            const statusText = c.evaluacion_completada ? '✅ Completada' : '⏳ Pendiente';
+            
+            let actionsHtml = '';
+            if (!c.evaluacion_completada) {
+                actionsHtml = `
+                    <div style="margin-top:8px;display:flex;gap:8px;">
+                        <button type="button" class="copy-btn" data-url="${c.url_evaluacion || ''}" style="background:#007bff;color:white;padding:4px 10px;border-radius:5px;border:none;cursor:pointer;">📋 Copiar URL</button>
+                        <a href="${c.url_evaluacion || '#'}" target="_blank" class="eval-link" style="background:#28a745;color:white;padding:4px 10px;border-radius:5px;text-decoration:none;display:inline-block;">🔗 Abrir Evaluación</a>
+                    </div>`;
+            }
+
+            return `
+                <div class="candidato-card">
+                    <div class="candidato-info">
+                        <h3>${Utils.escapeHtml(c.nombre_completo)}</h3>
+                        ${c.tipo_documento && c.numero_documento ? `<p>🆔 ${Utils.escapeHtml(c.tipo_documento)}: ${Utils.escapeHtml(c.numero_documento)}</p>` : ''}
+                        <p>📧 ${Utils.escapeHtml(c.email)}</p>
+                        <p>🔑 Código: ${Utils.escapeHtml(c.codigo)}</p>
+                        <p>👔 ${Utils.escapeHtml(c.cargo || 'N/A')}</p>
+                        ${c.telefono && c.telefono !== 'N/A' ? `<p>📞 ${Utils.escapeHtml(c.telefono)}</p>` : ''}
+                    </div>
+                    <div class="candidato-status">
+                        <span class="${statusClass}">${statusText}</span>
+                        ${actionsHtml}
+                        <div style="margin-top:8px;display:flex;gap:8px;">
+                            <button type="button" class="edit-btn" 
+                                data-codigo="${c.codigo || ''}"
+                                data-tipo-documento="${c.tipo_documento || ''}"
+                                data-numero-documento="${c.numero_documento || ''}"
+                                data-nombre-completo="${c.nombre_completo || ''}"
+                                data-email="${c.email || ''}"
+                                data-telefono="${c.telefono || ''}"
+                                data-cargo="${c.cargo || ''}"
+                                style="background:#6c757d;color:white;padding:4px 10px;border-radius:5px;border:none;cursor:pointer;">✏️ Editar</button>
+                            <button type="button" class="delete-btn" data-codigo="${c.codigo}" style="background:#dc3545;color:white;padding:4px 10px;border-radius:5px;border:none;cursor:pointer;">🗑️ Eliminar</button>
+                        </div>
+                    </div>
+                </div>`;
+        }).join('');
+
+        listaCandidatos.innerHTML = html;
+        bindDynamicEvents();
+    }
+
+    function bindDynamicEvents() {
+        // Copy URL buttons
+        document.querySelectorAll('.copy-btn').forEach(btn => {
+            btn.onclick = () => {
+                const url = btn.getAttribute('data-url');
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(url).then(() => {
+                        Utils.mostrarNotificacion('📋 URL copiada al portapapeles', 'success');
+                        const originalText = btn.innerHTML;
+                        btn.innerHTML = '✅ Copiado!';
+                        setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+                    }).catch(() => Utils.fallbackCopyURL(url));
+                } else {
+                    Utils.fallbackCopyURL(url);
+                }
+            };
+        });
+
+        // Delete buttons
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.onclick = () => {
+                const codigo = btn.getAttribute('data-codigo');
+                eliminarCandidato(codigo, btn);
+            };
+        });
+
+        // Edit buttons
+        document.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.onclick = () => window.abrirEditarCandidatoDesdeBoton(btn);
+        });
+    }
+
+    function setupEventListeners() {
+        if (addCandidateBtn) {
+            addCandidateBtn.addEventListener('click', mostrarFormulario);
+        }
+
+        const cancelBtn = document.querySelector('button[data-action="cancel"]');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', ocultarFormulario);
+        }
+
+        if (candidatoForm) {
+            candidatoForm.addEventListener('submit', e => {
+                e.preventDefault();
+                registrarCandidato();
+            });
+        }
+
+        // Validación en tiempo real
+        const fields = [
+            { id: 'nombre_completo', errorId: 'nombre-completo-error' },
+            { id: 'email', errorId: 'email-error' },
+            { id: 'telefono', errorId: 'telefono-error' },
+            { id: 'cargo', errorId: 'cargo-error' }
+        ];
+
+        fields.forEach(f => {
+            const input = document.getElementById(f.id);
+            const errorElement = document.getElementById(f.errorId);
+            if (input && errorElement) {
+                input.addEventListener('blur', () => validateField(input, errorElement));
+                input.addEventListener('input', () => clearFieldError(input, errorElement));
+            }
+        });
+
+        // Formulario de edición
+        const editForm = document.getElementById('form-editar-candidato');
+        if (editForm) {
+            editForm.addEventListener('submit', handleEditSubmit);
+        }
+
+        // Botones estáticos
+        document.querySelectorAll('.btn-copiar-url').forEach(btn => {
+            btn.addEventListener('click', function() {
+                Utils.copiarURL(this.getAttribute('data-url'));
+            });
+        });
+
+        const btnCerrarModal = document.querySelector('#modal-editar .btn-secondary');
+        if (btnCerrarModal) {
+            btnCerrarModal.addEventListener('click', window.cerrarModalEditar);
+        }
+
+        const btnLimpiarFiltros = document.querySelector('.btn-limpiar-filtros');
+        if (btnLimpiarFiltros) {
+            btnLimpiarFiltros.addEventListener('click', window.limpiarFiltrosResultados);
+        }
+    }
+
+    function handleEditSubmit(e) {
+        e.preventDefault();
+        const payload = {
+            codigo: document.getElementById('edit-codigo').value,
+            tipo_documento: document.getElementById('edit-tipo_documento').value,
+            numero_documento: document.getElementById('edit-numero_documento').value,
+            nombre_completo: document.getElementById('edit-nombre_completo').value,
+            email: document.getElementById('edit-email').value,
+            telefono: document.getElementById('edit-telefono').value,
+            cargo: document.getElementById('edit-cargo').value
+        };
+
+        fetch('/admin/actualizar_candidato', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(r => { if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+        .then(data => {
+            if (!data.success) throw new Error(data.error || 'Error al actualizar');
+            window.cerrarModalEditar();
+            cargarCandidatos();
+            if (data.candidato) actualizarFilaResultados(data.candidato);
+            Utils.mostrarNotificacion('Candidato actualizado', 'success');
+        })
+        .catch(err => Utils.mostrarNotificacion(err.message, 'error'));
+    }
+
+    function mostrarFormulario() {
+        if (formularioRegistro) {
+            formularioRegistro.style.display = 'block';
+            formularioRegistro.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            const firstField = document.getElementById('nombre_completo');
+            if (firstField) setTimeout(() => firstField.focus(), 300);
+        }
+    }
+
+    function ocultarFormulario() {
+        if (formularioRegistro) formularioRegistro.style.display = 'none';
+        if (candidatoForm) {
+            candidatoForm.reset();
+            candidatoForm.querySelectorAll('.error-message').forEach(el => el.textContent = '');
+            candidatoForm.querySelectorAll('input').forEach(el => el.style.borderColor = '');
+        }
+    }
+
+    function registrarCandidato() {
+        const fields = ['tipo_documento', 'numero_documento', 'nombre_completo', 'email', 'cargo'];
+        const data = {};
+        let hasEmpty = false;
+
+        fields.forEach(id => {
+            const val = document.getElementById(id).value;
+            if (!val) hasEmpty = true;
+            data[id] = val;
+        });
+
+        if (hasEmpty) {
+            Utils.mostrarNotificacion('Todos los campos son obligatorios', 'error');
+            return;
+        }
+
+        fetch('/admin/registrar_candidato', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(() => {
+            Utils.mostrarNotificacion('✅ Candidato registrado correctamente', 'success');
+            ocultarFormulario();
+            cargarCandidatos();
+        })
+        .catch(err => Utils.mostrarNotificacion(err, 'error'));
+    }
+
+    // Exponer funciones necesarias globalmente
+    window.recargarCandidatos = cargarCandidatos;
+    
     window.eliminarTemaExcel = function(nombre) {
         if (!confirm('¿Seguro que deseas eliminar el archivo ' + nombre + '?')) return;
         fetch('/admin/eliminar_tema', {
@@ -36,134 +490,17 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(r => r.json())
         .then(data => {
             if (data.success) {
-                mostrarNotificacion('Archivo eliminado correctamente', 'success');
+                Utils.mostrarNotificacion('Archivo eliminado correctamente', 'success');
                 cargarArchivosTemas();
             } else {
-                mostrarNotificacion('Error eliminando archivo: ' + (data.error || 'Desconocido'), 'error');
+                Utils.mostrarNotificacion('Error eliminando archivo: ' + (data.error || 'Desconocido'), 'error');
             }
         });
-    }
-    // Variables globales
-    let formularioRegistro = document.getElementById('formularioRegistro');
-    let candidatoForm = document.getElementById('candidatoForm');
-    let listaCandidatos = document.getElementById('candidatos-lista');
-    let addCandidateBtn = document.querySelector('.add-candidate-btn');
-    
-    // ===== FUNCIONES DE FILTRADO PARA RESULTADOS DE EVALUACIONES =====
-    window.aplicarFiltrosResultados = function() {
-        let filtroNombre = document.getElementById('filtro-resultado-nombre');
-        let filtroCedula = document.getElementById('filtro-resultado-cedula');
-        let filtroEmail = document.getElementById('filtro-resultado-email');
-        let filtroTema = document.getElementById('filtro-resultado-tema');
-        let filtroEstado = document.getElementById('filtro-resultado-estado');
-        let filtroNivel = document.getElementById('filtro-resultado-nivel');
-        
-        if (!filtroNombre || !filtroCedula || !filtroEmail || !filtroTema || !filtroEstado || !filtroNivel) {
-            return;
-        }
-        
-        let valorNombre = filtroNombre.value.toLowerCase();
-        let valorCedula = filtroCedula.value.toLowerCase();
-        let valorEmail = filtroEmail.value.toLowerCase();
-        let valorTema = filtroTema.value.toLowerCase();
-        let valorEstado = filtroEstado.value;
-        let valorNivel = filtroNivel.value;
-        
-        let filas = document.querySelectorAll('.fila-resultado');
-        let contadorVisible = 0;
-        let contadorTotal = filas.length;
-        
-        filas.forEach(function(fila) {
-            let nombre = fila.getAttribute('data-nombre') || '';
-            let cedula = fila.getAttribute('data-cedula') || '';
-            let email = fila.getAttribute('data-email') || '';
-            let tema = fila.getAttribute('data-tema') || '';
-            let nivel = fila.getAttribute('data-nivel') || '';
-            let tieneResultado = fila.getAttribute('data-tiene-resultado') || 'no';
-            
-            let cumpleNombre = !valorNombre || nombre.includes(valorNombre);
-            let cumpleCedula = !valorCedula || cedula.includes(valorCedula);
-            let cumpleEmail = !valorEmail || email.includes(valorEmail);
-            let cumpleTema = !valorTema || tema.includes(valorTema);
-            let cumpleEstado = !valorEstado || tieneResultado === valorEstado;
-            let cumpleNivel = !valorNivel || nivel === valorNivel;
-            
-            // Mostrar todas las filas que cumplan los filtros
-            let mostrar = cumpleNombre && cumpleCedula && cumpleEmail && cumpleTema && cumpleEstado && cumpleNivel;
-            
-            if (mostrar) {
-                fila.style.display = '';
-                contadorVisible++;
-            } else {
-                fila.style.display = 'none';
-            }
-        });
-        
-        // Actualizar contador
-        let contadorDiv = document.getElementById('contador-resultados');
-        if (contadorDiv) {
-            if (contadorVisible === contadorTotal) {
-                contadorDiv.textContent = '📊 Mostrando todos los resultados (' + contadorTotal + ')';
-            } else {
-                contadorDiv.textContent = '📊 Mostrando ' + contadorVisible + ' de ' + contadorTotal + ' resultados';
-            }
-        }
     };
-    
-    window.limpiarFiltrosResultados = function() {
-        let filtros = [
-            'filtro-resultado-nombre',
-            'filtro-resultado-cedula',
-            'filtro-resultado-email',
-            'filtro-resultado-tema',
-            'filtro-resultado-estado',
-            'filtro-resultado-nivel'
-        ];
-        
-        filtros.forEach(function(id) {
-            let elemento = document.getElementById(id);
-            if (elemento) {
-                elemento.value = '';
-            }
-        });
-        
-        aplicarFiltrosResultados();
-    };
-    
-    // Aplicar filtros en tiempo real para resultados
-    let filtrosResultados = [
-        'filtro-resultado-nombre',
-        'filtro-resultado-cedula',
-        'filtro-resultado-email',
-        'filtro-resultado-tema',
-        'filtro-resultado-estado',
-        'filtro-resultado-nivel'
-    ];
-    
-    filtrosResultados.forEach(function(id) {
-        let elemento = document.getElementById(id);
-        if (elemento) {
-            elemento.addEventListener('input', aplicarFiltrosResultados);
-            elemento.addEventListener('change', aplicarFiltrosResultados);
-        }
-    });
-    
-    // Inicializar contador al cargar la página
-    setTimeout(function() {
-        if (typeof aplicarFiltrosResultados === 'function') {
-            aplicarFiltrosResultados();
-        }
-    }, 500);
-    
-    // ===== FUNCIONES DE FILTRADO  =====
-    
-    // ===== FUNCIÓN DE ELIMINACIÓN EN TIEMPO REAL =====
+
     window.eliminarCandidato = function(codigo, botonElement) {
-        if (!confirm('¿Estás seguro de que deseas eliminar este candidato?\n\nEsta acción no se puede deshacer.')) {
-            return;
-        }
+        if (!confirm('¿Estás seguro de que deseas eliminar este candidato?')) return;
         
-        // Deshabilitar el botón mientras se procesa
         botonElement.disabled = true;
         botonElement.textContent = '⏳ Eliminando...';
         
@@ -172,728 +509,125 @@ document.addEventListener('DOMContentLoaded', function() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ codigo: codigo })
         })
-        .then(function(response) {
-            if (!response.ok) {
-                throw new Error('Error HTTP: ' + response.status);
-            }
-            return response.json();
-        })
-        .then(function(data) {
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(data => {
             if (data.success) {
-                // Encontrar y eliminar la card del candidato con animación
-                let cardElement = botonElement.closest('.candidato-card');
+                const cardElement = botonElement.closest('.candidato-card');
                 if (cardElement) {
                     cardElement.style.transition = 'opacity 0.3s, transform 0.3s';
                     cardElement.style.opacity = '0';
                     cardElement.style.transform = 'scale(0.9)';
-                    
-                    setTimeout(function() {
+                    setTimeout(() => {
                         cardElement.remove();
-                        
-                        // Mostrar mensaje de éxito
-                        mostrarMensajeFlotante('✅ Candidato eliminado exitosamente', 'success');
-                        
-                        // Verificar si quedan candidatos
-                        let candidatosRestantes = document.querySelectorAll('.candidato-card');
-                        if (candidatosRestantes.length === 0) {
-                            let mensajeVacio = document.createElement('div');
-                            mensajeVacio.style.cssText = 'text-align:center;padding:40px;color:#999;font-size:18px;';
-                            mensajeVacio.innerHTML = '<p>📭 No hay candidatos registrados</p>';
-                            listaCandidatos.appendChild(mensajeVacio);
+                        Utils.mostrarNotificacion('✅ Candidato eliminado exitosamente', 'success');
+                        if (document.querySelectorAll('.candidato-card').length === 0) {
+                            listaCandidatos.innerHTML = '<div style="text-align:center;padding:40px;color:#999;font-size:18px;"><p>📭 No hay candidatos registrados</p></div>';
                         }
                     }, 300);
                 }
             } else {
-                throw new Error(data.error || 'Error desconocido al eliminar');
+                throw new Error(data.error || 'Error desconocido');
             }
         })
-        .catch(function(error) {
-            console.error('Error:', error);
-            mostrarMensajeFlotante('❌ Error al eliminar candidato: ' + error.message, 'error');
+        .catch(err => {
+            console.error('Error:', err);
+            Utils.mostrarNotificacion('❌ Error al eliminar candidato: ' + err.message, 'error');
             botonElement.disabled = false;
             botonElement.textContent = '🗑️ Eliminar';
         });
     };
-    
-    // Función auxiliar para mostrar mensajes flotantes
-    function mostrarMensajeFlotante(mensaje, tipo) {
-        let div = document.createElement('div');
-        div.textContent = mensaje;
-        div.style.cssText = 'position:fixed;top:20px;right:20px;padding:15px 25px;border-radius:8px;' +
-                           'font-weight:bold;z-index:10000;box-shadow:0 4px 12px rgba(0,0,0,0.15);' +
-                           'animation:slideIn 0.3s ease-out;';
-        
-        if (tipo === 'success') {
-            div.style.backgroundColor = '#d4edda';
-            div.style.color = '#155724';
-            div.style.border = '2px solid #c3e6cb';
-        } else {
-            div.style.backgroundColor = '#f8d7da';
-            div.style.color = '#721c24';
-            div.style.border = '2px solid #f5c6cb';
-        }
-        
-        document.body.appendChild(div);
-        
-        setTimeout(function() {
-            div.style.animation = 'slideOut 0.3s ease-in';
-            setTimeout(function() {
-                div.remove();
-            }, 300);
-        }, 3000);
-    }
-    
-    // Agregar estilos de animación
-    let style = document.createElement('style');
-    style.textContent = `
-        @keyframes slideIn {
-            from { transform: translateX(400px); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes slideOut {
-            from { transform: translateX(0); opacity: 1; }
-            to { transform: translateX(400px); opacity: 0; }
-        }
-    `;
-    document.head.appendChild(style);
 
-    // Inicializar
-    init();
+    window.aplicarFiltrosResultados = function() {
+        const ids = ['nombre', 'cedula', 'email', 'tema', 'estado', 'nivel'];
+        const filters = {};
+        let allEmpty = true;
 
-    function init() {
-        setupEventListeners();
-        cargarCandidatos();
-    }
-
-    function setupEventListeners() {
-        // Botón para mostrar formulario
-        if (addCandidateBtn) {
-            addCandidateBtn.addEventListener('click', function() {
-                mostrarFormulario();
-            });
-        }
-
-        // Botón cancelar
-        let cancelBtn = document.querySelector('button[data-action="cancel"]');
-        if (cancelBtn) {
-            cancelBtn.addEventListener('click', function() {
-                ocultarFormulario();
-            });
-        }
-
-        // Formulario de registro
-        if (candidatoForm) {
-            candidatoForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                registrarCandidato();
-            });
-        }
-
-        // Validación en tiempo real
-        setupFieldValidation();
-    }
-
-    function setupFieldValidation() {
-        let fields = [
-            { id: 'nombre_completo', errorId: 'nombre-completo-error' },
-            { id: 'email', errorId: 'email-error' },
-            { id: 'telefono', errorId: 'telefono-error' },
-            { id: 'cargo', errorId: 'cargo-error' }
-        ];
-
-        fields.forEach(function(field) {
-            let input = document.getElementById(field.id);
-            let errorElement = document.getElementById(field.errorId);
-
-            if (input && errorElement) {
-                input.addEventListener('blur', function() {
-                    validateField(input, errorElement);
-                });
-                input.addEventListener('input', function() {
-                    clearFieldError(input, errorElement);
-                });
-            }
-        });
-    }
-
-    function validateField(field, errorElement) {
-        if (!field || !errorElement) return false;
-
-        let value = field.value.trim();
-        let fieldType = field.type;
-        let isRequired = field.hasAttribute('required');
-
-        if (isRequired && !value) {
-            showFieldError(field, errorElement, 'Este campo es obligatorio');
-            return false;
-        }
-
-        if (fieldType === 'email' && value) {
-            let emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(value)) {
-                showFieldError(field, errorElement, 'Ingresa un email válido');
-                return false;
-            }
-        }
-
-        if (fieldType === 'tel' && value) {
-            let phoneRegex = /^[\d\s\-\+\(\)]{7,15}$/;
-            if (!phoneRegex.test(value)) {
-                showFieldError(field, errorElement, 'Ingresa un teléfono válido');
-                return false;
-            }
-        }
-
-        if (field.id === 'nombre_completo' && value) {
-            if (value.length < 2) {
-                showFieldError(field, errorElement, 'El nombre debe tener al menos 2 caracteres');
-                return false;
-            }
-        }
-
-        if (field.id === 'cargo' && value) {
-            if (value.length < 2) {
-                showFieldError(field, errorElement, 'El cargo debe tener al menos 2 caracteres');
-                return false;
-            }
-        }
-
-        clearFieldError(field, errorElement);
-        return true;
-    }
-
-    function showFieldError(field, errorElement, message) {
-        if (field && errorElement) {
-            field.style.borderColor = '#dc3545';
-            errorElement.textContent = message;
-            errorElement.style.color = '#dc3545';
-        }
-    }
-
-    function clearFieldError(field, errorElement) {
-        if (field && errorElement) {
-            field.style.borderColor = '';
-            errorElement.textContent = '';
-        }
-    }
-
-    function mostrarFormulario() {
-        if (formularioRegistro) {
-            formularioRegistro.style.display = 'block';
-
-            // Scroll al formulario
-            formularioRegistro.scrollIntoView({
-                behavior: 'smooth',
-                block: 'start'
-            });
-
-            // Focus en primer campo
-            let firstField = document.getElementById('nombre_completo');
-            if (firstField) {
-                setTimeout(function() {
-                    firstField.focus();
-                }, 300);
-            }
-        }
-    }
-
-    function ocultarFormulario() {
-        if (formularioRegistro) {
-            formularioRegistro.style.display = 'none';
-        }
-
-        // Limpiar formulario
-        if (candidatoForm) {
-            candidatoForm.reset();
-
-            // Limpiar errores
-            let errorElements = candidatoForm.querySelectorAll('.error-message');
-            errorElements.forEach(function(element) {
-                element.textContent = '';
-            });
-
-            // Limpiar estilos de error
-            let inputs = candidatoForm.querySelectorAll('input');
-            inputs.forEach(function(input) {
-                input.style.borderColor = '';
-            });
-        }
-    }
-
-    function registrarCandidato() {
-        let tipo_documento = document.getElementById('tipo_documento').value;
-        let numero_documento = document.getElementById('numero_documento').value;
-        let nombre_completo = document.getElementById('nombre_completo').value;
-        let email = document.getElementById('email').value;
-        let cargo = document.getElementById('cargo').value;
-        // Validación básica
-        if (!tipo_documento || !numero_documento || !nombre_completo || !email || !cargo) {
-            mostrarNotificacion('Todos los campos son obligatorios', 'error');
-            return;
-        }
-        fetch('/admin/registrar_candidato', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                tipo_documento: tipo_documento,
-                numero_documento: numero_documento,
-                nombre_completo: nombre_completo,
-                email: email,
-                cargo: cargo
-            })
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Error: HTTP ' + response.status);
-            }
-            return response.json();
-        })
-        .then(data => {
-            mostrarNotificacion('✅ Candidato registrado correctamente', 'success');
-            ocultarFormulario();
-            cargarCandidatos(); // Recargar lista
-        })
-        .catch(error => {
-            mostrarNotificacion(error, 'error');
-        });
-    }
-
-    function validateAllFields() {
-        if (!candidatoForm) return false;
-
-        let validations = [
-            { field: document.getElementById('nombre_completo'), error: document.getElementById('nombre-completo-error') },
-            { field: document.getElementById('email'), error: document.getElementById('email-error') },
-            { field: document.getElementById('telefono'), error: document.getElementById('telefono-error') },
-            { field: document.getElementById('cargo'), error: document.getElementById('cargo-error') }
-        ];
-
-        let allValid = true;
-
-        validations.forEach(function(validation) {
-            if (validation.field && validation.error) {
-                if (!validateField(validation.field, validation.error)) {
-                    allValid = false;
-                }
+        ids.forEach(key => {
+            const el = document.getElementById(`filtro-resultado-${key}`);
+            if (el && el.value) {
+                filters[key] = el.value.toLowerCase();
+                allEmpty = false;
             }
         });
 
-        return allValid;
-    }
+        if (allEmpty) return; // Opcional: mostrar todos si no hay filtros
 
-    function getValue(id) {
-        let element = document.getElementById(id);
-        return element ? element.value.trim() : '';
-    }
+        const filas = document.querySelectorAll('.fila-resultado');
+        let visibleCount = 0;
 
-    function cargarCandidatos() {
-        if (!listaCandidatos) return;
+        filas.forEach(fila => {
+            const data = {
+                nombre: fila.getAttribute('data-nombre') || '',
+                cedula: fila.getAttribute('data-cedula') || '',
+                email: fila.getAttribute('data-email') || '',
+                tema: fila.getAttribute('data-tema') || '',
+                nivel: fila.getAttribute('data-nivel') || '',
+                estado: fila.getAttribute('data-tiene-resultado') || 'no'
+            };
 
-        listaCandidatos.innerHTML = '<div class="loading">Cargando candidatos...</div>';
+            const matches = ids.every(key => {
+                if (!filters[key]) return true;
+                return data[key].includes(filters[key]) || data[key] === filters[key];
+            });
 
-        fetch('/admin/candidatos?format=json')
-        .then(function(response) {
-            if (!response.ok) {
-                throw new Error('HTTP ' + response.status);
+            if (matches) {
+                fila.style.display = '';
+                visibleCount++;
+            } else {
+                fila.style.display = 'none';
             }
-            return response.json();
-        })
-        .then(function(candidatos) {
-            mostrarCandidatos(candidatos);
-        })
-        .catch(function(error) {
-            console.error('Error cargando candidatos:', error);
-            listaCandidatos.innerHTML = '<div class="error">❌ Error cargando candidatos</div>';
-        });
-    }
-
-    function mostrarCandidatos(candidatos) {
-        if (!listaCandidatos) return;
-
-        if (!candidatos || candidatos.length === 0) {
-            listaCandidatos.innerHTML = '<div class="no-candidates">📝 No hay candidatos registrados</div>';
-            return;
-        }
-
-        let html = '';
-
-        candidatos.forEach(function(candidato) {
-            let statusClass = candidato.evaluacion_completada ? 'status-completada' : 'status-pendiente';
-            let statusText = candidato.evaluacion_completada ? '✅ Completada' : '⏳ Pendiente';
-
-            html += '<div class="candidato-card">';
-            html += '  <div class="candidato-info">';
-            html += '    <h3>' + escapeHtml(candidato.nombre_completo) + '</h3>';
-            if (candidato.tipo_documento && candidato.numero_documento) {
-                html += '    <p>🆔 ' + escapeHtml(candidato.tipo_documento) + ': ' + escapeHtml(candidato.numero_documento) + '</p>';
-            }
-            html += '    <p>📧 ' + escapeHtml(candidato.email) + '</p>';
-            html += '    <p>🔑 Código: ' + escapeHtml(candidato.codigo) + '</p>';
-            html += '    <p>👔 ' + escapeHtml(candidato.cargo || 'N/A') + '</p>';
-            if (candidato.telefono && candidato.telefono !=== 'N/A') {
-                html += '    <p>📞 ' + escapeHtml(candidato.telefono) + '</p>';
-            }
-            html += '  </div>';
-            html += '  <div class="candidato-status">';
-            html += '    <span class="' + statusClass + '">' + statusText + '</span>';
-            if (!candidato.evaluacion_completada) {
-                html += '<div style="margin-top:8px;display:flex;gap:8px;">';
-                html += '<button type="button" class="copy-btn" data-url="' + (candidato.url_evaluacion || '') + '" style="background:#007bff;color:white;padding:4px 10px;border-radius:5px;border:none;cursor:pointer;">📋 Copiar URL</button>';
-                html += '<a href="' + (candidato.url_evaluacion || '#') + '" target="_blank" class="eval-link" style="background:#28a745;color:white;padding:4px 10px;border-radius:5px;text-decoration:none;display:inline-block;">🔗 Abrir Evaluación</a>';
-                html += '</div>';
-            }
-            // Acciones: editar y eliminar
-            html += '<div style="margin-top:8px;display:flex;gap:8px;">';
-            html += '<button type="button" class="edit-btn"' +
-                    ' data-codigo="' + (candidato.codigo || '') + '"' +
-                    ' data-tipo-documento="' + (candidato.tipo_documento || '') + '"' +
-                    ' data-numero-documento="' + (candidato.numero_documento || '') + '"' +
-                    ' data-nombre-completo="' + (candidato.nombre_completo || '') + '"' +
-                    ' data-email="' + (candidato.email || '') + '"' +
-                    ' data-telefono="' + (candidato.telefono || '') + '"' +
-                    ' data-cargo="' + (candidato.cargo || '') + '"' +
-                    ' style="background:#6c757d;color:white;padding:4px 10px;border-radius:5px;border:none;cursor:pointer;">✏️ Editar</button>';
-            html += '<button type="button" class="delete-btn" data-codigo="' + candidato.codigo + '" style="background:#dc3545;color:white;padding:4px 10px;border-radius:5px;border:none;cursor:pointer;">🗑️ Eliminar</button>';
-            html += '</div>';
-            html += '  </div>';
-            html += '</div>';
         });
 
-        listaCandidatos.innerHTML = html;
-        // Asignar eventos a los botones recién renderizados
-        setTimeout(function() {
-            document.querySelectorAll('.copy-btn').forEach(function(btn) {
-                btn.onclick = function() {
-                    const url = btn.getAttribute('data-url');
-                    if (navigator.clipboard) {
-                        navigator.clipboard.writeText(url).then(function() {
-                            mostrarNotificacion('📋 URL copiada al portapapeles', 'success');
-                            btn.innerHTML = '✅ Copiado!';
-                            setTimeout(function(){ btn.innerHTML = '📋 Copiar URL'; }, 2000);
-                        }).catch(function(err) {
-                            fallbackCopyURL(url);
-                        });
-                    } else {
-                        fallbackCopyURL(url);
-                    }
-                };
-            });
-            // Evento para eliminar candidato
-            document.querySelectorAll('.delete-btn').forEach(function(btn) {
-                btn.onclick = function() {
-                    const codigo = btn.getAttribute('data-codigo');
-                    if (confirm('¿Seguro que deseas eliminar este candidato?')) {
-                        fetch('/admin/eliminar_candidato', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ codigo: codigo })
-                        })
-                        .then(response => {
-                            if (!response.ok) throw new Error('Error eliminando candidato');
-                            return response.json();
-                        })
-                        .then(data => {
-                            mostrarNotificacion('🗑️ Candidato eliminado', 'success');
-                            cargarCandidatos();
-                        })
-                        .catch(error => {
-                            mostrarNotificacion('❌ Error al eliminar candidato', 'error');
-                        });
-                    }
-                };
-            });
-            // Evento para editar candidato
-            document.querySelectorAll('.edit-btn').forEach(function(btn) {
-                btn.onclick = function() {
-                    let c = {
-                        codigo: btn.getAttribute('data-codigo') || '',
-                        tipo_documento: btn.getAttribute('data-tipo-documento') || '',
-                        numero_documento: btn.getAttribute('data-numero-documento') || '',
-                        nombre_completo: btn.getAttribute('data-nombre-completo') || '',
-                        email: btn.getAttribute('data-email') || '',
-                        telefono: btn.getAttribute('data-telefono') || '',
-                        cargo: btn.getAttribute('data-cargo') || ''
-                    };
-                    if (window.abrirEditarCandidato) {
-                        window.abrirEditarCandidato(c);
-                    } else if (window.abrirEditarCandidatoDesdeBoton) {
-                        window.abrirEditarCandidatoDesdeBoton(btn);
-                    }
-                };
-            });
-        // El enlace <a> ya navega por sí solo, no necesita evento JS
-        }, 100);
-    }
-
-    // ...eliminada función eliminarCandidato...
-
-    function escapeHtml(text) {
-        if (!text) return '';
-        let map = {
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        };
-        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
-    }
-    // Escapar valores para atributos HTML (incluye comillas)
-    function escapeAttr(text) {
-        if (!text && text !=== 0) return '';
-        return String(text)
-            .replace(/&/g, '&amp;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
-    }
-
-    function mostrarNotificacion(mensaje, tipo) {
-        if (typeof window.mostrarNotificacion === 'function') {
-            window.mostrarNotificacion(mensaje, tipo);
-        } else {
-            // Fallback si utils.js no está cargado
-            const notification = document.createElement('div');
-            notification.style.background = tipo === 'success' ? '#d4edda' : '#f8d7da';
-            notification.style.color = tipo === 'success' ? '#155724' : '#721c24';
-            notification.style.border = tipo === 'success' ? '1px solid #c3e6cb' : '1px solid #f5c6cb';
-            notification.setAttribute('role', 'alert');
-            notification.setAttribute('aria-live', tipo === 'error' ? 'assertive' : 'polite');
-            notification.textContent = mensaje;
-            notification.style.position = 'fixed';
-            notification.style.top = '20px';
-            notification.style.right = '20px';
-            notification.style.padding = '15px 20px';
-            notification.style.borderRadius = '8px';
-            notification.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-            notification.style.zIndex = '1000';
-            notification.style.maxWidth = '400px';
-            notification.style.animation = 'slideInRight 0.3s ease-out';
-            document.body.appendChild(notification);
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.style.animation = 'slideOutRight 0.3s ease-in';
-                    setTimeout(() => notification.remove(), 300);
-                }
-            }, 4000);
-        }
-    }
-
-    // Función global para copiar URL
-    window.copiarURL = function(url) {
-        if (!url) return;
-
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(url).then(function() {
-                mostrarNotificacion('📋 URL copiada al portapapeles', 'success');
-            }).catch(function(err) {
-                console.error('Error copiando URL:', err);
-                fallbackCopyURL(url);
-            });
-        } else {
-            fallbackCopyURL(url);
+        const contadorDiv = document.getElementById('contador-resultados');
+        if (contadorDiv) {
+            contadorDiv.textContent = visibleCount === filas.length 
+                ? `📊 Mostrando todos los resultados (${filas.length})`
+                : `📊 Mostrando ${visibleCount} de ${filas.length} resultados`;
         }
     };
 
-    function fallbackCopyURL(url) {
-        // Crear elemento temporal
-        let tempInput = document.createElement('input');
-        tempInput.value = url;
-        document.body.appendChild(tempInput);
-        tempInput.select();
+    window.limpiarFiltrosResultados = function() {
+        ['nombre', 'cedula', 'email', 'tema', 'estado', 'nivel'].forEach(key => {
+            const el = document.getElementById(`filtro-resultado-${key}`);
+            if (el) el.value = '';
+        });
+        window.aplicarFiltrosResultados();
+    };
 
-        try {
-            document.execCommand('copy');
-            mostrarNotificacion('📋 URL copiada al portapapeles', 'success');
-        } catch (err) {
-            console.error('Error copiando URL:', err);
-            mostrarNotificacion('❌ No se pudo copiar la URL', 'error');
+    // Bind filter events
+    ['nombre', 'cedula', 'email', 'tema', 'estado', 'nivel'].forEach(key => {
+        const el = document.getElementById(`filtro-resultado-${key}`);
+        if (el) {
+            el.addEventListener('input', window.aplicarFiltrosResultados);
+            el.addEventListener('change', window.aplicarFiltrosResultados);
         }
+    });
+});
 
-        document.body.removeChild(tempInput);
-    }
-
-    // Agregar estilos de animación solo una vez
-    if (!document.querySelector('#admin-animations')) {
-        let style = document.createElement('style');
-        style.id = 'admin-animations';
-        style.textContent =
-            '@keyframes slideInRight {' +
-            '  from { transform: translateX(100%); opacity: 0; }' +
-            '  to { transform: translateX(0); opacity: 1; }' +
-            '}' +
-            '@keyframes slideOutRight {' +
-            '  from { transform: translateX(0); opacity: 1; }' +
-            '  to { transform: translateX(100%); opacity: 0; }' +
-            '}';
-        document.head.appendChild(style);
-    }
-
-    function announceToScreenReader(message) {
-        if (typeof window.announceToScreenReader === 'function') {
-            window.announceToScreenReader(message);
-        } else {
-            let formStatus = document.getElementById('form-status');
-            if (formStatus) {
-                formStatus.textContent = message;
-                setTimeout(function() {
-                    formStatus.textContent = '';
-                }, 3000);
-            }
-        }
-    }
-
-    // Función global para recargar candidatos
-    window.recargarCandidatos = cargarCandidatos;
-
-    // ==========================================
-    // Funciones migradas y unificadas
-    // ==========================================
-
-
-function actualizarFilaResultados(candidato){
-    try {
-        let tabla = document.getElementById('tabla-resultados');
-        if (!tabla || !candidato || !candidato.codigo) return;
-        let fila = tabla.querySelector('.fila-resultado[data-codigo="' + candidato.codigo + '"]');
-        if (!fila) return;
-        let celdas = fila.getElementsByTagName('td');
-        if (!celdas || celdas.length < 3) return;
-        // 0: Nombre, 1: Documento, 2: Email
-        celdas[0].textContent = candidato.nombre_completo || '-';
-        if (candidato.tipo_documento && candidato.numero_documento) {
-            celdas[1].textContent = (candidato.tipo_documento + ': ' + candidato.numero_documento);
-            fila.setAttribute('data-cedula', String(candidato.numero_documento).toLowerCase());
-        } else {
-            celdas[1].textContent = '-';
-            fila.setAttribute('data-cedula', '');
-        }
-        celdas[2].textContent = candidato.email || '-';
-        fila.setAttribute('data-nombre', (candidato.nombre_completo || '').toLowerCase());
-        fila.setAttribute('data-email', (candidato.email || '').toLowerCase());
-    } catch (e) {
-        console.warn('No se pudo actualizar la fila de resultados:', e);
-    }
-}
-
+// Global helpers needed for modal interaction
 window.abrirEditarCandidato = function(c) {
-    let modal = document.getElementById('modal-editar');
-    document.getElementById('edit-codigo').value = c.codigo || '';
-    document.getElementById('edit-tipo_documento').value = c.tipo_documento || '';
-    document.getElementById('edit-numero_documento').value = c.numero_documento || '';
-    document.getElementById('edit-nombre_completo').value = c.nombre_completo || '';
-    document.getElementById('edit-email').value = c.email || '';
-    document.getElementById('edit-telefono').value = c.telefono || '';
-    document.getElementById('edit-cargo').value = c.cargo || '';
+    const modal = document.getElementById('modal-editar');
+    if (!modal) return;
+    
+    ['codigo', 'tipo_documento', 'numero_documento', 'nombre_completo', 'email', 'telefono', 'cargo'].forEach(key => {
+        const el = document.getElementById(`edit-${key}`);
+        if (el) el.value = c[key] || '';
+    });
+    
     modal.style.display = 'flex';
 };
 
-window.abrirEditarCandidatoDesdeBoton = function(btn){
-    let c = {
-        codigo: btn.getAttribute('data-codigo') || '',
-        tipo_documento: btn.getAttribute('data-tipo-documento') || '',
-        numero_documento: btn.getAttribute('data-numero-documento') || '',
-        nombre_completo: btn.getAttribute('data-nombre-completo') || '',
-        email: btn.getAttribute('data-email') || '',
-        telefono: btn.getAttribute('data-telefono') || '',
-        cargo: btn.getAttribute('data-cargo') || ''
-    };
+window.abrirEditarCandidatoDesdeBoton = function(btn) {
+    const c = {};
+    ['codigo', 'tipo_documento', 'numero_documento', 'nombre_completo', 'email', 'telefono', 'cargo'].forEach(key => {
+        c[key] = btn.getAttribute(`data-${key.replace('_', '-')}`) || '';
+    });
     window.abrirEditarCandidato(c);
 };
 
 window.cerrarModalEditar = function() {
-    let modal = document.getElementById('modal-editar');
-    modal.style.display = 'none';
+    const modal = document.getElementById('modal-editar');
+    if (modal) modal.style.display = 'none';
 };
 
-    // Configuración del formulario de edición
-    let form = document.getElementById('form-editar-candidato');
-    if (form) {
-        form.addEventListener('submit', function(e){
-            e.preventDefault();
-            let payload = {
-                codigo: document.getElementById('edit-codigo').value,
-                tipo_documento: document.getElementById('edit-tipo_documento').value,
-                numero_documento: document.getElementById('edit-numero_documento').value,
-                nombre_completo: document.getElementById('edit-nombre_completo').value,
-                email: document.getElementById('edit-email').value,
-                telefono: document.getElementById('edit-telefono').value,
-                cargo: document.getElementById('edit-cargo').value
-            };
-            fetch('/admin/actualizar_candidato', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            })
-            .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-            .then(function(data){
-                if (!data.success) throw new Error(data.error || 'Error al actualizar');
-                window.cerrarModalEditar();
-                if (typeof cargarCandidatos === 'function') { cargarCandidatos(); }
-                // Actualizar tabla de resultados en vivo
-                if (data.candidato) { actualizarFilaResultados(data.candidato); }
-                mostrarNotificacion('Candidato actualizado', 'success');
-            })
-            .catch(function(err){
-                mostrarNotificacion(err.message, 'error');
-            });
-        });
-    }
-
-    // Configuración de botones y acciones
-    // Copy URL buttons
-    document.querySelectorAll('.btn-copiar-url').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            let url = this.getAttribute('data-url');
-            if (url) {
-                navigator.clipboard.writeText(url).then(() => {
-                    let originalText = btn.innerHTML;
-                    btn.innerHTML = ' Copiado!';
-                    setTimeout(() => { btn.innerHTML = originalText; }, 2000);
-                });
-            }
-        });
-    });
-
-    // Edit buttons
-    document.querySelectorAll('.btn-editar').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            if (window.abrirEditarCandidatoDesdeBoton) {
-                window.abrirEditarCandidatoDesdeBoton(this);
-            }
-        });
-    });
-
-    // Delete buttons
-    document.querySelectorAll('.btn-eliminar').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            let codigo = this.getAttribute('data-codigo');
-            if (codigo && window.eliminarCandidato) {
-                window.eliminarCandidato(codigo, this);
-            }
-        });
-    });
-
-    // Close modal button
-    let btnCerrarModal = document.querySelector('#modal-editar .btn-secondary');
-    if (btnCerrarModal) {
-        btnCerrarModal.addEventListener('click', function() {
-            if (window.cerrarModalEditar) {
-                window.cerrarModalEditar();
-            }
-        });
-    }
-
-    // Clear filters button
-    let btnLimpiarFiltros = document.querySelector('.btn-limpiar-filtros');
-    if (btnLimpiarFiltros) {
-        btnLimpiarFiltros.addEventListener('click', function() {
-            if (window.limpiarFiltrosResultados) {
-                window.limpiarFiltrosResultados();
-            }
-        });
-    }
-});
+window.copiarURL = Utils.copiarURL;
