@@ -190,7 +190,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     throw new Error('Candidato no registrado');
                 }
                 if (!r.ok) throw new Error('HTTP ' + r.status);
-                if (data.mensaje) {
+                if (r.ok && (data.success || data.mensaje)) {
                     if (confirmationSection) confirmationSection.style.display = 'none';
                     if (progressContainer) progressContainer.style.display = 'block';
                     if (questionContainer) questionContainer.style.display = 'block';
