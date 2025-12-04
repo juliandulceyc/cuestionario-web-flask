@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
-    var listaTemas = document.getElementById('lista-temas');
+    let listaTemas = document.getElementById('lista-temas');
     cargarArchivosTemas();
 
     function cargarArchivosTemas() {
@@ -9,12 +9,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!listaTemas) return;
                 listaTemas.innerHTML = '';
                 (data.archivos || []).forEach(function(nombre) {
-                    var tr = document.createElement('tr');
-                    var tdNombre = document.createElement('td');
+                    let tr = document.createElement('tr');
+                    let tdNombre = document.createElement('td');
                     tdNombre.textContent = nombre;
                     tdNombre.style.fontWeight = 'bold';
-                    var tdAccion = document.createElement('td');
-                    var btn = document.createElement('button');
+                    let tdAccion = document.createElement('td');
+                    let btn = document.createElement('button');
                     btn.className = 'btn-eliminar-tema';
                     btn.textContent = 'Eliminar';
                     btn.onclick = function() { eliminarTemaExcel(nombre); };
@@ -44,52 +44,52 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     // Variables globales
-    var formularioRegistro = document.getElementById('formularioRegistro');
-    var candidatoForm = document.getElementById('candidatoForm');
-    var listaCandidatos = document.getElementById('candidatos-lista');
-    var addCandidateBtn = document.querySelector('.add-candidate-btn');
+    let formularioRegistro = document.getElementById('formularioRegistro');
+    let candidatoForm = document.getElementById('candidatoForm');
+    let listaCandidatos = document.getElementById('candidatos-lista');
+    let addCandidateBtn = document.querySelector('.add-candidate-btn');
     
     // ===== FUNCIONES DE FILTRADO PARA RESULTADOS DE EVALUACIONES =====
     window.aplicarFiltrosResultados = function() {
-        var filtroNombre = document.getElementById('filtro-resultado-nombre');
-        var filtroCedula = document.getElementById('filtro-resultado-cedula');
-        var filtroEmail = document.getElementById('filtro-resultado-email');
-        var filtroTema = document.getElementById('filtro-resultado-tema');
-        var filtroEstado = document.getElementById('filtro-resultado-estado');
-        var filtroNivel = document.getElementById('filtro-resultado-nivel');
+        let filtroNombre = document.getElementById('filtro-resultado-nombre');
+        let filtroCedula = document.getElementById('filtro-resultado-cedula');
+        let filtroEmail = document.getElementById('filtro-resultado-email');
+        let filtroTema = document.getElementById('filtro-resultado-tema');
+        let filtroEstado = document.getElementById('filtro-resultado-estado');
+        let filtroNivel = document.getElementById('filtro-resultado-nivel');
         
         if (!filtroNombre || !filtroCedula || !filtroEmail || !filtroTema || !filtroEstado || !filtroNivel) {
             return;
         }
         
-        var valorNombre = filtroNombre.value.toLowerCase();
-        var valorCedula = filtroCedula.value.toLowerCase();
-        var valorEmail = filtroEmail.value.toLowerCase();
-        var valorTema = filtroTema.value.toLowerCase();
-        var valorEstado = filtroEstado.value;
-        var valorNivel = filtroNivel.value;
+        let valorNombre = filtroNombre.value.toLowerCase();
+        let valorCedula = filtroCedula.value.toLowerCase();
+        let valorEmail = filtroEmail.value.toLowerCase();
+        let valorTema = filtroTema.value.toLowerCase();
+        let valorEstado = filtroEstado.value;
+        let valorNivel = filtroNivel.value;
         
-        var filas = document.querySelectorAll('.fila-resultado');
-        var contadorVisible = 0;
-        var contadorTotal = filas.length;
+        let filas = document.querySelectorAll('.fila-resultado');
+        let contadorVisible = 0;
+        let contadorTotal = filas.length;
         
         filas.forEach(function(fila) {
-            var nombre = fila.getAttribute('data-nombre') || '';
-            var cedula = fila.getAttribute('data-cedula') || '';
-            var email = fila.getAttribute('data-email') || '';
-            var tema = fila.getAttribute('data-tema') || '';
-            var nivel = fila.getAttribute('data-nivel') || '';
-            var tieneResultado = fila.getAttribute('data-tiene-resultado') || 'no';
+            let nombre = fila.getAttribute('data-nombre') || '';
+            let cedula = fila.getAttribute('data-cedula') || '';
+            let email = fila.getAttribute('data-email') || '';
+            let tema = fila.getAttribute('data-tema') || '';
+            let nivel = fila.getAttribute('data-nivel') || '';
+            let tieneResultado = fila.getAttribute('data-tiene-resultado') || 'no';
             
-            var cumpleNombre = !valorNombre || nombre.includes(valorNombre);
-            var cumpleCedula = !valorCedula || cedula.includes(valorCedula);
-            var cumpleEmail = !valorEmail || email.includes(valorEmail);
-            var cumpleTema = !valorTema || tema.includes(valorTema);
-            var cumpleEstado = !valorEstado || tieneResultado === valorEstado;
-            var cumpleNivel = !valorNivel || nivel === valorNivel;
+            let cumpleNombre = !valorNombre || nombre.includes(valorNombre);
+            let cumpleCedula = !valorCedula || cedula.includes(valorCedula);
+            let cumpleEmail = !valorEmail || email.includes(valorEmail);
+            let cumpleTema = !valorTema || tema.includes(valorTema);
+            let cumpleEstado = !valorEstado || tieneResultado === valorEstado;
+            let cumpleNivel = !valorNivel || nivel === valorNivel;
             
             // Mostrar todas las filas que cumplan los filtros
-            var mostrar = cumpleNombre && cumpleCedula && cumpleEmail && cumpleTema && cumpleEstado && cumpleNivel;
+            let mostrar = cumpleNombre && cumpleCedula && cumpleEmail && cumpleTema && cumpleEstado && cumpleNivel;
             
             if (mostrar) {
                 fila.style.display = '';
@@ -100,7 +100,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         // Actualizar contador
-        var contadorDiv = document.getElementById('contador-resultados');
+        let contadorDiv = document.getElementById('contador-resultados');
         if (contadorDiv) {
             if (contadorVisible === contadorTotal) {
                 contadorDiv.textContent = '📊 Mostrando todos los resultados (' + contadorTotal + ')';
@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
     window.limpiarFiltrosResultados = function() {
-        var filtros = [
+        let filtros = [
             'filtro-resultado-nombre',
             'filtro-resultado-cedula',
             'filtro-resultado-email',
@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function() {
         ];
         
         filtros.forEach(function(id) {
-            var elemento = document.getElementById(id);
+            let elemento = document.getElementById(id);
             if (elemento) {
                 elemento.value = '';
             }
@@ -131,7 +131,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
     // Aplicar filtros en tiempo real para resultados
-    var filtrosResultados = [
+    let filtrosResultados = [
         'filtro-resultado-nombre',
         'filtro-resultado-cedula',
         'filtro-resultado-email',
@@ -141,7 +141,7 @@ document.addEventListener('DOMContentLoaded', function() {
     ];
     
     filtrosResultados.forEach(function(id) {
-        var elemento = document.getElementById(id);
+        let elemento = document.getElementById(id);
         if (elemento) {
             elemento.addEventListener('input', aplicarFiltrosResultados);
             elemento.addEventListener('change', aplicarFiltrosResultados);
@@ -181,7 +181,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(function(data) {
             if (data.success) {
                 // Encontrar y eliminar la card del candidato con animación
-                var cardElement = botonElement.closest('.candidato-card');
+                let cardElement = botonElement.closest('.candidato-card');
                 if (cardElement) {
                     cardElement.style.transition = 'opacity 0.3s, transform 0.3s';
                     cardElement.style.opacity = '0';
@@ -194,9 +194,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         mostrarMensajeFlotante('✅ Candidato eliminado exitosamente', 'success');
                         
                         // Verificar si quedan candidatos
-                        var candidatosRestantes = document.querySelectorAll('.candidato-card');
+                        let candidatosRestantes = document.querySelectorAll('.candidato-card');
                         if (candidatosRestantes.length === 0) {
-                            var mensajeVacio = document.createElement('div');
+                            let mensajeVacio = document.createElement('div');
                             mensajeVacio.style.cssText = 'text-align:center;padding:40px;color:#999;font-size:18px;';
                             mensajeVacio.innerHTML = '<p>📭 No hay candidatos registrados</p>';
                             listaCandidatos.appendChild(mensajeVacio);
@@ -217,7 +217,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Función auxiliar para mostrar mensajes flotantes
     function mostrarMensajeFlotante(mensaje, tipo) {
-        var div = document.createElement('div');
+        let div = document.createElement('div');
         div.textContent = mensaje;
         div.style.cssText = 'position:fixed;top:20px;right:20px;padding:15px 25px;border-radius:8px;' +
                            'font-weight:bold;z-index:10000;box-shadow:0 4px 12px rgba(0,0,0,0.15);' +
@@ -244,7 +244,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Agregar estilos de animación
-    var style = document.createElement('style');
+    let style = document.createElement('style');
     style.textContent = `
         @keyframes slideIn {
             from { transform: translateX(400px); opacity: 0; }
@@ -274,7 +274,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Botón cancelar
-        var cancelBtn = document.querySelector('button[data-action="cancel"]');
+        let cancelBtn = document.querySelector('button[data-action="cancel"]');
         if (cancelBtn) {
             cancelBtn.addEventListener('click', function() {
                 ocultarFormulario();
@@ -294,7 +294,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function setupFieldValidation() {
-        var fields = [
+        let fields = [
             { id: 'nombre_completo', errorId: 'nombre-completo-error' },
             { id: 'email', errorId: 'email-error' },
             { id: 'telefono', errorId: 'telefono-error' },
@@ -302,8 +302,8 @@ document.addEventListener('DOMContentLoaded', function() {
         ];
 
         fields.forEach(function(field) {
-            var input = document.getElementById(field.id);
-            var errorElement = document.getElementById(field.errorId);
+            let input = document.getElementById(field.id);
+            let errorElement = document.getElementById(field.errorId);
 
             if (input && errorElement) {
                 input.addEventListener('blur', function() {
@@ -319,9 +319,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function validateField(field, errorElement) {
         if (!field || !errorElement) return false;
 
-        var value = field.value.trim();
-        var fieldType = field.type;
-        var isRequired = field.hasAttribute('required');
+        let value = field.value.trim();
+        let fieldType = field.type;
+        let isRequired = field.hasAttribute('required');
 
         if (isRequired && !value) {
             showFieldError(field, errorElement, 'Este campo es obligatorio');
@@ -329,7 +329,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (fieldType === 'email' && value) {
-            var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            let emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(value)) {
                 showFieldError(field, errorElement, 'Ingresa un email válido');
                 return false;
@@ -337,7 +337,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (fieldType === 'tel' && value) {
-            var phoneRegex = /^[\d\s\-\+\(\)]{7,15}$/;
+            let phoneRegex = /^[\d\s\-\+\(\)]{7,15}$/;
             if (!phoneRegex.test(value)) {
                 showFieldError(field, errorElement, 'Ingresa un teléfono válido');
                 return false;
@@ -388,7 +388,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             // Focus en primer campo
-            var firstField = document.getElementById('nombre_completo');
+            let firstField = document.getElementById('nombre_completo');
             if (firstField) {
                 setTimeout(function() {
                     firstField.focus();
@@ -407,13 +407,13 @@ document.addEventListener('DOMContentLoaded', function() {
             candidatoForm.reset();
 
             // Limpiar errores
-            var errorElements = candidatoForm.querySelectorAll('.error-message');
+            let errorElements = candidatoForm.querySelectorAll('.error-message');
             errorElements.forEach(function(element) {
                 element.textContent = '';
             });
 
             // Limpiar estilos de error
-            var inputs = candidatoForm.querySelectorAll('input');
+            let inputs = candidatoForm.querySelectorAll('input');
             inputs.forEach(function(input) {
                 input.style.borderColor = '';
             });
@@ -421,11 +421,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function registrarCandidato() {
-        var tipo_documento = document.getElementById('tipo_documento').value;
-        var numero_documento = document.getElementById('numero_documento').value;
-        var nombre_completo = document.getElementById('nombre_completo').value;
-        var email = document.getElementById('email').value;
-        var cargo = document.getElementById('cargo').value;
+        let tipo_documento = document.getElementById('tipo_documento').value;
+        let numero_documento = document.getElementById('numero_documento').value;
+        let nombre_completo = document.getElementById('nombre_completo').value;
+        let email = document.getElementById('email').value;
+        let cargo = document.getElementById('cargo').value;
         // Validación básica
         if (!tipo_documento || !numero_documento || !nombre_completo || !email || !cargo) {
             mostrarNotificacion('Todos los campos son obligatorios', 'error');
@@ -463,14 +463,14 @@ document.addEventListener('DOMContentLoaded', function() {
     function validateAllFields() {
         if (!candidatoForm) return false;
 
-        var validations = [
+        let validations = [
             { field: document.getElementById('nombre_completo'), error: document.getElementById('nombre-completo-error') },
             { field: document.getElementById('email'), error: document.getElementById('email-error') },
             { field: document.getElementById('telefono'), error: document.getElementById('telefono-error') },
             { field: document.getElementById('cargo'), error: document.getElementById('cargo-error') }
         ];
 
-        var allValid = true;
+        let allValid = true;
 
         validations.forEach(function(validation) {
             if (validation.field && validation.error) {
@@ -484,7 +484,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function getValue(id) {
-        var element = document.getElementById(id);
+        let element = document.getElementById(id);
         return element ? element.value.trim() : '';
     }
 
@@ -517,11 +517,11 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        var html = '';
+        let html = '';
 
         candidatos.forEach(function(candidato) {
-            var statusClass = candidato.evaluacion_completada ? 'status-completada' : 'status-pendiente';
-            var statusText = candidato.evaluacion_completada ? '✅ Completada' : '⏳ Pendiente';
+            let statusClass = candidato.evaluacion_completada ? 'status-completada' : 'status-pendiente';
+            let statusText = candidato.evaluacion_completada ? '✅ Completada' : '⏳ Pendiente';
 
             html += '<div class="candidato-card">';
             html += '  <div class="candidato-info">';
@@ -532,7 +532,7 @@ document.addEventListener('DOMContentLoaded', function() {
             html += '    <p>📧 ' + escapeHtml(candidato.email) + '</p>';
             html += '    <p>🔑 Código: ' + escapeHtml(candidato.codigo) + '</p>';
             html += '    <p>👔 ' + escapeHtml(candidato.cargo || 'N/A') + '</p>';
-            if (candidato.telefono && candidato.telefono !== 'N/A') {
+            if (candidato.telefono && candidato.telefono !=== 'N/A') {
                 html += '    <p>📞 ' + escapeHtml(candidato.telefono) + '</p>';
             }
             html += '  </div>';
@@ -607,7 +607,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Evento para editar candidato
             document.querySelectorAll('.edit-btn').forEach(function(btn) {
                 btn.onclick = function() {
-                    var c = {
+                    let c = {
                         codigo: btn.getAttribute('data-codigo') || '',
                         tipo_documento: btn.getAttribute('data-tipo-documento') || '',
                         numero_documento: btn.getAttribute('data-numero-documento') || '',
@@ -631,7 +631,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function escapeHtml(text) {
         if (!text) return '';
-        var map = {
+        let map = {
             '&': '&amp;',
             '<': '&lt;',
             '>': '&gt;',
@@ -642,7 +642,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     // Escapar valores para atributos HTML (incluye comillas)
     function escapeAttr(text) {
-        if (!text && text !== 0) return '';
+        if (!text && text !=== 0) return '';
         return String(text)
             .replace(/&/g, '&amp;')
             .replace(/"/g, '&quot;')
@@ -700,7 +700,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function fallbackCopyURL(url) {
         // Crear elemento temporal
-        var tempInput = document.createElement('input');
+        let tempInput = document.createElement('input');
         tempInput.value = url;
         document.body.appendChild(tempInput);
         tempInput.select();
@@ -718,7 +718,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Agregar estilos de animación solo una vez
     if (!document.querySelector('#admin-animations')) {
-        var style = document.createElement('style');
+        let style = document.createElement('style');
         style.id = 'admin-animations';
         style.textContent =
             '@keyframes slideInRight {' +
@@ -736,7 +736,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (typeof window.announceToScreenReader === 'function') {
             window.announceToScreenReader(message);
         } else {
-            var formStatus = document.getElementById('form-status');
+            let formStatus = document.getElementById('form-status');
             if (formStatus) {
                 formStatus.textContent = message;
                 setTimeout(function() {
@@ -748,15 +748,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Función global para recargar candidatos
     window.recargarCandidatos = cargarCandidatos;
-});// Funciones migradas desde admin_dashboard.html
+
+    // ==========================================
+    // Funciones migradas y unificadas
+    // ==========================================
+
 
 function actualizarFilaResultados(candidato){
     try {
-        var tabla = document.getElementById('tabla-resultados');
+        let tabla = document.getElementById('tabla-resultados');
         if (!tabla || !candidato || !candidato.codigo) return;
-        var fila = tabla.querySelector('.fila-resultado[data-codigo="' + candidato.codigo + '"]');
+        let fila = tabla.querySelector('.fila-resultado[data-codigo="' + candidato.codigo + '"]');
         if (!fila) return;
-        var celdas = fila.getElementsByTagName('td');
+        let celdas = fila.getElementsByTagName('td');
         if (!celdas || celdas.length < 3) return;
         // 0: Nombre, 1: Documento, 2: Email
         celdas[0].textContent = candidato.nombre_completo || '-';
@@ -776,7 +780,7 @@ function actualizarFilaResultados(candidato){
 }
 
 window.abrirEditarCandidato = function(c) {
-    var modal = document.getElementById('modal-editar');
+    let modal = document.getElementById('modal-editar');
     document.getElementById('edit-codigo').value = c.codigo || '';
     document.getElementById('edit-tipo_documento').value = c.tipo_documento || '';
     document.getElementById('edit-numero_documento').value = c.numero_documento || '';
@@ -788,7 +792,7 @@ window.abrirEditarCandidato = function(c) {
 };
 
 window.abrirEditarCandidatoDesdeBoton = function(btn){
-    var c = {
+    let c = {
         codigo: btn.getAttribute('data-codigo') || '',
         tipo_documento: btn.getAttribute('data-tipo-documento') || '',
         numero_documento: btn.getAttribute('data-numero-documento') || '',
@@ -801,16 +805,16 @@ window.abrirEditarCandidatoDesdeBoton = function(btn){
 };
 
 window.cerrarModalEditar = function() {
-    var modal = document.getElementById('modal-editar');
+    let modal = document.getElementById('modal-editar');
     modal.style.display = 'none';
 };
 
-document.addEventListener('DOMContentLoaded', function(){
-    var form = document.getElementById('form-editar-candidato');
+    // Configuración del formulario de edición
+    let form = document.getElementById('form-editar-candidato');
     if (form) {
         form.addEventListener('submit', function(e){
             e.preventDefault();
-            var payload = {
+            let payload = {
                 codigo: document.getElementById('edit-codigo').value,
                 tipo_documento: document.getElementById('edit-tipo_documento').value,
                 numero_documento: document.getElementById('edit-numero_documento').value,
@@ -831,29 +835,22 @@ document.addEventListener('DOMContentLoaded', function(){
                 if (typeof cargarCandidatos === 'function') { cargarCandidatos(); }
                 // Actualizar tabla de resultados en vivo
                 if (data.candidato) { actualizarFilaResultados(data.candidato); }
-                if (typeof window.mostrarNotificacion === 'function') {
-                    window.mostrarNotificacion(' Candidato actualizado', 'success');
-                } else {
-                    alert('Candidato actualizado');
-                }
+                mostrarNotificacion('Candidato actualizado', 'success');
             })
             .catch(function(err){
-                if (typeof window.mostrarNotificacion === 'function') {
-                    window.mostrarNotificacion(' '+err.message, 'error');
-                } else { alert('Error: '+err.message); }
+                mostrarNotificacion(err.message, 'error');
             });
         });
     }
-});
 
-document.addEventListener('DOMContentLoaded', function() {
+    // Configuración de botones y acciones
     // Copy URL buttons
     document.querySelectorAll('.btn-copiar-url').forEach(function(btn) {
         btn.addEventListener('click', function() {
-            var url = this.getAttribute('data-url');
+            let url = this.getAttribute('data-url');
             if (url) {
                 navigator.clipboard.writeText(url).then(() => {
-                    var originalText = btn.innerHTML;
+                    let originalText = btn.innerHTML;
                     btn.innerHTML = ' Copiado!';
                     setTimeout(() => { btn.innerHTML = originalText; }, 2000);
                 });
@@ -873,7 +870,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Delete buttons
     document.querySelectorAll('.btn-eliminar').forEach(function(btn) {
         btn.addEventListener('click', function() {
-            var codigo = this.getAttribute('data-codigo');
+            let codigo = this.getAttribute('data-codigo');
             if (codigo && window.eliminarCandidato) {
                 window.eliminarCandidato(codigo, this);
             }
@@ -881,7 +878,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Close modal button
-    var btnCerrarModal = document.querySelector('#modal-editar .btn-secondary');
+    let btnCerrarModal = document.querySelector('#modal-editar .btn-secondary');
     if (btnCerrarModal) {
         btnCerrarModal.addEventListener('click', function() {
             if (window.cerrarModalEditar) {
@@ -891,7 +888,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Clear filters button
-    var btnLimpiarFiltros = document.querySelector('.btn-limpiar-filtros');
+    let btnLimpiarFiltros = document.querySelector('.btn-limpiar-filtros');
     if (btnLimpiarFiltros) {
         btnLimpiarFiltros.addEventListener('click', function() {
             if (window.limpiarFiltrosResultados) {
