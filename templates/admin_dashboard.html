@@ -28,8 +28,8 @@
                 <table class="tabla-archivos-temas">
                     <thead>
                         <tr>
-                            <th>Archivo</th>
-                            <th>Acción</th>
+                            <th scope="col">Archivo</th>
+                            <th scope="col">Acción</th>
                         </tr>
                     </thead>
                     <tbody id="lista-temas">
@@ -139,7 +139,7 @@
                                 data-email="{{ candidato.email }}"
                                 data-telefono="{{ candidato.telefono or '' }}"
                                 data-cargo="{{ candidato.cargo or '' }}"> Editar</button>
-                            <button data-codigo="{{ candidato.codigo }}" 
+                            <button type="button" data-codigo="{{ candidato.codigo }}" 
                                     class="btn btn-danger btn-eliminar">
                                  Eliminar
                             </button>
@@ -218,7 +218,7 @@
                         </select>
                     </div>
                     <div class="flex-end-container">
-                        <button class="btn btn-secondary btn-limpiar-filtros"> Limpiar Filtros</button>
+                        <button type="button" class="btn btn-secondary btn-limpiar-filtros"> Limpiar Filtros</button>
                     </div>
                 </div>
                 <div id="contador-resultados" class="contador-resultados"></div>
@@ -228,17 +228,17 @@
                 <table class="table table-bordered tabla-resultados" id="tabla-resultados">
                     <thead>
                         <tr>
-                            <th>Candidato</th>
-                            <th>Documento</th>
-                            <th>Email</th>
-                            <th>Tema</th>
-                            <th>Correctas</th>
-                            <th>Total</th>
-                            <th>Porcentaje</th>
-                            <th>Puntos</th>
-                            <th>Nivel Final</th>
-                            <th>Fecha Evaluación</th>
-                            <th>Acepta Términos</th>
+                            <th scope="col">Candidato</th>
+                            <th scope="col">Documento</th>
+                            <th scope="col">Email</th>
+                            <th scope="col">Tema</th>
+                            <th scope="col">Correctas</th>
+                            <th scope="col">Total</th>
+                            <th scope="col">Porcentaje</th>
+                            <th scope="col">Puntos</th>
+                            <th scope="col">Nivel Final</th>
+                            <th scope="col">Fecha Evaluación</th>
+                            <th scope="col">Acepta Términos</th>
                         </tr>
                     </thead>
                     <tbody id="tbody-resultados">
