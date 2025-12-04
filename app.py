@@ -645,7 +645,9 @@ def evaluacion(codigo):
     if codigo not in candidatos_registrados:
         candidato_db = CandidatoDB.query.filter_by(codigo=codigo).first()
         if not candidato_db:
-            logger.warning("Código de candidato inválido: %s", codigo)
+            # Sanitizar entrada para evitar inyección de logs
+            safe_codigo = str(codigo).replace('\n', '_').replace('\r', '_')
+            logger.warning("Código de candidato inválido: %s", safe_codigo)
             return make_response(render_template(TEMPLATE_ERROR, mensaje="Código de candidato inválido"), 404)
         # Poblar el diccionario en memoria
         candidatos_registrados[codigo] = {

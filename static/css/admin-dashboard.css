@@ -556,39 +556,129 @@ form {
     justify-content: flex-end;
 }
 
+/* Estilos mejorados para filtros */
 .filtros-container {
-    background: #f8f9fa;
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    color: #333;
+    background: #ffffff;
+    padding: 24px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    border: 1px solid #eef0f5;
 }
 
 .filtros-grid {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    margin-bottom: 5px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    align-items: end;
+}
+
+.filtro-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 .filtro-input, .filtro-select {
     width: 100%;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    color: #333;
+    padding: 10px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    color: #334155;
+    background-color: #f8fafc;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    height: 42px; /* Altura fija para alineación */
+}
+
+.filtro-input:focus, .filtro-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    background-color: #fff;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.filtro-input::placeholder {
+    color: #94a3b8;
+}
+
+.flex-end-container {
+    display: flex;
+    align-items: flex-end;
+    height: 100%;
+}
+
+.btn-limpiar-filtros {
+    height: 42px;
+    width: 100%;
+    background-color: #64748b;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-limpiar-filtros:hover {
+    background-color: #475569;
+    transform: translateY(-1px);
+}
+
+.btn-limpiar-filtros:active {
+    transform: translateY(0);
 }
 
 .tabla-resultados-container {
     overflow-x: auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e2e8f0;
 }
 
 .tabla-resultados {
     min-width: 900px;
-    margin-top: 15px;
-    font-size: 0.95em;
+    margin-top: 0;
+    font-size: 0.9em;
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
 }
 
 .tabla-resultados th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    padding: 16px 24px;
+    border-bottom: 1px solid #e2e8f0;
     white-space: nowrap;
+}
+
+.tabla-resultados td {
+    padding: 16px 24px;
+    border-bottom: 1px solid #e2e8f0;
+    color: #334155;
+}
+
+.tabla-resultados tr:last-child td {
+    border-bottom: none;
+}
+
+.tabla-resultados tr:hover td {
+    background-color: #f8fafc;
 }
 
 .td-nowrap {
@@ -602,6 +692,5 @@ form {
 
 /* Utility classes for Sonar fixes */
 .hidden { display: none; }
-.flex-end-container { display: flex; align-items: flex-end; }
 .bold-label { font-weight: bold; }
 .candidato-info-item { display: block; margin-bottom: 2px; }
