@@ -35,34 +35,29 @@ class PDFGenerator:
         Returns:
             str: Ruta del archivo PDF generado
         """
-        try:
-            # Generar nombre único del archivo
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            nombre_candidato = candidato_data.get('nombre_completo', 'Candidato').replace(' ', '_')
-            filename = f"Evaluacion_{nombre_candidato}_{timestamp}.pdf"
-            filepath = os.path.join(self.output_dir, filename)
-            
-            # Crear documento PDF
-            doc = SimpleDocTemplate(filepath, pagesize=A4)
-            story = []
-            styles = getSampleStyleSheet()
-            
-            # Construir contenido del PDF
-            story.extend(self._crear_encabezado(candidato_data, styles))
-            story.extend(self._crear_resumen_resultados(evaluacion_data, styles))
-            story.extend(self._crear_detalle_niveles(evaluacion_data, styles))
-            story.extend(self._crear_estadisticas_adicionales(evaluacion_data, styles))
-            story.extend(self._crear_pie_documento(styles))
-            
-            # Generar PDF
-            doc.build(story)
-            
-            logger.info(f"PDF generado exitosamente: {filepath}")
-            return filepath
-            
-        except Exception as e:
-            logger.error(f"Error generando PDF: {e}")
-            raise
+        # Generar nombre único del archivo
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        nombre_candidato = candidato_data.get('nombre_completo', 'Candidato').replace(' ', '_')
+        filename = f"Evaluacion_{nombre_candidato}_{timestamp}.pdf"
+        filepath = os.path.join(self.output_dir, filename)
+        
+        # Crear documento PDF
+        doc = SimpleDocTemplate(filepath, pagesize=A4)
+        story = []
+        styles = getSampleStyleSheet()
+        
+        # Construir contenido del PDF
+        story.extend(self._crear_encabezado(candidato_data, styles))
+        story.extend(self._crear_resumen_resultados(evaluacion_data, styles))
+        story.extend(self._crear_detalle_niveles(evaluacion_data, styles))
+        story.extend(self._crear_estadisticas_adicionales(evaluacion_data, styles))
+        story.extend(self._crear_pie_documento(styles))
+        
+        # Generar PDF
+        doc.build(story)
+        
+        logger.info(f"PDF generado exitosamente: {filepath}")
+        return filepath
     
     def _crear_encabezado(self, candidato_data: Dict[str, Any], styles) -> List:
         """Crea encabezado con información del candidato"""

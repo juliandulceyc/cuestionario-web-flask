@@ -9,6 +9,8 @@ from utils import cargar_preguntas_desde_excel, _determinar_nivel_pregunta, _bus
 from models import CandidatoDB
 from extensions import db
 
+from sqlalchemy.exc import SQLAlchemyError
+
 logger = logging.getLogger(__name__)
 
 class EvaluadorRespuestas:
@@ -17,30 +19,31 @@ class EvaluadorRespuestas:
         # Lógica básica: respuesta correcta por letra o texto
         correctas = pregunta.get('respuestas_correctas', [pregunta.get('respuesta_correcta')])
         multiple = pregunta.get('multiple', False)
-        puntos = 0
-        es_correcta = False
+        
         if multiple:
-            # Si es múltiple, otorgar 0.5 puntos por cada respuesta correcta seleccionada
-            if isinstance(respuesta_usuario, list):
-                aciertos = len([r for r in respuesta_usuario if r in correctas])
-                total_correctas = len(correctas)
-                puntos = aciertos / total_correctas if total_correctas > 0 else 0
-                es_correcta = puntos == 1.0
-            else:
-                es_correcta = False
-                puntos = 0
-        else:
-            # Respuesta única
-            if respuesta_letra and respuesta_letra in correctas:
-                es_correcta = True
-                puntos = 1
-            elif respuesta_usuario and respuesta_usuario in correctas:
-                es_correcta = True
-                puntos = 1
-        return es_correcta, puntos
+            return EvaluadorRespuestas._evaluar_multiple(respuesta_usuario, correctas)
+        
+        return EvaluadorRespuestas._evaluar_simple(respuesta_usuario, respuesta_letra, correctas)
 
     @staticmethod
-    def verificar_terminacion_temprana(candidato):
+    def _evaluar_multiple(respuesta_usuario, correctas):
+        if not isinstance(respuesta_usuario, list):
+            return False, 0
+            
+        aciertos = len([r for r in respuesta_usuario if r in correctas])
+        total_correctas = len(correctas)
+        puntos = aciertos / total_correctas if total_correctas > 0 else 0
+        return puntos == 1.0, puntos
+
+    @staticmethod
+    def _evaluar_simple(respuesta_usuario, respuesta_letra, correctas):
+        if (respuesta_letra and respuesta_letra in correctas) or \
+           (respuesta_usuario and respuesta_usuario in correctas):
+            return True, 1
+        return False, 0
+
+    @staticmethod
+    def verificar_terminacion_temprana(_):
         # Implementa tu lógica de terminación temprana aquí
         return False, None
 
@@ -93,8 +96,11 @@ class EvaluacionService:
                 if candidato_db:
                     candidato_db.acepta_terminos = bool(acepta_terminos)
                     db.session.commit()
+            except SQLAlchemyError as e:
+                logger.error(f"Error de base de datos en inicio evaluación: {e}")
+                db.session.rollback()
             except Exception as e:
-                logger.error(f"Error actualizando DB en inicio evaluación: {e}")
+                logger.error(f"Error inesperado en inicio evaluación: {e}")
 
             # Recargar preguntas
             preguntas_cargadas = cargar_preguntas_desde_excel()
