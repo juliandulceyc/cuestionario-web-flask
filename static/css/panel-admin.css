@@ -1,0 +1,57 @@
+.panel-temas {
+    margin-bottom: 30px;
+}
+
+.form-subir-tema {
+    margin-bottom: 15px;
+}
+
+.select-archivo-excel {
+    min-width: 200px;
+}
+
+.tema-resultado {
+    margin-top: 10px;
+    color: #155724;
+}
+
+.dashboard-actions-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.btn-logout {
+    margin-left: auto;
+}
+
+.panel-filtros {
+    margin-bottom: 18px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+.input-busqueda {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    min-width: 220px;
+}
+
+.select-filtro {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+
+.paginacion-candidatos {
+    margin-top: 18px;
+    text-align: center;
+}
+
+.bold-label {
+    font-weight: bold;
+}

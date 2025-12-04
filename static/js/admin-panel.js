@@ -85,3 +85,11 @@ function copiarUrl(btn) {
         }, 1200);
     }
 }
+
+
+window.copiarURL = function(btn) {
+    const url = btn.nextElementSibling.href;
+    navigator.clipboard.writeText(url);
+    btn.innerHTML = '<span class=\icono-copiar\></span>Copiado!';
+    setTimeout(() => { btn.innerHTML = '<span class=\icono-copiar\></span>Copiar URL'; }, 1200);
+}

@@ -7,23 +7,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión de Candidatos</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/panel-admin.css') }}">
 </head>
 
 <body>
     <div class="container">
-        <section class="panel-temas" style="margin-bottom:30px;">
+        <section class="panel-temas">
             <h2>🗂 Gestión de Temas de Evaluación</h2>
-            <form id="form-subir-tema" enctype="multipart/form-data" method="post" action="/admin/subir_tema" style="margin-bottom:15px;">
-                <label for="archivo_tema"><b>Subir nuevo archivo Excel de preguntas:</b></label>
+            <form id="form-subir-tema" enctype="multipart/form-data" method="post" action="/admin/subir_tema" class="form-subir-tema">
+                <label for="archivo_tema"><span class="bold-label">Subir nuevo archivo Excel de preguntas:</span></label>
                 <input type="file" id="archivo_tema" name="archivo_tema" accept=".xlsx,.xls" required>
                 <button type="submit" class="btn btn-primary">Subir archivo</button>
             </form>
             <form id="form-seleccionar-tema" method="post" action="/admin/seleccionar_tema">
-                <label for="archivo_excel"><b>Seleccionar tema activo:</b></label>
-                <select id="archivo_excel" name="archivo_excel" style="min-width:200px;"></select>
+                <label for="archivo_excel"><span class="bold-label">Seleccionar tema activo:</span></label>
+                <select id="archivo_excel" name="archivo_excel" class="select-archivo-excel"></select>
                 <button type="submit" class="btn btn-success">Activar tema</button>
             </form>
-            <div id="tema-resultado" style="margin-top:10px;color:#155724;"></div>
+            <div id="tema-resultado" class="tema-resultado"></div>
         </section>
         <div class="header">
             <h1>📋 Gestión de Candidatos</h1>
@@ -31,23 +32,23 @@
                 👥 Consulta y estado de candidatos
             </div>
             <div class="dashboard-actions">
-                <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
-                    <a href="/admin/dashboard" class="btn btn-primary" role="button">📊 Dashboard</a>
-                    <a href="/admin/logout" class="btn btn-danger" role="button" style="margin-left:auto;">Cerrar
+                <div class="dashboard-actions-container">
+                    <a href="/admin/dashboard" class="btn btn-primary">📊 Dashboard</a>
+                    <a href="/admin/logout" class="btn btn-danger btn-logout">Cerrar
                         Sesión</a>
                 </div>
             </div>
         </div>
         <section aria-labelledby="candidates-title">
             <h2 id="candidates-title">Candidatos Registrados</h2>
-            <div class="panel-filtros" style="margin-bottom:18px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
-                <input type="text" id="busqueda-candidato" placeholder="Buscar por nombre, email o código" style="padding:8px 12px;border-radius:6px;border:1px solid #ccc;min-width:220px;">
-                <select id="filtro-estado" style="padding:8px 12px;border-radius:6px;border:1px solid #ccc;">
+            <div class="panel-filtros">
+                <input type="text" id="busqueda-candidato" placeholder="Buscar por nombre, email o código" class="input-busqueda">
+                <select id="filtro-estado" class="select-filtro">
                     <option value="">Todos</option>
                     <option value="completada">Completada</option>
                     <option value="pendiente">Pendiente</option>
                 </select>
-                <select id="filtro-cargo" style="padding:8px 12px;border-radius:6px;border:1px solid #ccc;">
+                <select id="filtro-cargo" class="select-filtro">
                     <option value="">Todos los cargos</option>
                     {% for cargo in cargos_unicos %}
                     <option value="{{ cargo }}">{{ cargo }}</option>
@@ -57,19 +58,11 @@
             <div id="candidatos-lista">
                 <!-- Renderizado dinámico por JS -->
             </div>
-            <div id="paginacion-candidatos" style="margin-top:18px;text-align:center;"></div>
+            <div id="paginacion-candidatos" class="paginacion-candidatos"></div>
         </section>
     </div>
 
     <script src="{{ url_for('static', filename='js/admin-panel.js') }}"></script>
-    <script>
-        function copiarURL(btn) {
-            const url = btn.nextElementSibling.href;
-            navigator.clipboard.writeText(url);
-            btn.innerHTML = '<span class="icono-copiar">✅</span>Copiado!';
-            setTimeout(() => { btn.innerHTML = '<span class="icono-copiar">📋</span>Copiar URL'; }, 1200);
-        }
-    </script>
 </body>
 
 </html>
