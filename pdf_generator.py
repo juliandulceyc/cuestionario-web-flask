@@ -50,7 +50,7 @@ class PDFGenerator:
         story.extend(self._crear_encabezado(candidato_data, styles))
         story.extend(self._crear_resumen_resultados(evaluacion_data, styles))
         story.extend(self._crear_detalle_niveles(evaluacion_data, styles))
-        story.extend(self._crear_estadisticas_adicionales(evaluacion_data, styles))
+        story.extend(self._crear_estadisticas_adicionales())
         story.extend(self._crear_pie_documento(styles))
         
         # Generar PDF
@@ -59,7 +59,8 @@ class PDFGenerator:
         logger.info(f"PDF generado exitosamente: {filepath}")
         return filepath
     
-    def _crear_encabezado(self, candidato_data: Dict[str, Any], styles) -> List:
+    @staticmethod
+    def _crear_encabezado(candidato_data: Dict[str, Any], styles) -> List[Any]:
         """Crea encabezado con información del candidato"""
         elementos = []
         
@@ -104,7 +105,8 @@ class PDFGenerator:
         
         return elementos
     
-    def _crear_resumen_resultados(self, evaluacion_data: Dict[str, Any], styles) -> List:
+    @staticmethod
+    def _crear_resumen_resultados(evaluacion_data: Dict[str, Any], styles) -> List[Any]:
         """Crea resumen ejecutivo de resultados"""
         elementos = []
         
@@ -164,7 +166,8 @@ class PDFGenerator:
         
         return elementos
     
-    def _crear_detalle_niveles(self, evaluacion_data: Dict[str, Any], styles) -> List:
+    @staticmethod
+    def _crear_detalle_niveles(evaluacion_data: Dict[str, Any], styles) -> List[Any]:
         """Crea detalle de rendimiento por nivel y preguntas fallidas"""
         elementos = []
         
@@ -229,11 +232,13 @@ class PDFGenerator:
         
         return elementos
     
-    def _crear_estadisticas_adicionales(self, evaluacion_data: Dict[str, Any], styles) -> List:
+    @staticmethod
+    def _crear_estadisticas_adicionales() -> List[Any]:
         """Se omite la sección de 'INFORMACIÓN ADICIONAL' a solicitud; devuelve lista vacía."""
         return []
     
-    def _crear_pie_documento(self, styles) -> List:
+    @staticmethod
+    def _crear_pie_documento(styles) -> List[Any]:
         """Crea pie del documento"""
         elementos = []
         
