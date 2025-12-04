@@ -878,7 +878,7 @@ def api_estadisticas():
 # ===== CONTEXT PROCESSORS =====
 @app.context_processor
 def inject_admin_email():
-    return dict(admin_email=Config.ADMIN_EMAIL or 'soporte@empresa.com')
+    return {'admin_email': Config.ADMIN_EMAIL or 'soporte@empresa.com'}
 
 # ===== MANEJO DE ERRORES =====
 

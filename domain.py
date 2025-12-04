@@ -30,7 +30,7 @@ class Pregunta:
     y documentación.
     """
     id: int
-    pregunta: str
+    enunciado: str
     opciones: List[str]
     respuesta_correcta: str
     respuestas_correctas: List[str]

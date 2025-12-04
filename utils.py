@@ -40,6 +40,68 @@ def get_tema_activo():
         config = json.load(f)
     return config.get('archivo_excel')
 
+def _extraer_opciones(row):
+    opciones = []
+    for letra in ['A', 'B', 'C', 'D', 'E']:
+        if letra in row:
+            opt = str(row.get(letra, '')).strip()
+            if opt:
+                opciones.append(opt)
+    return opciones
+
+def _extraer_respuestas_correctas(row):
+    respuestas_correctas = []
+    for col in ['RESPUESTA CORRECTA', 'RESPUESTA CORRECTA 1', 'RESPUESTA CORRECTA 2']:
+        val = row.get(col)
+        if val and not pd.isna(val):
+            val_str = str(val).strip().upper()
+            if val_str in ['A', 'B', 'C', 'D', 'E']:
+                respuestas_correctas.append(val_str)
+    return respuestas_correctas
+
+def _procesar_fila_pregunta(row, idx, used_ids):
+    """Procesa una fila del Excel para extraer una pregunta"""
+    opciones = _extraer_opciones(row)
+    if len(opciones) < 2:
+        return None
+        
+    respuestas_correctas = _extraer_respuestas_correctas(row)
+    if not respuestas_correctas:
+        return None
+        
+    respuestas_validas = [r for r in respuestas_correctas if r]
+    es_multiple = len(respuestas_validas) > 1
+    pregunta_id_raw = row.get('NUM')
+    try:
+        pregunta_id = int(''.join(filter(str.isdigit, str(pregunta_id_raw))))
+    except Exception:
+        pregunta_id = idx + 1
+        
+    while pregunta_id in used_ids or pregunta_id == 0:
+        pregunta_id += 1
+    used_ids.add(pregunta_id)
+    
+    nivel_raw = row.get('NIVEL', 1)
+    try:
+        nivel_str = str(nivel_raw)
+        nivel_num = int(''.join(filter(str.isdigit, nivel_str)))
+        if nivel_num < 1 or nivel_num > 5:
+            nivel_num = 1
+    except Exception:
+        nivel_num = 1
+        
+    pregunta_texto = row.get('PREGUNTA', row.get('TIPO DE PREGUNTA', ''))
+    return {
+        'id': pregunta_id,
+        'pregunta': pregunta_texto,
+        'opciones': opciones,
+        'respuesta_correcta': respuestas_validas[0] if respuestas_validas else '',
+        'respuestas_correctas': respuestas_validas,
+        'nivel': nivel_num,
+        'categoria': row.get('CATEGORIA', ''),
+        'multiple': es_multiple
+    }
+
 def cargar_preguntas_desde_excel():
     archivo_excel = get_tema_activo()
     if not archivo_excel:
@@ -58,59 +120,10 @@ def cargar_preguntas_desde_excel():
     preguntas = []
     used_ids = set()
     for idx, row in df.iterrows():
-        opciones = []
-        for letra in ['A', 'B', 'C', 'D', 'E']:
-            if letra in df.columns:
-                opt = str(row.get(letra, '')).strip()
-                if opt:
-                    opciones.append(opt)
-        
-        if len(opciones) < 2:
-            continue
+        pregunta = _procesar_fila_pregunta(row, idx, used_ids)
+        if pregunta:
+            preguntas.append(pregunta)
             
-        respuestas_correctas = []
-        for col in ['RESPUESTA CORRECTA', 'RESPUESTA CORRECTA 1', 'RESPUESTA CORRECTA 2']:
-            val = row.get(col)
-            if val and not pd.isna(val):
-                val_str = str(val).strip().upper()
-                if val_str in ['A', 'B', 'C', 'D', 'E']:
-                    respuestas_correctas.append(val_str)
-        
-        if not respuestas_correctas:
-            continue
-            
-        respuestas_validas = [r for r in respuestas_correctas if r]
-        es_multiple = len(respuestas_validas) > 1
-        pregunta_id_raw = row.get('NUM')
-        try:
-            pregunta_id = int(''.join(filter(str.isdigit, str(pregunta_id_raw))))
-        except:
-            pregunta_id = idx + 1
-            
-        while pregunta_id in used_ids or pregunta_id == 0:
-            pregunta_id += 1
-        used_ids.add(pregunta_id)
-        
-        nivel_raw = row.get('NIVEL', 1)
-        try:
-            nivel_str = str(nivel_raw)
-            nivel_num = int(''.join(filter(str.isdigit, nivel_str)))
-            if nivel_num < 1 or nivel_num > 5:
-                nivel_num = 1
-        except:
-            nivel_num = 1
-            
-        pregunta_texto = row.get('PREGUNTA', row.get('TIPO DE PREGUNTA', ''))
-        preguntas.append({
-            'id': pregunta_id,
-            'pregunta': pregunta_texto,
-            'opciones': opciones,
-            'respuesta_correcta': respuestas_validas[0] if respuestas_validas else '',
-            'respuestas_correctas': respuestas_validas,
-            'nivel': nivel_num,
-            'categoria': row.get('CATEGORIA', ''),
-            'multiple': es_multiple
-        })
     return preguntas
 
 def validar_email_simple(email):
@@ -121,38 +134,42 @@ def validar_email_simple(email):
         return False, 'Formato de email inválido'
     return True, ''
 
+def _configurar_mensaje_email(destinatario, asunto, cuerpo_texto, cuerpo_html):
+    msg = EmailMessage()
+    msg['Subject'] = asunto
+    msg['From'] = Config.EMAIL_FROM
+    msg['To'] = destinatario
+    msg.set_content(cuerpo_texto)
+    if cuerpo_html:
+        msg.add_alternative(cuerpo_html, subtype='html')
+    return msg
+
+def _enviar_smtp(msg, use_ssl=False):
+    smtp_cls = smtplib.SMTP_SSL if use_ssl else smtplib.SMTP
+    with smtp_cls(Config.EMAIL_HOST, Config.EMAIL_PORT, timeout=20) as smtp:
+        if Config.DEBUG:
+            try:
+                smtp.set_debuglevel(1)
+            except Exception: pass
+        
+        if not use_ssl:
+            smtp.starttls()
+            
+        if Config.EMAIL_USER and Config.EMAIL_PASSWORD:
+            smtp.login(Config.EMAIL_USER, Config.EMAIL_PASSWORD)
+        smtp.send_message(msg)
+
 def enviar_email(destinatario: str, asunto: str, cuerpo_texto: str, cuerpo_html: Optional[str] = None) -> Tuple[bool, Optional[str]]:
     try:
         if not (Config.EMAIL_HOST and Config.EMAIL_PORT and Config.EMAIL_FROM):
             logger.warning("SMTP no configurado correctamente. EMAIL_HOST/PORT/FROM faltantes")
             return False, "SMTP no configurado (falta HOST/PORT/FROM)"
-        msg = EmailMessage()
-        msg['Subject'] = asunto
-        msg['From'] = Config.EMAIL_FROM
-        msg['To'] = destinatario
-        msg.set_content(cuerpo_texto)
-        if cuerpo_html:
-            msg.add_alternative(cuerpo_html, subtype='html')
-
-        if str(Config.EMAIL_PORT) == '465':
-            with smtplib.SMTP_SSL(Config.EMAIL_HOST, Config.EMAIL_PORT, timeout=20) as smtp:
-                if Config.DEBUG:
-                    try:
-                        smtp.set_debuglevel(1)
-                    except: pass
-                if Config.EMAIL_USER and Config.EMAIL_PASSWORD:
-                    smtp.login(Config.EMAIL_USER, Config.EMAIL_PASSWORD)
-                smtp.send_message(msg)
-        else:
-            with smtplib.SMTP(Config.EMAIL_HOST, Config.EMAIL_PORT, timeout=20) as smtp:
-                if Config.DEBUG:
-                    try:
-                        smtp.set_debuglevel(1)
-                    except: pass
-                smtp.starttls()
-                if Config.EMAIL_USER and Config.EMAIL_PASSWORD:
-                    smtp.login(Config.EMAIL_USER, Config.EMAIL_PASSWORD)
-                smtp.send_message(msg)
+            
+        msg = _configurar_mensaje_email(destinatario, asunto, cuerpo_texto, cuerpo_html)
+        use_ssl = str(Config.EMAIL_PORT) == '465'
+        
+        _enviar_smtp(msg, use_ssl)
+        
         logger.info(f"Email enviado a {destinatario}")
         return True, None
     except Exception as e:
@@ -243,5 +260,5 @@ def inicializar_sistema():
         logger.info(f"✅ Sistema listo con {len(PREGUNTAS)} preguntas cargadas")
         return True
     else:
-        logger.error(f"❌ Error: No se pudieron cargar las preguntas.")
+        logger.error("❌ Error: No se pudieron cargar las preguntas.")
         return False

@@ -11,7 +11,7 @@ class Config:
     PORT = int(os.getenv('PORT', 5000))
 
     # Configuración de evaluación
-    TOTAL_PREGUNTAS = 40
+    TOTAL_PREGUNTAS = 5
     ARCHIVO_EXCEL = 'Evaluación FWS PAN V2.xlsx'
 
     # Configuración de Base de Datos

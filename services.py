@@ -33,7 +33,7 @@ class EvaluadorRespuestas:
         aciertos = len([r for r in respuesta_usuario if r in correctas])
         total_correctas = len(correctas)
         puntos = aciertos / total_correctas if total_correctas > 0 else 0
-        return puntos == 1.0, puntos
+        return abs(puntos - 1.0) < 1e-9, puntos
 
     @staticmethod
     def _evaluar_simple(respuesta_usuario, respuesta_letra, correctas):
@@ -121,58 +121,75 @@ class EvaluacionService:
         PREGUNTAS.clear()
         PREGUNTAS.extend(preguntas_cargadas)
 
-        if not candidato_actual or len(PREGUNTAS) == 0:
-            return None, "Evaluación no iniciada"
-        
-        preguntas_mostradas = candidato_actual.get("preguntas_mostradas", [])
-        adaptativo = candidato_actual.get("adaptativo", False)
-        nivel_actual = candidato_actual.get("nivel_actual", 1)
-        
-        if candidato_actual.get("evaluacion_completa", False):
-            return None, "Evaluación completada"
-        
-        if nivel_actual > 5:
-            candidato_actual["evaluacion_completa"] = True
-            return None, "Evaluación completada - Nivel máximo alcanzado"
-        
-        limite_total = Config.EVALUACION_CONFIG.get("limite_preguntas_total", 40)
-        if len(preguntas_mostradas) >= limite_total:
-            candidato_actual["evaluacion_completa"] = True
-            return None, f"Evaluación completada - Máximo de {limite_total} preguntas alcanzado"
+        error = EvaluacionService._validar_estado_evaluacion()
+        if error:
+            return None, error
 
-        pregunta_seleccionada = None
-        if adaptativo:
-            preguntas_disponibles = [
-                p for p in PREGUNTAS 
-                if p["id"] not in preguntas_mostradas 
-                and p.get("nivel", 1) == nivel_actual
-            ]
-            
-            if not preguntas_disponibles:
-                candidatos = _buscar_pregunta_fallback(preguntas_mostradas, nivel_actual)
-                if not candidatos:
-                    candidato_actual["evaluacion_completa"] = True
-                    return None, "No hay más preguntas disponibles"
-                pregunta_seleccionada = random.choice(candidatos)
-            else:
-                pregunta_seleccionada = random.choice(preguntas_disponibles)
-        else:
-            # Modo no adaptativo
-            orden_preguntas = candidato_actual.get("orden_preguntas", [])
-            pregunta_numero = len(preguntas_mostradas)
-            if pregunta_numero >= len(orden_preguntas):
-                candidato_actual["evaluacion_completa"] = True
-                return None, "No hay más preguntas disponibles"
-            pregunta_id = orden_preguntas[pregunta_numero]
-            pregunta_seleccionada = next((p for p in PREGUNTAS if p["id"] == pregunta_id), None)
-            if not pregunta_seleccionada:
-                candidato_actual["evaluacion_completa"] = True
-                return None, "Pregunta no encontrada"
+        pregunta_seleccionada = EvaluacionService._seleccionar_pregunta()
+        if not pregunta_seleccionada:
+            candidato_actual["evaluacion_completa"] = True
+            return None, "No hay más preguntas disponibles"
         
         candidato_actual["preguntas_mostradas"].append(pregunta_seleccionada["id"])
         candidato_actual["pregunta_actual_nivel"] = pregunta_seleccionada.get("nivel", 1)
         
         return pregunta_seleccionada, None
+
+    @staticmethod
+    def _validar_estado_evaluacion() -> Optional[str]:
+        if not candidato_actual or len(PREGUNTAS) == 0:
+            return "Evaluación no iniciada"
+        
+        if candidato_actual.get("evaluacion_completa", False):
+            return "Evaluación completada"
+        
+        nivel_actual = candidato_actual.get("nivel_actual", 1)
+        if nivel_actual > 5:
+            candidato_actual["evaluacion_completa"] = True
+            return "Evaluación completada - Nivel máximo alcanzado"
+        
+        limite_total = Config.EVALUACION_CONFIG.get("limite_preguntas_total", 40)
+        if len(candidato_actual.get("preguntas_mostradas", [])) >= limite_total:
+            candidato_actual["evaluacion_completa"] = True
+            return f"Evaluación completada - Máximo de {limite_total} preguntas alcanzado"
+            
+        return None
+
+    @staticmethod
+    def _seleccionar_pregunta() -> Optional[Dict]:
+        adaptativo = candidato_actual.get("adaptativo", False)
+        preguntas_mostradas = candidato_actual.get("preguntas_mostradas", [])
+        nivel_actual = candidato_actual.get("nivel_actual", 1)
+
+        if adaptativo:
+            return EvaluacionService._seleccionar_pregunta_adaptativa(preguntas_mostradas, nivel_actual)
+        else:
+            return EvaluacionService._seleccionar_pregunta_secuencial(preguntas_mostradas)
+
+    @staticmethod
+    def _seleccionar_pregunta_adaptativa(preguntas_mostradas, nivel_actual):
+        preguntas_disponibles = [
+            p for p in PREGUNTAS 
+            if p["id"] not in preguntas_mostradas 
+            and p.get("nivel", 1) == nivel_actual
+        ]
+        
+        if not preguntas_disponibles:
+            candidatos = _buscar_pregunta_fallback(preguntas_mostradas, nivel_actual)
+            if not candidatos:
+                return None
+            return random.choice(candidatos)
+        
+        return random.choice(preguntas_disponibles)
+
+    @staticmethod
+    def _seleccionar_pregunta_secuencial(preguntas_mostradas):
+        orden_preguntas = candidato_actual.get("orden_preguntas", [])
+        pregunta_numero = len(preguntas_mostradas)
+        if pregunta_numero >= len(orden_preguntas):
+            return None
+        pregunta_id = orden_preguntas[pregunta_numero]
+        return next((p for p in PREGUNTAS if p["id"] == pregunta_id), None)
 
     @staticmethod
     def procesar_respuesta(data: Dict[str, Any]) -> Tuple[Dict[str, Any], int]:
@@ -200,7 +217,7 @@ class EvaluacionService:
         if isinstance(respuestas_usuario, str):
             respuestas_usuario = [respuestas_usuario]
         
-        es_correcta, puntaje = EvaluadorRespuestas.evaluar_respuesta(pregunta, respuestas_usuario, None)
+        _, puntaje = EvaluadorRespuestas.evaluar_respuesta(pregunta, respuestas_usuario, None)
         
         candidato_actual["puntos"] = candidato_actual.get("puntos", 0) + puntaje
         
@@ -241,45 +258,53 @@ class EvaluacionService:
         adaptativo = candidato_actual.get("adaptativo", False)
         nivel_actual = candidato_actual.get("nivel_actual", 1)
         
-        if adaptativo:
-            if pregunta.get("nivel", 1) == nivel_actual:
-                candidato_actual["preguntas_nivel"] = candidato_actual.get("preguntas_nivel", 0) + 1
-                if puntaje == 1:
-                    candidato_actual["correctas_nivel"] = candidato_actual.get("correctas_nivel", 0) + 1
-                    candidato_actual["racha_actual"] = candidato_actual.get("racha_actual", 0) + 1
-                    racha_cfg = Config.EVALUACION_CONFIG.get("racha_para_flag", 3)
-                    if candidato_actual["racha_actual"] >= int(racha_cfg):
-                        candidato_actual["flag_racha"] = True
-                else:
-                    # Lógica de racha parcial
-                    racha_cfg = Config.EVALUACION_CONFIG.get("racha_para_flag", 3)
-                    es_multiple = pregunta.get("multiple", False)
-                    if es_multiple and puntaje > 0 and candidato_actual.get("racha_actual", 0) >= max(0, int(racha_cfg) - 1):
-                        candidato_actual["racha_actual"] = candidato_actual.get("racha_actual", 0) + 1
-                        candidato_actual["flag_racha"] = True
-                    else:
-                        candidato_actual["racha_actual"] = 0
-
-                candidato_actual["suma_puntaje_nivel"] = candidato_actual.get("suma_puntaje_nivel", 0.0) + float(puntaje)
-                candidato_actual["suma_puntaje_total"] = candidato_actual.get("suma_puntaje_total", 0.0) + float(puntaje)
-                
-                if puntaje >= 1:
-                    candidato_actual["errores_consecutivos"] = 0
-                else:
-                    candidato_actual["errores_consecutivos"] = candidato_actual.get("errores_consecutivos", 0) + 1
-
-                errores_limite = Config.EVALUACION_CONFIG.get("terminacion_temprana", {}).get("errores_consecutivos")
-                if errores_limite and candidato_actual.get("errores_consecutivos", 0) >= errores_limite:
-                    candidato_actual["evaluacion_completa"] = True
-                    candidato_actual["razon_finalizacion"] = "Terminación temprana por errores consecutivos"
-
-                # Verificar avance
-                EvaluacionService._verificar_avance_nivel()
+        if adaptativo and pregunta.get("nivel", 1) == nivel_actual:
+            candidato_actual["preguntas_nivel"] = candidato_actual.get("preguntas_nivel", 0) + 1
+            
+            EvaluacionService._actualizar_racha(pregunta, puntaje)
+            EvaluacionService._actualizar_puntajes(puntaje)
+            EvaluacionService._verificar_terminacion_errores()
+            EvaluacionService._verificar_avance_nivel()
 
         limite_total = Config.EVALUACION_CONFIG.get("limite_preguntas_total", 40)
         if len(candidato_actual.get("preguntas_mostradas", [])) >= limite_total:
             candidato_actual["evaluacion_completa"] = True
             candidato_actual["razon_finalizacion"] = f"Límite de {limite_total} preguntas alcanzado"
+
+    @staticmethod
+    def _actualizar_racha(pregunta, puntaje):
+        racha_cfg = int(Config.EVALUACION_CONFIG.get("racha_para_flag", 3))
+        
+        if puntaje == 1:
+            candidato_actual["correctas_nivel"] = candidato_actual.get("correctas_nivel", 0) + 1
+            candidato_actual["racha_actual"] = candidato_actual.get("racha_actual", 0) + 1
+            if candidato_actual["racha_actual"] >= racha_cfg:
+                candidato_actual["flag_racha"] = True
+        else:
+            # Lógica de racha parcial
+            es_multiple = pregunta.get("multiple", False)
+            if es_multiple and puntaje > 0 and candidato_actual.get("racha_actual", 0) >= max(0, racha_cfg - 1):
+                candidato_actual["racha_actual"] = candidato_actual.get("racha_actual", 0) + 1
+                candidato_actual["flag_racha"] = True
+            else:
+                candidato_actual["racha_actual"] = 0
+
+    @staticmethod
+    def _actualizar_puntajes(puntaje):
+        candidato_actual["suma_puntaje_nivel"] = candidato_actual.get("suma_puntaje_nivel", 0.0) + float(puntaje)
+        candidato_actual["suma_puntaje_total"] = candidato_actual.get("suma_puntaje_total", 0.0) + float(puntaje)
+        
+        if puntaje >= 1:
+            candidato_actual["errores_consecutivos"] = 0
+        else:
+            candidato_actual["errores_consecutivos"] = candidato_actual.get("errores_consecutivos", 0) + 1
+
+    @staticmethod
+    def _verificar_terminacion_errores():
+        errores_limite = Config.EVALUACION_CONFIG.get("terminacion_temprana", {}).get("errores_consecutivos")
+        if errores_limite and candidato_actual.get("errores_consecutivos", 0) >= errores_limite:
+            candidato_actual["evaluacion_completa"] = True
+            candidato_actual["razon_finalizacion"] = "Terminación temprana por errores consecutivos"
 
     @staticmethod
     def _verificar_avance_nivel():

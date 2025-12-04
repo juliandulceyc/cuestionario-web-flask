@@ -185,6 +185,50 @@ function clearFieldError(field, errorElement) {
 // Inicialización y Eventos
 // ==========================================
 
+function handleCopyClick(btnCopiar) {
+    const url = btnCopiar.dataset.url;
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(url)
+            .then(() => {
+                Utils.mostrarNotificacion('📋 URL copiada', 'success');
+                const originalText = btnCopiar.innerHTML;
+                btnCopiar.innerHTML = '✅ Copiado!';
+                setTimeout(() => { btnCopiar.innerHTML = originalText; }, 2000);
+            })
+            .catch(() => Utils.fallbackCopyURL(url));
+    } else {
+        Utils.fallbackCopyURL(url);
+    }
+}
+
+function handleGlobalClick(e) {
+    // Botón Editar
+    const btnEditar = e.target.closest('.edit-btn, .btn-editar');
+    if (btnEditar) {
+        e.preventDefault();
+        console.log('Click en editar', btnEditar);
+        globalThis.abrirEditarCandidatoDesdeBoton(btnEditar);
+        return;
+    }
+
+    // Botón Eliminar
+    const btnEliminar = e.target.closest('.delete-btn, .btn-eliminar');
+    if (btnEliminar) {
+        e.preventDefault();
+        const codigo = btnEliminar.dataset.codigo;
+        globalThis.eliminarCandidato(codigo, btnEliminar);
+        return;
+    }
+
+    // Botón Copiar URL
+    const btnCopiar = e.target.closest('.copy-btn, .btn-copiar-url');
+    if (btnCopiar) {
+        e.preventDefault();
+        handleCopyClick(btnCopiar);
+    }
+}
+
+
 document.addEventListener('DOMContentLoaded', function() {
     // Referencias DOM
     const listaTemas = document.getElementById('lista-temas');
@@ -308,45 +352,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }).join('');
 
         listaCandidatos.innerHTML = html;
-        bindDynamicEvents();
-    }
-
-    function bindDynamicEvents() {
-        const onCopySuccess = (btn) => {
-            Utils.mostrarNotificacion('📋 URL copiada al portapapeles', 'success');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '✅ Copiado!';
-            setTimeout(() => { btn.innerHTML = originalText; }, 2000);
-        };
-        // Copy URL buttons
-        for (const btn of document.querySelectorAll('.copy-btn')) {
-            btn.onclick = () => {
-                const url = btn.dataset.url;
-                if (navigator.clipboard) {
-                    navigator.clipboard.writeText(url)
-                        .then(() => onCopySuccess(btn))
-                        .catch(() => Utils.fallbackCopyURL(url));
-                } else {
-                    Utils.fallbackCopyURL(url);
-                }
-            };
-        }
-
-        // Delete buttons
-        for (const btn of document.querySelectorAll('.delete-btn')) {
-            btn.onclick = () => {
-                const codigo = btn.dataset.codigo;
-                eliminarCandidato(codigo, btn);
-            };
-        }
-
-        // Edit buttons
-        for (const btn of document.querySelectorAll('.edit-btn')) {
-            btn.onclick = () => globalThis.abrirEditarCandidatoDesdeBoton(btn);
-        }
+        // bindDynamicEvents(); // Ya no es necesario por la delegación
     }
 
     function setupEventListeners() {
+        // Delegación de eventos
+        document.addEventListener('click', handleGlobalClick);
+
         if (addCandidateBtn) {
             addCandidateBtn.addEventListener('click', mostrarFormulario);
         }
@@ -619,7 +631,10 @@ document.addEventListener('DOMContentLoaded', function() {
 // Global helpers needed for modal interaction
 globalThis.abrirEditarCandidato = function(c) {
     const modal = document.getElementById('modal-editar');
-    if (!modal) return;
+    if (!modal) {
+        console.error('Modal #modal-editar no encontrado en el DOM');
+        return;
+    }
     
     for (const key of ['codigo', 'tipo_documento', 'numero_documento', 'nombre_completo', 'email', 'telefono', 'cargo']) {
         const el = document.getElementById(`edit-${key}`);
@@ -627,6 +642,7 @@ globalThis.abrirEditarCandidato = function(c) {
     }
     
     modal.style.display = 'flex';
+    console.log('Modal abierto para:', c.codigo);
 };
 
 globalThis.abrirEditarCandidatoDesdeBoton = function(btn) {

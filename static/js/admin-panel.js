@@ -58,6 +58,7 @@ async function handleSubirTema(e) {
             mostrarResultado(`Error: ${data.error || 'No se pudo subir'}`, true);
         }
     } catch (error) {
+        console.error('Error subiendo tema:', error);
         mostrarResultado('Error de conexión al subir archivo', true);
     }
 }
@@ -81,6 +82,7 @@ async function handleSeleccionarTema(e) {
             mostrarResultado(`Error: ${data.error || 'No se pudo activar tema'}`, true);
         }
     } catch (error) {
+        console.error('Error seleccionando tema:', error);
         mostrarResultado('Error de conexión al seleccionar tema', true);
     }
 }
@@ -115,7 +117,7 @@ globalThis.copiarUrl = function(btn) {
 // Copiar desde enlace (Modern)
 globalThis.copiarURL = function(btn) {
     const link = btn.nextElementSibling;
-    if (!link || !link.href) return;
+    if (!link?.href) return;
     
     const url = link.href;
     navigator.clipboard.writeText(url).then(() => {

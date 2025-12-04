@@ -1,6 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from extensions import db
 from security import SecurityManager
+
+def get_utc_now():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 # Modelo de Usuario (admins del sistema)
 class UserDB(db.Model):
@@ -11,8 +14,8 @@ class UserDB(db.Model):
     password_hash = db.Column(db.String(200), nullable=False)
     role = db.Column(db.String(20), default='admin')
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_utc_now)
+    updated_at = db.Column(db.DateTime, default=get_utc_now, onupdate=get_utc_now)
 
 # Modelo de Candidato
 class CandidatoDB(db.Model):
@@ -54,8 +57,8 @@ class RecoveryToken(db.Model):
     token = db.Column(db.String(128), unique=True, nullable=False)
     expires_at = db.Column(db.DateTime, nullable=False)
     used = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_utc_now)
     user = db.relationship('UserDB')
 
     def is_expired(self) -> bool:
-        return datetime.utcnow() >= self.expires_at
+        return get_utc_now() >= self.expires_at

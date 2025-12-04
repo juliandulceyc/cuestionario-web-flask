@@ -110,7 +110,7 @@ body {
     cursor: pointer;
     transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
     margin-left: 8px;
-    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    background: linear-gradient(135deg, #0062cc 0%, #0056b3 100%);
     color: #ffffff;
 }
 .btn:disabled { opacity: .6; cursor: not-allowed; transform: none; }
@@ -315,7 +315,7 @@ input:focus, select:focus, textarea:focus {
 .start-btn, #btn-responder {
     width: 100%;
     padding: 1rem 2rem;
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    background: linear-gradient(135deg, #218838 0%, #198754 100%);
     color: #ffffff;
     border: none;
     border-radius: 8px;
@@ -438,7 +438,7 @@ th {
   font-size: 1.15em;
 }
 .candidato-card .dato.email {
-  color: #007bff;
+  color: #0056b3;
   background: #e3f2fd;
 }
 .candidato-card .dato.cargo {
@@ -446,11 +446,11 @@ th {
   background: #f3e9ff;
 }
 .candidato-card .dato.documento {
-  color: #f7b500;
+  color: #856404;
   background: #fffbe6;
 }
 .candidato-card .dato.telefono {
-  color: #dc3545;
+  color: #b02a37;
   background: #ffeaea;
 }
 .candidato-card .estado-pendiente {
@@ -458,7 +458,7 @@ th {
   align-items: center;
   gap: 6px;
   font-size: 1.08em;
-  color: #f7b500;
+  color: #856404;
   font-weight: bold;
   background: #fffbe6;
   border-radius: 6px;
@@ -512,7 +512,7 @@ th {
   box-shadow: 0 2px 8px rgba(90,46,166,0.18);
 }
 .candidato-card .abrir-evaluacion-link:hover {
-  color: #2e8b57;
+  color: #155724;
   background: #e3ffe9;
   text-decoration: underline;
 }

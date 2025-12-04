@@ -79,6 +79,7 @@ async function obtenerConfiguracion() {
         if (!response.ok) throw new Error('Error en respuesta del servidor');
         State.configuracion = await response.json();
     } catch (error) {
+        console.warn('Usando configuración por defecto:', error);
         State.configuracion = {
             total_preguntas: 40,
             preguntas_nivel_1: 10,
@@ -156,7 +157,11 @@ async function iniciarEvaluacion() {
         });
 
         let data = {};
-        try { data = await response.json(); } catch (e) { /* ignore */ }
+        try { 
+            data = await response.json(); 
+        } catch (e) { 
+            console.debug('No JSON response', e); 
+        }
 
         if (response.status === 404) {
             throw new Error('Candidato no registrado');
@@ -244,10 +249,10 @@ function mostrarOpciones(opciones, esMultiple) {
     if (!container) return;
     
     container.innerHTML = '';
-    opciones.forEach((opcion, index) => {
+    for (const [index, opcion] of opciones.entries()) {
         const div = document.createElement('div');
         div.className = 'opcion';
-        div.innerHTML = `${String.fromCharCode(65 + index)}. ${opcion}`;
+        div.innerHTML = `${String.fromCodePoint(65 + index)}. ${opcion}`;
         div.tabIndex = 0;
         div.dataset.index = String(index);
         div.dataset.optionText = opcion;
@@ -261,40 +266,61 @@ function mostrarOpciones(opciones, esMultiple) {
             }
         });
         container.appendChild(div);
-    });
+    }
 }
 
 function seleccionarOpcion(index, elemento, esMultiple) {
-    const letra = String.fromCharCode(65 + index);
+    const letra = String.fromCodePoint(65 + index);
     const isSelected = elemento.classList.contains('seleccionada');
-    const answerBtn = document.getElementById('btn-responder');
-
+    
     if (esMultiple) {
-        if (isSelected) {
-            deseleccionarOpcion(elemento, letra);
-        } else if (State.respuestasSeleccionadas.length < 2) {
-            seleccionarElemento(elemento, letra);
-        } else {
-            const msg = '⚠️ Esta pregunta requiere exactamente 2 respuestas';
-            UI.announceToScreenReader(msg);
-            UI.mostrarError(msg);
-            return;
-        }
-        if (answerBtn) answerBtn.disabled = State.respuestasSeleccionadas.length !== 2;
+        handleMultipleSelection(elemento, letra, isSelected);
     } else {
-        if (!isSelected) {
-            // Deseleccionar otros
-            for (const op of document.querySelectorAll('.opcion.seleccionada')) {
-                if (op !== elemento) {
-                    const idx = Number(op.dataset.index);
-                    deseleccionarOpcion(op, String.fromCharCode(65 + idx));
-                }
-            }
-            seleccionarElemento(elemento, letra);
-        } else {
-            deseleccionarOpcion(elemento, letra);
+        handleSingleSelection(elemento, letra, isSelected);
+    }
+    
+    updateAnswerButtonState(esMultiple);
+}
+
+function handleMultipleSelection(elemento, letra, isSelected) {
+    if (isSelected) {
+        deseleccionarOpcion(elemento, letra);
+        return;
+    }
+    
+    if (State.respuestasSeleccionadas.length < 2) {
+        seleccionarElemento(elemento, letra);
+    } else {
+        const msg = '⚠️ Esta pregunta requiere exactamente 2 respuestas';
+        UI.announceToScreenReader(msg);
+        UI.mostrarError(msg);
+    }
+}
+
+function handleSingleSelection(elemento, letra, isSelected) {
+    if (isSelected) {
+        deseleccionarOpcion(elemento, letra);
+        return;
+    }
+
+    // Deseleccionar otros
+    for (const op of document.querySelectorAll('.opcion.seleccionada')) {
+        if (op !== elemento) {
+            const idx = Number(op.dataset.index);
+            deseleccionarOpcion(op, String.fromCodePoint(65 + idx));
         }
-        if (answerBtn) answerBtn.disabled = State.respuestasSeleccionadas.length === 0;
+    }
+    seleccionarElemento(elemento, letra);
+}
+
+function updateAnswerButtonState(esMultiple) {
+    const answerBtn = document.getElementById('btn-responder');
+    if (!answerBtn) return;
+    
+    if (esMultiple) {
+        answerBtn.disabled = State.respuestasSeleccionadas.length !== 2;
+    } else {
+        answerBtn.disabled = State.respuestasSeleccionadas.length === 0;
     }
 }
 
@@ -415,6 +441,7 @@ async function generarPDFAutomatico() {
             mostrarEvaluacionCompleta(null, `Error: ${data.error}`);
         }
     } catch (err) {
+        console.error('Error generando PDF:', err);
         mostrarEvaluacionCompleta(null, 'Error de conexión generando reporte');
     }
 }

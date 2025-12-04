@@ -105,7 +105,7 @@ body {
 .start-btn {
     width: 100%;
     padding: 1rem 2rem;
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    background: linear-gradient(135deg, #198754 0%, #138496 100%);
     color: white;
     border: none;
     border-radius: 8px;
@@ -209,7 +209,7 @@ body {
 }
 
 .opcion.seleccionada {
-    background-color: #007bff !important;
+    background-color: #0069d9 !important;
     color: white !important;
     border-color: #0056b3 !important;
 }
@@ -221,7 +221,7 @@ body {
 
 #btn-responder {
     padding: 1rem 3rem;
-    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    background: linear-gradient(135deg, #0056b3 0%, #004494 100%);
     color: white;
     border: none;
     border-radius: 8px;
@@ -321,10 +321,6 @@ body {
         padding: 0.75rem 1.5rem;
         font-size: 1rem;
     }
-    #btn-responder {
-        padding: 0.75rem 2rem;
-        font-size: 1rem;
-    }
     .opcion {
         padding: 12px 15px;
     }
@@ -340,8 +336,8 @@ body {
 /* Estilos adicionales migrados desde cuestionario.html */
 .nivel-badge {
     display: inline-block;
-    background: #6f42c1;
-    color: white;
+    background: #3a1b73;
+    color: #ffffff;
     padding: 4px 8px;
     border-radius: 12px;
     font-size: 12px;
@@ -349,9 +345,9 @@ body {
     margin-left: 5px;
 }
 
-/* Estilos genéricos para botones si no tienen clases específicas */
+/* Estilos genricos para botones si no tienen clases especficas */
 button {
-    background: #28a745;
+    background: #1e7e34;
     color: white;
     padding: 12px 24px;
     border: none;

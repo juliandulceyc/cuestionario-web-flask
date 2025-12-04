@@ -2,7 +2,7 @@ import jwt
 import bcrypt
 import os
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from flask import request, jsonify, session
 import logging
@@ -30,7 +30,7 @@ class SecurityManager:
         Returns:
             dict: Token de acceso y refresh token
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         # Token de acceso (15 minutos)
         access_payload = {
@@ -143,40 +143,44 @@ class SecurityManager:
         return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
 
 
+def _obtener_token_de_request():
+    """Extrae el token del header Authorization o cookies"""
+    token = None
+    if 'Authorization' in request.headers:
+        auth_header = request.headers['Authorization']
+        try:
+            token = auth_header.split(" ")[1]
+        except IndexError:
+            return None, jsonify({'error': 'Formato de token inválido'}), 401
+    
+    if not token and 'access_token' in request.cookies:
+        token = request.cookies.get('access_token')
+        
+    if not token:
+        return None, jsonify({'error': 'Token no proporcionado'}), 401
+        
+    return token, None, None
+
 def token_requerido(f):
     """
     Decorador para rutas que requieren token JWT válido
     """
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = None
-        
-        # Buscar token en el header Authorization
-        if 'Authorization' in request.headers:
-            auth_header = request.headers['Authorization']
-            try:
-                token = auth_header.split(" ")[1]  # Bearer TOKEN
-            except IndexError:
-                return jsonify({'error': 'Formato de token inválido'}), 401
-        
-        # Buscar token en cookies como fallback
-        if not token and 'access_token' in request.cookies:
-            token = request.cookies.get('access_token')
-        
-        if not token:
-            return jsonify({'error': 'Token no proporcionado'}), 401
+        token, error_resp, status = _obtener_token_de_request()
+        if error_resp:
+            return error_resp, status
         
         try:
             payload = SecurityManager.verificar_token(token)
             request.current_user = payload
             
             # Verificar si el token está próximo a expirar (menos de 5 minutos)
-            exp = datetime.fromtimestamp(payload['exp'])
-            tiempo_restante = (exp - datetime.utcnow()).total_seconds()
+            exp = datetime.fromtimestamp(payload['exp'], tz=timezone.utc)
+            tiempo_restante = (exp - datetime.now(timezone.utc)).total_seconds()
             
             if tiempo_restante < 300:  # 5 minutos
                 logger.info(f"Token próximo a expirar para usuario {payload['user_id']}")
-                # Agregar header indicando que debe renovar
                 request.debe_renovar_token = True
             
         except jwt.ExpiredSignatureError:
