@@ -117,7 +117,12 @@ class PDFGenerator:
         respuestas = evaluacion_data.get('respuestas', [])
         total_preguntas = len(respuestas)
         correctas = len([r for r in respuestas if r.get('correcta', False)])
-        porcentaje = (correctas / max(total_preguntas, 1)) * 100
+        
+        if total_preguntas > 0:
+            porcentaje = (float(correctas) / total_preguntas) * 100
+        else:
+            porcentaje = 0.0
+
         puntos_totales = evaluacion_data.get('puntos', 0)
         # Determinar nivel final correctamente; usa nivel_final si existe, o nivel_actual
         nivel_final = evaluacion_data.get('nivel_final', evaluacion_data.get('nivel_actual', 1))
