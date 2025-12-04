@@ -53,7 +53,7 @@ body {
 .container {
     max-width: 900px;
     margin: 0 auto;
-    background: white;
+    background: #ffffff;
     padding: 30px;
     border-radius: 10px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
@@ -66,7 +66,7 @@ body {
 }
 
 .dashboard-header {
-    background: white;
+    background: #ffffff;
     padding: 1.25rem 1.5rem;
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
@@ -85,7 +85,7 @@ body {
 
 .dashboard-header nav a {
     background: #dc3545;
-    color: white;
+    color: #ffffff;
     text-decoration: none;
     padding: 0.5rem 1rem;
     border-radius: 6px;
@@ -112,7 +112,7 @@ body {
 }
 
 .form-section {
-    background: white;
+    background: #ffffff;
     padding: 1.5rem;
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
@@ -187,7 +187,7 @@ form {
 
 .form-actions button[type="submit"] {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    color: #ffffff;
 }
 
 .form-actions button[type="submit"]:hover {
@@ -197,7 +197,7 @@ form {
 
 .form-actions button.cancel {
     background: #6c757d;
-    color: white;
+    color: #ffffff;
 }
 
 .form-actions button.cancel:hover {
@@ -206,7 +206,7 @@ form {
 
 .add-candidate-btn {
     background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-    color: white;
+    color: #ffffff;
     border: none;
     padding: 1rem 2rem;
     border-radius: 8px;
@@ -225,7 +225,7 @@ form {
 }
 
 .candidatos-list {
-    background: white;
+    background: #ffffff;
     padding: 1.5rem;
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
@@ -291,7 +291,7 @@ form {
 
 .copy-btn, .eval-link {
     background: #007bff;
-    color: white;
+    color: #ffffff;
     border: none;
     padding: 0.5rem 1rem;
     border-radius: 4px;
@@ -387,7 +387,7 @@ form {
 }
 
 .reports-table {
-    background: white;
+    background: #ffffff;
     border-radius: 8px;
     overflow: hidden;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -484,12 +484,12 @@ form {
 }
 
 .estado-completada {
-    color: green;
+    color: #155724;
     font-weight: bold;
 }
 
 .estado-pendiente {
-    color: orange;
+    color: #856404;
     font-weight: bold;
 }
 
@@ -501,7 +501,7 @@ form {
 
 .btn-copiar-url {
     background: #007bff;
-    color: white;
+    color: #ffffff;
     padding: 4px 10px;
     border-radius: 5px;
     border: none;
@@ -510,7 +510,7 @@ form {
 
 .link-abrir-evaluacion {
     background: #28a745;
-    color: white;
+    color: #ffffff;
     padding: 4px 10px;
     border-radius: 5px;
     text-decoration: none;
