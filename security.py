@@ -256,3 +256,22 @@ def aplicar_headers_seguridad(response):
     for header, value in SECURITY_HEADERS.items():
         response.headers[header] = value
     return response
+
+
+def handle_errors(f):
+    """
+    Decorador para manejar errores de forma centralizada
+    """
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except Exception as e:
+            logger.error(f"Error no manejado en {f.__name__}: {str(e)}")
+            # Importar render_template aquí para evitar importación circular si es necesario
+            from flask import render_template
+            if request.is_json:
+                return jsonify({'error': 'Error interno del servidor', 'message': str(e)}), 500
+            return render_template('error.html', mensaje="Error interno del servidor"), 500
+    return decorated
+

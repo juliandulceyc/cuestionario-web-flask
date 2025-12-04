@@ -43,9 +43,15 @@ jobs:
           coverage xml -i -o coverage.xml
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@v2.2.0
+        uses: SonarSource/sonarcloud-github-action@v3.1.0
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
-          organization: "cuestionario"
-          projectKey: "cuestionario_cuestionarioapp"
+          args: >
+            -Dsonar.organization=cuestionario
+            -Dsonar.projectKey=cuestionario_cuestionarioapp
+            -Dsonar.python.coverage.reportPaths=coverage.xml
+            -Dsonar.sources=.
+            -Dsonar.exclusions=venv/**,**/__pycache__/**,tests/**,static/**
+            -Dsonar.tests=tests/

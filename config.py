@@ -14,6 +14,10 @@ class Config:
     TOTAL_PREGUNTAS = 40
     ARCHIVO_EXCEL = 'Evaluación FWS PAN V2.xlsx'
 
+    # Configuración de Base de Datos
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///evaluacion.db')
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
     # Credenciales admin (en producción usar variables de entorno)
     ADMIN_USER = os.getenv('ADMIN_USER', 'admin')
     ADMIN_PASS = os.getenv('ADMIN_PASS', '123456')
