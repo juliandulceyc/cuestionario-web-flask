@@ -476,3 +476,197 @@ form {
   gap: 16px;
   margin-top: 20px;
 }
+
+/* Estilos migrados desde admin_dashboard.html */
+.panel-temas {
+    margin-bottom: 30px;
+}
+
+.form-subir-tema {
+    margin-bottom: 15px;
+}
+
+.select-archivo-excel {
+    min-width: 200px;
+}
+
+.tema-resultado {
+    margin-top: 10px;
+    color: #155724;
+}
+
+.archivos-temas-lista {
+    margin-top: 20px;
+}
+
+.titulo-registro {
+    margin-bottom: 1.5rem;
+}
+
+.tema-activo-display {
+    font-weight: bold;
+    color: #007bff;
+}
+
+.form-actions-container {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-top: 2rem;
+}
+
+.btn-registrar, .btn-cancelar {
+    min-width: 160px;
+}
+
+.btn-registrar-candidato {
+    margin-bottom: 20px;
+}
+
+.candidato-card-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+}
+
+.candidato-info {
+    flex: 1;
+}
+
+.estado-completada {
+    color: green;
+    font-weight: bold;
+}
+
+.estado-pendiente {
+    color: orange;
+    font-weight: bold;
+}
+
+.acciones-pendiente {
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
+}
+
+.btn-copiar-url {
+    background: #007bff;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+}
+
+.link-abrir-evaluacion {
+    background: #28a745;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 5px;
+    text-decoration: none;
+}
+
+.candidato-acciones {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-editar, .btn-eliminar {
+    padding: 6px 12px;
+    font-size: 14px;
+}
+
+/* Modal Editar */
+.modal-editar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-editar-content {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    min-width: 320px;
+    max-width: 520px;
+}
+
+.modal-editar-titulo {
+    margin-top: 0;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 14px;
+}
+
+/* Resultados */
+.resultados-section {
+    margin-top: 40px;
+}
+
+.filtros-container {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.filtros-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.filtro-label {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.filtro-input, .filtro-select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+.btn-limpiar-filtros {
+    padding: 8px 16px;
+    width: 100%;
+}
+
+.contador-resultados {
+    margin-top: 10px;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.tabla-resultados-container {
+    overflow-x: auto;
+}
+
+.tabla-resultados {
+    min-width: 900px;
+    margin-top: 15px;
+    font-size: 0.95em;
+}
+
+.tabla-resultados th {
+    white-space: nowrap;
+}
+
+.td-nowrap {
+    white-space: nowrap;
+}
+
+.td-center {
+    text-align: center;
+}
+

@@ -750,4 +750,197 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Función global para recargar candidatos
     window.recargarCandidatos = cargarCandidatos;
+});// Funciones migradas desde admin_dashboard.html
+
+function actualizarFilaResultados(candidato){
+    try {
+        var tabla = document.getElementById('tabla-resultados');
+        if (!tabla || !candidato || !candidato.codigo) return;
+        var fila = tabla.querySelector('.fila-resultado[data-codigo="' + candidato.codigo + '"]');
+        if (!fila) return;
+        var celdas = fila.getElementsByTagName('td');
+        if (!celdas || celdas.length < 3) return;
+        // 0: Nombre, 1: Documento, 2: Email
+        celdas[0].textContent = candidato.nombre_completo || '-';
+        if (candidato.tipo_documento && candidato.numero_documento) {
+            celdas[1].textContent = (candidato.tipo_documento + ': ' + candidato.numero_documento);
+            fila.setAttribute('data-cedula', String(candidato.numero_documento).toLowerCase());
+        } else {
+            celdas[1].textContent = '-';
+            fila.setAttribute('data-cedula', '');
+        }
+        celdas[2].textContent = candidato.email || '-';
+        fila.setAttribute('data-nombre', (candidato.nombre_completo || '').toLowerCase());
+        fila.setAttribute('data-email', (candidato.email || '').toLowerCase());
+    } catch (e) {
+        console.warn('No se pudo actualizar la fila de resultados:', e);
+    }
+}
+
+window.abrirEditarCandidato = function(c) {
+    var modal = document.getElementById('modal-editar');
+    document.getElementById('edit-codigo').value = c.codigo || '';
+    document.getElementById('edit-tipo_documento').value = c.tipo_documento || '';
+    document.getElementById('edit-numero_documento').value = c.numero_documento || '';
+    document.getElementById('edit-nombre_completo').value = c.nombre_completo || '';
+    document.getElementById('edit-email').value = c.email || '';
+    document.getElementById('edit-telefono').value = c.telefono || '';
+    document.getElementById('edit-cargo').value = c.cargo || '';
+    modal.style.display = 'flex';
+};
+
+window.abrirEditarCandidatoDesdeBoton = function(btn){
+    var c = {
+        codigo: btn.getAttribute('data-codigo') || '',
+        tipo_documento: btn.getAttribute('data-tipo-documento') || '',
+        numero_documento: btn.getAttribute('data-numero-documento') || '',
+        nombre_completo: btn.getAttribute('data-nombre-completo') || '',
+        email: btn.getAttribute('data-email') || '',
+        telefono: btn.getAttribute('data-telefono') || '',
+        cargo: btn.getAttribute('data-cargo') || ''
+    };
+    window.abrirEditarCandidato(c);
+};
+
+window.cerrarModalEditar = function() {
+    var modal = document.getElementById('modal-editar');
+    modal.style.display = 'none';
+};
+
+document.addEventListener('DOMContentLoaded', function(){
+    var form = document.getElementById('form-editar-candidato');
+    if (form) {
+        form.addEventListener('submit', function(e){
+            e.preventDefault();
+            var payload = {
+                codigo: document.getElementById('edit-codigo').value,
+                tipo_documento: document.getElementById('edit-tipo_documento').value,
+                numero_documento: document.getElementById('edit-numero_documento').value,
+                nombre_completo: document.getElementById('edit-nombre_completo').value,
+                email: document.getElementById('edit-email').value,
+                telefono: document.getElementById('edit-telefono').value,
+                cargo: document.getElementById('edit-cargo').value
+            };
+            fetch('/admin/actualizar_candidato', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+            .then(function(data){
+                if (!data.success) throw new Error(data.error || 'Error al actualizar');
+                window.cerrarModalEditar();
+                if (typeof cargarCandidatos === 'function') { cargarCandidatos(); }
+                // Actualizar tabla de resultados en vivo
+                if (data.candidato) { actualizarFilaResultados(data.candidato); }
+                if (typeof window.mostrarNotificacion === 'function') {
+                    window.mostrarNotificacion(' Candidato actualizado', 'success');
+                } else {
+                    alert('Candidato actualizado');
+                }
+            })
+            .catch(function(err){
+                if (typeof window.mostrarNotificacion === 'function') {
+                    window.mostrarNotificacion(' '+err.message, 'error');
+                } else { alert('Error: '+err.message); }
+            });
+        });
+    }
+});
+// Funciones migradas desde admin_dashboard.html
+
+function actualizarFilaResultados(candidato){
+    try {
+        var tabla = document.getElementById('tabla-resultados');
+        if (!tabla || !candidato || !candidato.codigo) return;
+        var fila = tabla.querySelector('.fila-resultado[data-codigo="' + candidato.codigo + '"]');
+        if (!fila) return;
+        var celdas = fila.getElementsByTagName('td');
+        if (!celdas || celdas.length < 3) return;
+        // 0: Nombre, 1: Documento, 2: Email
+        celdas[0].textContent = candidato.nombre_completo || '-';
+        if (candidato.tipo_documento && candidato.numero_documento) {
+            celdas[1].textContent = (candidato.tipo_documento + ': ' + candidato.numero_documento);
+            fila.setAttribute('data-cedula', String(candidato.numero_documento).toLowerCase());
+        } else {
+            celdas[1].textContent = '-';
+            fila.setAttribute('data-cedula', '');
+        }
+        celdas[2].textContent = candidato.email || '-';
+        fila.setAttribute('data-nombre', (candidato.nombre_completo || '').toLowerCase());
+        fila.setAttribute('data-email', (candidato.email || '').toLowerCase());
+    } catch (e) {
+        console.warn('No se pudo actualizar la fila de resultados:', e);
+    }
+}
+
+window.abrirEditarCandidato = function(c) {
+    var modal = document.getElementById('modal-editar');
+    document.getElementById('edit-codigo').value = c.codigo || '';
+    document.getElementById('edit-tipo_documento').value = c.tipo_documento || '';
+    document.getElementById('edit-numero_documento').value = c.numero_documento || '';
+    document.getElementById('edit-nombre_completo').value = c.nombre_completo || '';
+    document.getElementById('edit-email').value = c.email || '';
+    document.getElementById('edit-telefono').value = c.telefono || '';
+    document.getElementById('edit-cargo').value = c.cargo || '';
+    modal.style.display = 'flex';
+};
+
+window.abrirEditarCandidatoDesdeBoton = function(btn){
+    var c = {
+        codigo: btn.getAttribute('data-codigo') || '',
+        tipo_documento: btn.getAttribute('data-tipo-documento') || '',
+        numero_documento: btn.getAttribute('data-numero-documento') || '',
+        nombre_completo: btn.getAttribute('data-nombre-completo') || '',
+        email: btn.getAttribute('data-email') || '',
+        telefono: btn.getAttribute('data-telefono') || '',
+        cargo: btn.getAttribute('data-cargo') || ''
+    };
+    window.abrirEditarCandidato(c);
+};
+
+window.cerrarModalEditar = function() {
+    var modal = document.getElementById('modal-editar');
+    modal.style.display = 'none';
+};
+
+document.addEventListener('DOMContentLoaded', function(){
+    var form = document.getElementById('form-editar-candidato');
+    if (form) {
+        form.addEventListener('submit', function(e){
+            e.preventDefault();
+            var payload = {
+                codigo: document.getElementById('edit-codigo').value,
+                tipo_documento: document.getElementById('edit-tipo_documento').value,
+                numero_documento: document.getElementById('edit-numero_documento').value,
+                nombre_completo: document.getElementById('edit-nombre_completo').value,
+                email: document.getElementById('edit-email').value,
+                telefono: document.getElementById('edit-telefono').value,
+                cargo: document.getElementById('edit-cargo').value
+            };
+            fetch('/admin/actualizar_candidato', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+            .then(function(data){
+                if (!data.success) throw new Error(data.error || 'Error al actualizar');
+                window.cerrarModalEditar();
+                if (typeof cargarCandidatos === 'function') { cargarCandidatos(); }
+                // Actualizar tabla de resultados en vivo
+                if (data.candidato) { actualizarFilaResultados(data.candidato); }
+                if (typeof window.mostrarNotificacion === 'function') {
+                    window.mostrarNotificacion(' Candidato actualizado', 'success');
+                } else {
+                    alert('Candidato actualizado');
+                }
+            })
+            .catch(function(err){
+                if (typeof window.mostrarNotificacion === 'function') {
+                    window.mostrarNotificacion(' '+err.message, 'error');
+                } else { alert('Error: '+err.message); }
+            });
+        });
+    }
 });

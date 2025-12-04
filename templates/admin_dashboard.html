@@ -1,5 +1,4 @@
-<!DOCTYPE html>
-
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -7,23 +6,24 @@
     <title>Panel de Administración</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/form-candidato.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin-dashboard.css') }}">
 </head>
 <body>
     <div class="container">
-        <section class="panel-temas" style="margin-bottom:30px;">
+        <section class="panel-temas">
             <h2> Gestión de Temas de Evaluación</h2>
-            <form id="form-subir-tema" enctype="multipart/form-data" method="post" action="/admin/subir_tema" style="margin-bottom:15px;">
+            <form id="form-subir-tema" enctype="multipart/form-data" method="post" action="/admin/subir_tema" class="form-subir-tema">
                 <label for="archivo_tema"><b>Subir nuevo archivo Excel de preguntas:</b></label>
                 <input type="file" id="archivo_tema" name="archivo_tema" accept=".xlsx,.xls" required>
                 <button type="submit" class="btn btn-primary">Subir archivo</button>
             </form>
             <form id="form-seleccionar-tema" method="post" action="/admin/seleccionar_tema">
                 <label for="archivo_excel"><b>Seleccionar tema activo:</b></label>
-                <select id="archivo_excel" name="archivo_excel" style="min-width:200px;"></select>
+                <select id="archivo_excel" name="archivo_excel" class="select-archivo-excel"></select>
                 <button type="submit" class="btn btn-success">Activar tema</button>
             </form>
-            <div id="tema-resultado" style="margin-top:10px;color:#155724;"></div>
-            <div id="archivos-temas-lista" style="margin-top:20px;">
+            <div id="tema-resultado" class="tema-resultado"></div>
+            <div id="archivos-temas-lista" class="archivos-temas-lista">
                 <h3>Archivos de temas subidos</h3>
                 <table class="tabla-archivos-temas">
                     <thead>
@@ -38,23 +38,23 @@
             </div>
         </section>
         <div class="header">
-            <h1>📊 Panel de Administración</h1>
+            <h1> Panel de Administración</h1>
             <div class="config-info">
-                👥 Gestión de candidatos y registro
+                 Gestión de candidatos y registro
             </div>
             <div class="dashboard-actions">
                 <a href="/admin/logout" class="btn btn-danger">Cerrar Sesión</a>
             </div>
         </div>
         <section class="form-section" id="formularioRegistro" style="display: none;">
-                        <h2 style="margin-bottom: 1.5rem;">Registrar Nuevo Candidato</h2>
+                        <h2 class="titulo-registro">Registrar Nuevo Candidato</h2>
                         <form id="candidatoForm" method="post" action="/admin/registrar_candidato">
                             <div class="form-registro-candidato">
                                 <div class="form-registro-candidato grid-dos-columnas">
                                     <div class="form-col">
                                         <div class="form-row">
                                             <label class="form-label">Tema de evaluación:</label>
-                                            <span id="tema-activo" style="font-weight:bold;color:#007bff;">{{ tema_activo }}</span>
+                                            <span id="tema-activo" class="tema-activo-display">{{ tema_activo }}</span>
                                         <input type="hidden" id="tema" name="tema" value="{{ tema_activo|default('')}}">
                                         </div>
                                         <div class="form-row">
@@ -94,44 +94,44 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="form-actions" style="display: flex; justify-content: center; gap: 24px; margin-top: 2rem;">
-                                <button type="submit" class="btn btn-primary" style="min-width: 160px;">💾 Registrar</button>
-                                <button type="button" class="btn btn-secondary cancel" data-action="cancel" style="min-width: 160px;">❌ Cancelar</button>
+                            <div class="form-actions-container">
+                                <button type="submit" class="btn btn-primary btn-registrar"> Registrar</button>
+                                <button type="button" class="btn btn-secondary cancel btn-cancelar" data-action="cancel"> Cancelar</button>
                             </div>
                         </form>
         </section>
         <section>
-            <button type="button" class="add-candidate-btn btn btn-success" data-action="show-form" style="margin-bottom: 20px;">
-                ➕ Registrar Candidato
+            <button type="button" class="add-candidate-btn btn btn-success btn-registrar-candidato" data-action="show-form">
+                 Registrar Candidato
             </button>
-            <h2>📋 Candidatos Registrados</h2>
+            <h2> Candidatos Registrados</h2>
             
             <div id="candidatos-lista" class="candidatos-list">
                 {% for candidato in candidatos %}
                 <div class="candidato-card" data-cedula="{{ candidato.codigo }}" data-nombre="{{ candidato.nombre_completo }}" data-estado="{% if candidato.evaluacion_completada %}completada{% else %}pendiente{% endif %}">
-                    <div style="display: flex; justify-content: space-between; align-items: start;">
-                        <div style="flex: 1;">
+                    <div class="candidato-card-content">
+                        <div class="candidato-info">
                             <strong>{{ candidato.nombre_completo }}</strong><br>
                             {% if candidato.numero_documento %}
-                                <span>🆔 {{ candidato.tipo_documento }}: {{ candidato.numero_documento }}</span><br>
+                                <span> {{ candidato.tipo_documento }}: {{ candidato.numero_documento }}</span><br>
                             {% endif %}
-                            <span>📧 {{ candidato.email }}</span><br>
-                            <span>🔑 Código: {{ candidato.codigo }}</span><br>
+                            <span> {{ candidato.email }}</span><br>
+                            <span> Código: {{ candidato.codigo }}</span><br>
                             {% if candidato.cargo and candidato.cargo != 'N/A' %}
-                                <span>🏢 {{ candidato.cargo }}</span><br>
+                                <span> {{ candidato.cargo }}</span><br>
                             {% endif %}
                             {% if candidato.evaluacion_completada %}
-                                <span style="color:green;font-weight:bold;">✅ Completada</span>
+                                <span class="estado-completada"> Completada</span>
                             {% else %}
-                                <span style="color:orange;font-weight:bold;">⏳ Pendiente</span>
-                                <div style="margin-top:8px;display:flex;gap:8px;">
-                                    <button type="button" onclick="navigator.clipboard.writeText('{{ request.url_root }}evaluacion/{{ candidato.codigo }}');this.innerHTML='✅ Copiado!'" class="copy-btn" style="background:#007bff;color:white;padding:4px 10px;border-radius:5px;border:none;cursor:pointer;">📋 Copiar URL</button>
-                                    <a href="/evaluacion/{{ candidato.codigo }}" target="_blank" class="eval-link" style="background:#28a745;color:white;padding:4px 10px;border-radius:5px;text-decoration:none;">🔗 Abrir Evaluación</a>
+                                <span class="estado-pendiente"> Pendiente</span>
+                                <div class="acciones-pendiente">
+                                    <button type="button" onclick="navigator.clipboard.writeText('{{ request.url_root }}evaluacion/{{ candidato.codigo }}');this.innerHTML=' Copiado!'" class="copy-btn btn-copiar-url"> Copiar URL</button>
+                                    <a href="/evaluacion/{{ candidato.codigo }}" target="_blank" class="eval-link link-abrir-evaluacion"> Abrir Evaluación</a>
                                 </div>
                             {% endif %}
                         </div>
-                        <div style="display:flex; gap:8px;">
-                            <button type="button" class="btn btn-secondary" style="padding:6px 12px;font-size:14px;" 
+                        <div class="candidato-acciones">
+                            <button type="button" class="btn btn-secondary btn-editar" 
                                 data-codigo="{{ candidato.codigo }}"
                                 data-tipo-documento="{{ candidato.tipo_documento or '' }}"
                                 data-numero-documento="{{ candidato.numero_documento or '' }}"
@@ -139,11 +139,10 @@
                                 data-email="{{ candidato.email }}"
                                 data-telefono="{{ candidato.telefono or '' }}"
                                 data-cargo="{{ candidato.cargo or '' }}"
-                                onclick="window.abrirEditarCandidatoDesdeBoton(this)">✏️ Editar</button>
+                                onclick="window.abrirEditarCandidatoDesdeBoton(this)"> Editar</button>
                             <button onclick="eliminarCandidato('{{ candidato.codigo }}', this)" 
-                                    class="btn btn-danger" 
-                                    style="padding: 6px 12px; font-size: 14px;">
-                                🗑️ Eliminar
+                                    class="btn btn-danger btn-eliminar">
+                                 Eliminar
                             </button>
                         </div>
                     </div>
@@ -153,9 +152,9 @@
         </section>
 
         <!-- Modal Edición Candidato -->
-        <div id="modal-editar" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
-            <div style="background:#fff; padding:20px; border-radius:8px; min-width:320px; max-width:520px;">
-                <h3 style="margin-top:0;">Editar Candidato</h3>
+        <div id="modal-editar" class="modal-editar-overlay">
+            <div class="modal-editar-content">
+                <h3 class="modal-editar-titulo">Editar Candidato</h3>
                 <form id="form-editar-candidato">
                     <input type="hidden" id="edit-codigo">
                     <div class="form-row"><label>Tipo Documento</label>
@@ -170,7 +169,7 @@
                         <input type="text" id="edit-telefono" class="form-input"></div>
                     <div class="form-row"><label>Cargo</label>
                         <input type="text" id="edit-cargo" class="form-input"></div>
-                    <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px;">
+                    <div class="modal-actions">
                         <button type="button" class="btn btn-secondary" onclick="window.cerrarModalEditar()">Cancelar</button>
                         <button type="submit" class="btn btn-primary">Guardar</button>
                     </div>
@@ -178,43 +177,39 @@
             </div>
         </div>
 
-        <section style="margin-top:40px;">
-            <h2>📈 Resultados de Evaluaciones</h2>
+        <section class="resultados-section">
+            <h2> Resultados de Evaluaciones</h2>
             
             <!-- FILTROS DE BÚSQUEDA PARA RESULTADOS -->
-            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <div class="filtros-container">
+                <div class="filtros-grid">
                     <div>
-                        <label for="filtro-resultado-nombre" style="font-weight: bold; display: block; margin-bottom: 5px;"> Nombre:</label>
-                        <input type="text" id="filtro-resultado-nombre" placeholder="Buscar por nombre..." 
-                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                        <label for="filtro-resultado-nombre" class="filtro-label"> Nombre:</label>
+                        <input type="text" id="filtro-resultado-nombre" placeholder="Buscar por nombre..." class="filtro-input">
                     </div>
                     <div>
-                        <label for="filtro-resultado-cedula" style="font-weight: bold; display: block; margin-bottom: 5px;"> Documento:</label>
-                        <input type="text" id="filtro-resultado-cedula" placeholder="Buscar por documento..." 
-                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                        <label for="filtro-resultado-cedula" class="filtro-label"> Documento:</label>
+                        <input type="text" id="filtro-resultado-cedula" placeholder="Buscar por documento..." class="filtro-input">
                     </div>
                     <div>
-                        <label for="filtro-resultado-email" style="font-weight: bold; display: block; margin-bottom: 5px;"> Email:</label>
-                        <input type="text" id="filtro-resultado-email" placeholder="Buscar por email..." 
-                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                        <label for="filtro-resultado-email" class="filtro-label"> Email:</label>
+                        <input type="text" id="filtro-resultado-email" placeholder="Buscar por email..." class="filtro-input">
                     </div>
                     <div>
-                        <label for="filtro-resultado-tema" style="font-weight: bold; display: block; margin-bottom: 5px;"> Tema:</label>
-                        <input type="text" id="filtro-resultado-tema" placeholder="Buscar por tema..." 
-                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                        <label for="filtro-resultado-tema" class="filtro-label"> Tema:</label>
+                        <input type="text" id="filtro-resultado-tema" placeholder="Buscar por tema..." class="filtro-input">
                     </div>
                     <div>
-                        <label for="filtro-resultado-estado" style="font-weight: bold; display: block; margin-bottom: 5px;"> Estado:</label>
-                        <select id="filtro-resultado-estado" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                        <label for="filtro-resultado-estado" class="filtro-label"> Estado:</label>
+                        <select id="filtro-resultado-estado" class="filtro-select">
                             <option value="">Todos</option>
                             <option value="si">Completadas</option>
                             <option value="no">Pendientes</option>
                         </select>
                     </div>
                     <div>
-                        <label for="filtro-resultado-nivel" style="font-weight: bold; display: block; margin-bottom: 5px;"> Nivel Final:</label>
-                        <select id="filtro-resultado-nivel" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                        <label for="filtro-resultado-nivel" class="filtro-label"> Nivel Final:</label>
+                        <select id="filtro-resultado-nivel" class="filtro-select">
                             <option value="">Todos</option>
                             <option value="1">Nivel 1</option>
                             <option value="2">Nivel 2</option>
@@ -224,27 +219,27 @@
                         </select>
                     </div>
                     <div style="display: flex; align-items: flex-end;">
-                        <button onclick="limpiarFiltrosResultados()" class="btn btn-secondary" style="padding: 8px 16px; width: 100%;">🔄 Limpiar Filtros</button>
+                        <button onclick="limpiarFiltrosResultados()" class="btn btn-secondary btn-limpiar-filtros"> Limpiar Filtros</button>
                     </div>
                 </div>
-                <div id="contador-resultados" style="margin-top: 10px; font-weight: bold; color: #007bff;"></div>
+                <div id="contador-resultados" class="contador-resultados"></div>
             </div>
             
-            <div style="overflow-x:auto;">
-                <table class="table table-bordered" id="tabla-resultados" style="min-width:900px;margin-top:15px;font-size:0.95em;">
+            <div class="tabla-resultados-container">
+                <table class="table table-bordered tabla-resultados" id="tabla-resultados">
                     <thead>
                         <tr>
-                            <th style="white-space:nowrap;">Candidato</th>
-                            <th style="white-space:nowrap;">Documento</th>
-                            <th style="white-space:nowrap;">Email</th>
-                            <th style="white-space:nowrap;">Tema</th>
-                            <th style="white-space:nowrap;">Correctas</th>
-                            <th style="white-space:nowrap;">Total</th>
-                            <th style="white-space:nowrap;">Porcentaje</th>
-                            <th style="white-space:nowrap;">Puntos</th>
-                            <th style="white-space:nowrap;">Nivel Final</th>
-                            <th style="white-space:nowrap;">Fecha Evaluación</th>
-                            <th style="white-space:nowrap;">Acepta Términos</th>
+                            <th>Candidato</th>
+                            <th>Documento</th>
+                            <th>Email</th>
+                            <th>Tema</th>
+                            <th>Correctas</th>
+                            <th>Total</th>
+                            <th>Porcentaje</th>
+                            <th>Puntos</th>
+                            <th>Nivel Final</th>
+                            <th>Fecha Evaluación</th>
+                            <th>Acepta Términos</th>
                         </tr>
                     </thead>
                     <tbody id="tbody-resultados">
@@ -258,23 +253,23 @@
                                 data-tema="{{ resultado.tema|default('')|lower if resultado else '' }}"
                                 data-nivel="{{ resultado.nivel_final if resultado else '' }}"
                                 data-tiene-resultado="{{ 'si' if resultado else 'no' }}">
-                                <td style="white-space:nowrap;">{{ candidato.nombre_completo }}</td>
-                                <td style="white-space:nowrap;">
+                                <td class="td-nowrap">{{ candidato.nombre_completo }}</td>
+                                <td class="td-nowrap">
                                     {% if candidato.tipo_documento and candidato.numero_documento %}
                                         {{ candidato.tipo_documento }}: {{ candidato.numero_documento }}
                                     {% else %}
                                         -
                                     {% endif %}
                                 </td>
-                                <td style="white-space:nowrap;">{{ candidato.email }}</td>
-                                <td style="white-space:nowrap;">{{ resultado.tema if resultado else '-' }}</td>
-                                <td style="text-align:center;">{{ resultado.correctas if resultado else '-' }}</td>
-                                <td style="text-align:center;">{{ resultado.total if resultado else '-' }}</td>
-                                <td style="text-align:center;">{{ resultado.porcentaje|round(1) if resultado else '-' }}%</td>
-                                <td style="text-align:center;">{{ "%.1f"|format(resultado.puntos) if resultado else '-' }}</td>
-                                <td style="text-align:center;">{{ resultado.nivel_final if resultado else '-' }}</td>
-                                <td style="white-space:nowrap;">{{ resultado.fecha_evaluacion.strftime('%Y-%m-%d %H:%M') if resultado and resultado.fecha_evaluacion else '-' }}</td>
-                                <td style="text-align:center;">{{ candidato.acepta_terminos and 'Sí' or 'No' }}</td>
+                                <td class="td-nowrap">{{ candidato.email }}</td>
+                                <td class="td-nowrap">{{ resultado.tema if resultado else '-' }}</td>
+                                <td class="td-center">{{ resultado.correctas if resultado else '-' }}</td>
+                                <td class="td-center">{{ resultado.total if resultado else '-' }}</td>
+                                <td class="td-center">{{ resultado.porcentaje|round(1) if resultado else '-' }}%</td>
+                                <td class="td-center">{{ "%.1f"|format(resultado.puntos) if resultado else '-' }}</td>
+                                <td class="td-center">{{ resultado.nivel_final if resultado else '-' }}</td>
+                                <td class="td-nowrap">{{ resultado.fecha_evaluacion.strftime('%Y-%m-%d %H:%M') if resultado and resultado.fecha_evaluacion else '-' }}</td>
+                                <td class="td-center">{{ candidato.acepta_terminos and 'Sí' or 'No' }}</td>
                             </tr>
                         {% endfor %}
                     </tbody>
@@ -285,99 +280,5 @@
     <script src="{{ url_for('static', filename='js/admin-dashboard.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/admin-panel.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/token-renewal-silent.js') }}" defer></script>
-    <script>
-    // Actualiza en vivo la fila de la tabla de resultados para el candidato editado
-    function actualizarFilaResultados(candidato){
-        try {
-            var tabla = document.getElementById('tabla-resultados');
-            if (!tabla || !candidato || !candidato.codigo) return;
-            var fila = tabla.querySelector('.fila-resultado[data-codigo="' + candidato.codigo + '"]');
-            if (!fila) return;
-            var celdas = fila.getElementsByTagName('td');
-            if (!celdas || celdas.length < 3) return;
-            // 0: Nombre, 1: Documento, 2: Email
-            celdas[0].textContent = candidato.nombre_completo || '-';
-            if (candidato.tipo_documento && candidato.numero_documento) {
-                celdas[1].textContent = (candidato.tipo_documento + ': ' + candidato.numero_documento);
-                fila.setAttribute('data-cedula', String(candidato.numero_documento).toLowerCase());
-            } else {
-                celdas[1].textContent = '-';
-                fila.setAttribute('data-cedula', '');
-            }
-            celdas[2].textContent = candidato.email || '-';
-            fila.setAttribute('data-nombre', (candidato.nombre_completo || '').toLowerCase());
-            fila.setAttribute('data-email', (candidato.email || '').toLowerCase());
-        } catch (e) {
-            console.warn('No se pudo actualizar la fila de resultados:', e);
-        }
-    }
-    window.abrirEditarCandidato = function(c) {
-        var modal = document.getElementById('modal-editar');
-        document.getElementById('edit-codigo').value = c.codigo || '';
-        document.getElementById('edit-tipo_documento').value = c.tipo_documento || '';
-        document.getElementById('edit-numero_documento').value = c.numero_documento || '';
-        document.getElementById('edit-nombre_completo').value = c.nombre_completo || '';
-        document.getElementById('edit-email').value = c.email || '';
-        document.getElementById('edit-telefono').value = c.telefono || '';
-        document.getElementById('edit-cargo').value = c.cargo || '';
-        modal.style.display = 'flex';
-    };
-    window.abrirEditarCandidatoDesdeBoton = function(btn){
-        var c = {
-            codigo: btn.getAttribute('data-codigo') || '',
-            tipo_documento: btn.getAttribute('data-tipo-documento') || '',
-            numero_documento: btn.getAttribute('data-numero-documento') || '',
-            nombre_completo: btn.getAttribute('data-nombre-completo') || '',
-            email: btn.getAttribute('data-email') || '',
-            telefono: btn.getAttribute('data-telefono') || '',
-            cargo: btn.getAttribute('data-cargo') || ''
-        };
-        window.abrirEditarCandidato(c);
-    };
-    window.cerrarModalEditar = function() {
-        var modal = document.getElementById('modal-editar');
-        modal.style.display = 'none';
-    };
-    document.addEventListener('DOMContentLoaded', function(){
-        var form = document.getElementById('form-editar-candidato');
-        if (form) {
-            form.addEventListener('submit', function(e){
-                e.preventDefault();
-                var payload = {
-                    codigo: document.getElementById('edit-codigo').value,
-                    tipo_documento: document.getElementById('edit-tipo_documento').value,
-                    numero_documento: document.getElementById('edit-numero_documento').value,
-                    nombre_completo: document.getElementById('edit-nombre_completo').value,
-                    email: document.getElementById('edit-email').value,
-                    telefono: document.getElementById('edit-telefono').value,
-                    cargo: document.getElementById('edit-cargo').value
-                };
-                fetch('/admin/actualizar_candidato', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                })
-                .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-                .then(function(data){
-                    if (!data.success) throw new Error(data.error || 'Error al actualizar');
-                    window.cerrarModalEditar();
-                    if (typeof cargarCandidatos === 'function') { cargarCandidatos(); }
-                    // Actualizar tabla de resultados en vivo
-                    if (data.candidato) { actualizarFilaResultados(data.candidato); }
-                    if (typeof window.mostrarNotificacion === 'function') {
-                        window.mostrarNotificacion('✏️ Candidato actualizado', 'success');
-                    } else {
-                        alert('Candidato actualizado');
-                    }
-                })
-                .catch(function(err){
-                    if (typeof window.mostrarNotificacion === 'function') {
-                        window.mostrarNotificacion('❌ '+err.message, 'error');
-                    } else { alert('Error: '+err.message); }
-                });
-            });
-        }
-    });
-    </script>
 </body>
 </html>
