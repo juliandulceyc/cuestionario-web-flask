@@ -875,6 +875,11 @@ def api_estadisticas():
         "niveles_disponibles": [1, 2, 3, 4, 5]
     })
 
+# ===== CONTEXT PROCESSORS =====
+@app.context_processor
+def inject_admin_email():
+    return dict(admin_email=Config.ADMIN_EMAIL or 'soporte@empresa.com')
+
 # ===== MANEJO DE ERRORES =====
 
 @app.errorhandler(404)

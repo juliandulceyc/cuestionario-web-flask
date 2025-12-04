@@ -85,3 +85,15 @@ body {
         font-size: 20px;
     }
 }
+
+.error-footer {
+    margin-top: 18px;
+    font-size: 0.95rem;
+    color: #666;
+}
+
+.error-footer a {
+    color: #007bff;
+    text-decoration: underline;
+}
+
