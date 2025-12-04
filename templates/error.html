@@ -10,13 +10,13 @@
 <body>
     <div class="container">
         <div class="header">
-            <div class="error-icon" aria-hidden="true"></div>
+            <div class="error-icon" aria-hidden="true">⚠️</div>
             <h1 class="error-title">Error del Sistema</h1>
         </div>
         <p class="error-message">
-            {{ mensaje or 'La página que buscas no existe o no está disponible.<br>Si el problema persiste, contacta al administrador del sistema.' }}
+            {{ mensaje or 'La página que buscas no existe o no está disponible.' }}
         </p>
-        <a href="/admin/login" class="back-btn" role="button"> Ir al Inicio</a>
+        <a href="/admin/login" class="back-btn">🏠 Ir al Inicio</a>
         <div class="error-footer">
             ¿Necesitas ayuda? <a href="mailto:{{ admin_email }}">Contacta al administrador</a>
         </div>
