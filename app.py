@@ -2,12 +2,20 @@ from flask import Flask, abort, render_template, request, jsonify, redirect, url
 import os
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Tuple, Optional, Any
 import secrets
 from functools import wraps
 
 from dotenv import load_dotenv
+
+# Constants for templates
+TEMPLATE_ADMIN_LOGIN = 'admin_login.html'
+TEMPLATE_RECUPERAR_PASSWORD = 'recuperar_password.html'
+TEMPLATE_RESTABLECER_PASSWORD = 'restablecer_password.html'
+TEMPLATE_ADMIN_REGISTER = 'admin_register.html'
+TEMPLATE_ADMIN_DASHBOARD = 'admin_dashboard.html'
+TEMPLATE_ERROR = 'error.html'
 
 # Importar módulos refactorizados
 from config import Config
@@ -89,7 +97,7 @@ def home():
 
 @app.route('/admin/login')
 def admin_login():
-    return render_template('admin_login.html')
+    return render_template(TEMPLATE_ADMIN_LOGIN)
 
 @app.route('/admin/authenticate', methods=['POST'])
 @handle_errors
@@ -106,7 +114,7 @@ def admin_authenticate():
         tokens = SecurityManager.generar_token(usuario_id=user.username, rol=user.role or 'admin')
         session['access_token'] = tokens['access_token']
         session['refresh_token'] = tokens['refresh_token']
-        session['token_expires_at'] = (datetime.utcnow() + timedelta(minutes=15)).isoformat()
+        session['token_expires_at'] = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
         logger.info(f"Admin login (BD) exitoso: {user.username}")
         return redirect(url_for('admin_dashboard'))
 
@@ -120,13 +128,13 @@ def admin_authenticate():
         tokens = SecurityManager.generar_token(usuario_id=username, rol='admin')
         session['access_token'] = tokens['access_token']
         session['refresh_token'] = tokens['refresh_token']
-        session['token_expires_at'] = (datetime.utcnow() + timedelta(minutes=15)).isoformat()
+        session['token_expires_at'] = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
         
         logger.info(f"Admin login (legacy) exitoso: {username} - Token generado")
         return redirect(url_for('admin_dashboard'))
     else:
         logger.warning(f"Intento de login fallido: {username}")
-        return render_template('admin_login.html', error="Credenciales incorrectas")
+        return render_template(TEMPLATE_ADMIN_LOGIN, error="Credenciales incorrectas")
 
 @app.route('/admin/logout')
 def admin_logout():
@@ -148,7 +156,7 @@ def renovar_token():
         
         # Actualizar sesión
         session['access_token'] = nuevos_tokens['access_token']
-        session['token_expires_at'] = (datetime.utcnow() + timedelta(minutes=15)).isoformat()
+        session['token_expires_at'] = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
         
         logger.info("Token renovado exitosamente")
         
@@ -156,7 +164,7 @@ def renovar_token():
             'success': True,
             'access_token': nuevos_tokens['access_token'],
             'expires_in': nuevos_tokens['expires_in'],
-            'renewed_at': datetime.utcnow().isoformat()
+            'renewed_at': datetime.now(timezone.utc).isoformat()
         })
     except Exception as e:
         logger.error(f"Error renovando token: {e}")
@@ -169,22 +177,22 @@ def renovar_token():
 def recuperar_password():
     """Solicitar enlace de recuperación de contraseña (envío por email). Acepta usuario o email."""
     if request.method == 'GET':
-        return render_template('recuperar_password.html')
+        return render_template(TEMPLATE_RECUPERAR_PASSWORD)
 
     identifier = request.form.get('username', '').strip()
 
     if not identifier:
-        return render_template('recuperar_password.html', error="Usuario o email requerido")
+        return render_template(TEMPLATE_RECUPERAR_PASSWORD, error="Usuario o email requerido")
 
     # Buscar usuario por username o email
     user = UserDB.query.filter((UserDB.username==identifier) | (UserDB.email==identifier)).first()
     if not user:
         logger.warning(f"Intento de recuperación para usuario inexistente: {identifier}")
-        return render_template('recuperar_password.html', error="El usuario o correo no existe en el sistema.")
+        return render_template(TEMPLATE_RECUPERAR_PASSWORD, error="El usuario o correo no existe en el sistema.")
 
     # Generar token aleatorio single-use y guardarlo con expiración
     token = secrets.token_urlsafe(32)
-    expira = datetime.utcnow() + timedelta(minutes=30)
+    expira = datetime.now(timezone.utc) + timedelta(minutes=30)
     try:
         rec = RecoveryToken(user_id=user.id, token=token, expires_at=expira)
         db.session.add(rec)
@@ -192,7 +200,7 @@ def recuperar_password():
     except Exception as e:
         logger.error(f"Error guardando RecoveryToken: {e}")
         db.session.rollback()
-        return render_template('recuperar_password.html', error="No se pudo generar el enlace de recuperación. Intenta más tarde.")
+        return render_template(TEMPLATE_RECUPERAR_PASSWORD, error="No se pudo generar el enlace de recuperación. Intenta más tarde.")
 
     # Construir enlace absoluto
     try:
@@ -230,11 +238,11 @@ def recuperar_password():
         logger.error("Fallo el envío de email de recuperación al usuario.")
         # En modo DEBUG, muestra un mensaje más detallado para facilitar diagnóstico
         if Config.DEBUG and error_envio:
-            return render_template('recuperar_password.html', error=f"No se pudo enviar el correo de recuperación. Detalle: {error_envio}")
-        return render_template('recuperar_password.html', error="No se pudo enviar el correo de recuperación. Verifica la configuración SMTP o intenta más tarde.")
+            return render_template(TEMPLATE_RECUPERAR_PASSWORD, error=f"No se pudo enviar el correo de recuperación. Detalle: {error_envio}")
+        return render_template(TEMPLATE_RECUPERAR_PASSWORD, error="No se pudo enviar el correo de recuperación. Verifica la configuración SMTP o intenta más tarde.")
     else:
         logger.info(f"Email de recuperación enviado a {user.email}")
-        return render_template('recuperar_password.html', mensaje_exito=f"Enviamos un enlace de recuperación a: {user.email}")
+        return render_template(TEMPLATE_RECUPERAR_PASSWORD, mensaje_exito=f"Enviamos un enlace de recuperación a: {user.email}")
 
 
 @app.route('/admin/restablecer-password', methods=['GET'])
@@ -247,9 +255,9 @@ def mostrar_form_restablecer_password():
 
     rec = RecoveryToken.query.filter_by(token=token).first()
     if not rec or rec.used or rec.is_expired():
-        return render_template('recuperar_password.html', error="Enlace inválido o expirado. Solicita uno nuevo.")
+        return render_template(TEMPLATE_RECUPERAR_PASSWORD, error="Enlace inválido o expirado. Solicita uno nuevo.")
 
-    return render_template('restablecer_password.html', token=token)
+    return render_template(TEMPLATE_RESTABLECER_PASSWORD, token=token)
 
 
 @app.route('/admin/restablecer-password', methods=['POST'])
@@ -261,23 +269,23 @@ def restablecer_password():
     confirmar_password = request.form.get('confirmar_password')
 
     if not all([token, nueva_password, confirmar_password]):
-        return render_template('restablecer_password.html', token=token, error="Todos los campos son requeridos")
+        return render_template(TEMPLATE_RESTABLECER_PASSWORD, token=token, error="Todos los campos son requeridos")
 
     if nueva_password != confirmar_password:
-        return render_template('restablecer_password.html', token=token, error="Las contraseñas no coinciden")
+        return render_template(TEMPLATE_RESTABLECER_PASSWORD, token=token, error="Las contraseñas no coinciden")
 
     if len(nueva_password) < 6:
-        return render_template('restablecer_password.html', token=token, error="La contraseña debe tener al menos 6 caracteres")
+        return render_template(TEMPLATE_RESTABLECER_PASSWORD, token=token, error="La contraseña debe tener al menos 6 caracteres")
 
     rec = RecoveryToken.query.filter_by(token=token).first()
     if not rec or rec.used or rec.is_expired():
-        return render_template('recuperar_password.html', error="Enlace inválido o expirado. Solicita uno nuevo.")
+        return render_template(TEMPLATE_RECUPERAR_PASSWORD, error="Enlace inválido o expirado. Solicita uno nuevo.")
 
     try:
         # Actualizar contraseña del usuario
         user = UserDB.query.get(rec.user_id)
         if not user or not user.is_active:
-            return render_template('recuperar_password.html', error="Usuario inválido. Solicita un nuevo enlace.")
+            return render_template(TEMPLATE_RECUPERAR_PASSWORD, error="Usuario inválido. Solicita un nuevo enlace.")
         user.password_hash = SecurityManager.hash_password(nueva_password)
 
         # Marcar token como usado
@@ -285,11 +293,11 @@ def restablecer_password():
         db.session.commit()
 
         logger.info(f"Contraseña restablecida exitosamente para usuario_id: {rec.user_id}")
-        return render_template('admin_login.html', error="✅ Contraseña cambiada exitosamente. Por favor, inicia sesión.")
+        return render_template(TEMPLATE_ADMIN_LOGIN, error="✅ Contraseña cambiada exitosamente. Por favor, inicia sesión.")
     except Exception as e:
         logger.error(f"Error restableciendo contraseña: {e}")
         db.session.rollback()
-        return render_template('restablecer_password.html', token=token, error="Error al restablecer contraseña")
+        return render_template(TEMPLATE_RESTABLECER_PASSWORD, token=token, error="Error al restablecer contraseña")
 
 # ===== Bootstrap de primer usuario (solo si no hay usuarios) =====
 @app.route('/admin/first-run', methods=['GET', 'POST'])
@@ -299,7 +307,7 @@ def first_run_register():
         return redirect(url_for('admin_login'))
 
     if request.method == 'GET':
-        return render_template('admin_register.html')
+        return render_template(TEMPLATE_ADMIN_REGISTER)
 
     username = request.form.get('username', '').strip()
     email = request.form.get('email', '').strip()
@@ -307,15 +315,15 @@ def first_run_register():
     confirm = request.form.get('confirm', '')
 
     if not all([username, email, password, confirm]):
-        return render_template('admin_register.html', error='Todos los campos son requeridos')
+        return render_template(TEMPLATE_ADMIN_REGISTER, error='Todos los campos son requeridos')
     if password != confirm:
-        return render_template('admin_register.html', error='Las contraseñas no coinciden')
+        return render_template(TEMPLATE_ADMIN_REGISTER, error='Las contraseñas no coinciden')
     if len(password) < 6:
-        return render_template('admin_register.html', error='La contraseña debe tener al menos 6 caracteres')
+        return render_template(TEMPLATE_ADMIN_REGISTER, error='La contraseña debe tener al menos 6 caracteres')
 
     try:
         if UserDB.query.filter((UserDB.username==username) | (UserDB.email==email)).first():
-            return render_template('admin_register.html', error='Usuario o email ya existe')
+            return render_template(TEMPLATE_ADMIN_REGISTER, error='Usuario o email ya existe')
         u = UserDB(
             username=username,
             email=email,
@@ -330,7 +338,7 @@ def first_run_register():
     except Exception as e:
         logger.error(f"Error creando primer usuario: {e}")
         db.session.rollback()
-        return render_template('admin_register.html', error='Error creando usuario')
+        return render_template(TEMPLATE_ADMIN_REGISTER, error='Error creando usuario')
 
 @app.route('/admin/dashboard')
 @admin_required
@@ -351,7 +359,7 @@ def admin_dashboard():
             "fecha_evaluacion": r.fecha_evaluacion
         }
     tema_activo = get_tema_activo() or "No seleccionado"
-    return render_template('admin_dashboard.html', candidatos=candidatos_db, resultados=resultados_dict, tema_activo=tema_activo)
+    return render_template(TEMPLATE_ADMIN_DASHBOARD, candidatos=candidatos_db, resultados=resultados_dict, tema_activo=tema_activo)
 
 @app.route('/admin/candidatos')
 @admin_required
@@ -384,63 +392,51 @@ def admin_candidatos():
     candidatos_db = CandidatoDB.query.all()
     return render_template('panel_admin.html', candidatos=candidatos_db)
 
-@app.route('/admin/registrar_candidato', methods=['POST'])
-@admin_required
-@handle_errors
-def registrar_candidato():
-    # Detectar si es JSON o formulario
-    if request.is_json:
-        data = request.get_json()
-        tipo_documento = data.get('tipo_documento', '').strip()
-        numero_documento = data.get('numero_documento', '').strip()
-        nombre = data.get('nombre_completo', '').strip()
-        email = data.get('email', '').strip()
-        cargo = data.get('cargo', '').strip()
-        tema = data.get('tema', '').strip()
-        try:
-            candidato = registrar_candidato_simple(tipo_documento, numero_documento, nombre, email, cargo, tema)
-
-            # Guardar candidato en la base de datos con el tema seleccionado
-            candidato_db = CandidatoDB.query.filter_by(codigo=candidato["codigo"]).first()
-            if not candidato_db:
-                candidato_db = CandidatoDB(
-                    codigo=candidato["codigo"],
-                    tipo_documento=tipo_documento,
-                    numero_documento=numero_documento,
-                    nombre_completo=nombre,
-                    email=email,
-                    telefono=candidato.get("telefono", ""),
-                    cargo=cargo,
-                    fecha_registro=datetime.now(),
-                    evaluacion_completada=False,
-                    acepta_terminos=False,
-                    tema=tema,
-                )
-                db.session.add(candidato_db)
-                db.session.commit()
-
-            if request.is_json:
-                return jsonify({"success": True, "candidato": candidato})
-            else:
-                return redirect(url_for('admin_candidatos'))
-        except Exception as e:
-            logger.error(f"Error registrando candidato: {e}")
-            error_msg = "Error interno al registrar candidato"
-            if request.is_json:
-                return jsonify({'error': error_msg}), 500
-            else:
-                return render_template('admin_dashboard.html', error=error_msg)
+def _registrar_candidato_json(data):
+    tipo_documento = data.get('tipo_documento', '').strip()
+    numero_documento = data.get('numero_documento', '').strip()
+    nombre = data.get('nombre_completo', '').strip()
+    email = data.get('email', '').strip()
+    cargo = data.get('cargo', '').strip()
+    tema = data.get('tema', '').strip()
     
-    # Si es formulario normal
+    try:
+        candidato = registrar_candidato_simple(tipo_documento, numero_documento, nombre, email, cargo, tema)
+        _guardar_candidato_db(candidato, tipo_documento, numero_documento, nombre, email, cargo, tema)
+        return jsonify({"success": True, "candidato": candidato})
+    except Exception as e:
+        logger.error(f"Error registrando candidato (JSON): {e}")
+        return jsonify({'error': "Error interno al registrar candidato"}), 500
+
+def _guardar_candidato_db(candidato, tipo_documento, numero_documento, nombre, email, cargo, tema):
+    candidato_db = CandidatoDB.query.filter_by(codigo=candidato["codigo"]).first()
+    if not candidato_db:
+        candidato_db = CandidatoDB(
+            codigo=candidato["codigo"],
+            tipo_documento=tipo_documento,
+            numero_documento=numero_documento,
+            nombre_completo=nombre,
+            email=email,
+            telefono=candidato.get("telefono", ""),
+            cargo=cargo,
+            fecha_registro=datetime.now(),
+            evaluacion_completada=False,
+            acepta_terminos=False,
+            tema=tema,
+        )
+        db.session.add(candidato_db)
+        db.session.commit()
+
+def _registrar_candidato_form(form):
     validation_errors = []
-    email = request.form.get('email', '').strip()
-    numero_documento = request.form.get('numero_documento', '').strip()
+    email = form.get('email', '').strip()
+    numero_documento = form.get('numero_documento', '').strip()
     
     valid_email, email_error = validar_email_simple(email)
     if not valid_email:
         validation_errors.append(f"Email: {email_error}")
     
-    # Verificar duplicados de documento y email
+    # Verificar duplicados
     for candidato in candidatos_registrados.values():
         if candidato.get('numero_documento', '').lower() == numero_documento.lower():
             validation_errors.append('Ya existe un candidato con este número de documento')
@@ -451,32 +447,30 @@ def registrar_candidato():
             
     if validation_errors:
         error_msg = '; '.join(validation_errors)
-        logger.warning(f"Errores de validación al registrar candidato: {error_msg}")
-        if request.is_json:
-            return jsonify({'error': error_msg}), 400
-        else:
-            return render_template('admin_dashboard.html', error=error_msg)
+        logger.warning(f"Errores de validación (Form): {error_msg}")
+        return render_template(TEMPLATE_ADMIN_DASHBOARD, error=error_msg)
             
     try:
-        candidato = registrar_candidato_simple(
-            request.form.get('tipo_documento', '').strip(),
+        registrar_candidato_simple(
+            form.get('tipo_documento', '').strip(),
             numero_documento,
-            request.form.get('nombre_completo', '').strip(),
+            form.get('nombre_completo', '').strip(),
             email,
-            request.form.get('cargo', '').strip(),
-            request.form.get('tema', '').strip()
+            form.get('cargo', '').strip(),
+            form.get('tema', '').strip()
         )
-        if request.is_json:
-            return jsonify({"success": True, "candidato": candidato})
-        else:
-            return redirect(url_for('admin_candidatos'))
+        return redirect(url_for('admin_candidatos'))
     except Exception as e:
-        logger.error(f"Error registrando candidato: {e}")
-        error_msg = "Error interno al registrar candidato"
-        if request.is_json:
-            return jsonify({'error': error_msg}), 500
-        else:
-            return render_template('admin_dashboard.html', error=error_msg)
+        logger.error(f"Error registrando candidato (Form): {e}")
+        return render_template(TEMPLATE_ADMIN_DASHBOARD, error="Error interno al registrar candidato")
+
+@app.route('/admin/registrar_candidato', methods=['POST'])
+@admin_required
+@handle_errors
+def registrar_candidato():
+    if request.is_json:
+        return _registrar_candidato_json(request.get_json())
+    return _registrar_candidato_form(request.form)
 
 @app.route('/admin/eliminar_candidato', methods=['POST'])
 @admin_required
@@ -652,7 +646,7 @@ def evaluacion(codigo):
         candidato_db = CandidatoDB.query.filter_by(codigo=codigo).first()
         if not candidato_db:
             logger.warning(f"Código de candidato inválido: {codigo}")
-            return render_template('error.html', mensaje="Código de candidato inválido")
+            return render_template(TEMPLATE_ERROR, mensaje="Código de candidato inválido")
         # Poblar el diccionario en memoria
         candidatos_registrados[codigo] = {
             "codigo": candidato_db.codigo,
@@ -667,7 +661,7 @@ def evaluacion(codigo):
     candidato = candidatos_registrados[codigo]
     if candidato.get("evaluacion_completada", False):
         logger.warning(f"Evaluación ya completada para: {codigo}")
-        return render_template('error.html', mensaje="Esta evaluación ya ha sido completada")
+        return render_template(TEMPLATE_ERROR, mensaje="Esta evaluación ya ha sido completada")
     return render_template('cuestionario.html', candidato=candidato)
 
 @app.route('/iniciar_evaluacion', methods=['POST'])
@@ -735,6 +729,62 @@ def estado_evaluacion():
     response, status_code = EvaluacionService.obtener_estado()
     return jsonify(response), status_code
 
+def _actualizar_estado_candidato(codigo):
+    candidato_actual["evaluacion_completa"] = True
+    if codigo in candidatos_registrados:
+        candidatos_registrados[codigo]["evaluacion_completada"] = True
+        candidatos_registrados[codigo]["nivel_final"] = candidato_actual.get("nivel_actual", 1)
+    
+    candidato_db = CandidatoDB.query.filter_by(codigo=codigo).first()
+    if candidato_db:
+        candidato_db.evaluacion_completada = True
+        candidato_db.nivel_final = candidato_actual.get("nivel_actual", 1)
+        db.session.commit()
+
+def _guardar_resultados_db(codigo, correctas, total, porcentaje):
+    candidato_db = CandidatoDB.query.filter_by(codigo=codigo).first()
+    if candidato_db:
+        resultado_existente = ResultadoDB.query.filter_by(candidato_id=candidato_db.id).first()
+        if not resultado_existente:
+            resultado_db = ResultadoDB(
+                candidato_id=candidato_db.id,
+                correctas=correctas,
+                total=total,
+                porcentaje=porcentaje,
+                puntos=candidato_actual.get("puntos", 0),
+                nivel_final=candidato_actual.get("nivel_actual", 1),
+                fecha_evaluacion=datetime.now(),
+                tema=get_tema_activo()
+            )
+            db.session.add(resultado_db)
+            db.session.commit()
+
+def _generar_y_subir_pdf(candidato_data):
+    pdf_path = None
+    drive_result = {"success": False, "error": "PDF no generado"}
+    
+    try:
+        if REPORTLAB_AVAILABLE:
+            pdf_path = generar_pdf_evaluacion(candidato_data, candidato_actual)
+            logger.info(f"PDF generado: {pdf_path}")
+            
+            if DRIVE_AVAILABLE and pdf_path and os.path.exists(pdf_path):
+                drive_result = save_pdf_to_drive(pdf_path)
+                if drive_result.get("success"):
+                    logger.info(f"PDF enviado a Drive: {drive_result.get('file_name')}")
+                else:
+                    logger.error(f"Error enviando a Drive: {drive_result.get('error')}")
+            else:
+                drive_result = {"success": False, "error": "Drive no disponible"}
+        else:
+            drive_result = {"success": False, "error": "Generador PDF no disponible"}
+            
+    except Exception as e:
+        logger.error(f"Error en generación/envío PDF: {e}")
+        drive_result = {"success": False, "error": str(e)}
+        
+    return pdf_path, drive_result
+
 @app.route('/generar_pdf_final', methods=['POST'])
 @handle_errors
 def generar_pdf_final():
@@ -742,87 +792,28 @@ def generar_pdf_final():
     if not codigo:
         return jsonify({"error": "No hay evaluación activa"}), 400
         
-    # Marcar como completada en memoria
-    candidato_actual["evaluacion_completa"] = True
-    if codigo in candidatos_registrados:
-        candidatos_registrados[codigo]["evaluacion_completada"] = True
-        candidatos_registrados[codigo]["nivel_final"] = candidato_actual.get("nivel_actual", 1)
-    
-    # Marcar como completada en la base de datos
-    candidato_db = CandidatoDB.query.filter_by(codigo=codigo).first()
-    if candidato_db:
-        candidato_db.evaluacion_completada = True
-        candidato_db.nivel_final = candidato_actual.get("nivel_actual", 1)
-        db.session.commit()
+    _actualizar_estado_candidato(codigo)
     
     try:
-        # Calcular estadísticas finales
         respuestas = candidato_actual.get('respuestas', [])
         correctas = len([r for r in respuestas if r.get('correcta', False)])
         total = len(respuestas)
         porcentaje = (correctas / max(total, 1)) * 100
         
-        # Marcar evaluación como completada
-        candidato_actual["evaluacion_completa"] = True
         _actualizar_candidato_final()
+        _guardar_resultados_db(codigo, correctas, total, porcentaje)
 
-        # Guardar resultado en la base de datos
-        candidato_db = CandidatoDB.query.filter_by(codigo=codigo).first()
-        if candidato_db:
-            # Verificar si ya existe resultado para este candidato
-            resultado_existente = ResultadoDB.query.filter_by(candidato_id=candidato_db.id).first()
-            if not resultado_existente:
-                resultado_db = ResultadoDB(
-                    candidato_id=candidato_db.id,
-                    correctas=correctas,
-                    total=total,
-                    porcentaje=porcentaje,
-                    puntos=candidato_actual.get("puntos", 0),
-                    nivel_final=candidato_actual.get("nivel_actual", 1),
-                    fecha_evaluacion=datetime.now(),
-                    tema=get_tema_activo()
-                )
-                db.session.add(resultado_db)
-                db.session.commit()
-
-        # Obtener datos del candidato
         candidato_data = candidatos_registrados.get(codigo, {})
-        # Asegurar que el valor de aceptación de términos esté presente
         candidato_data["acepta_terminos"] = candidato_actual.get("acepta_terminos", candidato_data.get("acepta_terminos", 0))
         
-        # Generar PDF usando el generador especializado
-        pdf_path = None
-        drive_result = {"success": False, "error": "PDF no generado"}
+        pdf_path, drive_result = _generar_y_subir_pdf(candidato_data)
         
-        try:
-            if REPORTLAB_AVAILABLE:
-                pdf_path = generar_pdf_evaluacion(candidato_data, candidato_actual)
-                logger.info(f"PDF generado: {pdf_path}")
-                
-                # Enviar a Google Drive si está disponible
-                if DRIVE_AVAILABLE and pdf_path and os.path.exists(pdf_path):
-                    drive_result = save_pdf_to_drive(pdf_path)
-                    if drive_result.get("success"):
-                        logger.info(f"PDF enviado a Drive: {drive_result.get('file_name')}")
-                    else:
-                        logger.error(f"Error enviando a Drive: {drive_result.get('error')}")
-                else:
-                    drive_result = {"success": False, "error": "Drive no disponible"}
-            else:
-                drive_result = {"success": False, "error": "Generador PDF no disponible"}
-                
-        except Exception as e:
-            logger.error(f"Error en generación/envío PDF: {e}")
-            drive_result = {"success": False, "error": str(e)}
-        
-        # Respuesta al cliente
         response_data = {
             "success": True,
             "mensaje": "Evaluación completada correctamente",
             "correctas": correctas,
             "total": total,
             "porcentaje": round(porcentaje, 1),
-            # Nivel final alcanzado; prioriza el nivel_actual, cae a nivel_final almacenado y por defecto 1
             "nivel_final": candidato_actual.get("nivel_actual", candidato_actual.get("nivel_final", 1)),
             "puntos": candidato_actual.get("puntos", 0),
             "pdf_generado": pdf_path is not None,
@@ -830,7 +821,6 @@ def generar_pdf_final():
             "drive_error": drive_result.get("error") if not drive_result.get("success") else None
         }
         
-        # Incluir link de Drive si está disponible
         if drive_result.get("success") and drive_result.get("link"):
             response_data["drive_link"] = drive_result.get("link")
         
@@ -890,12 +880,12 @@ def api_estadisticas():
 @app.errorhandler(404)
 def pagina_no_encontrada(error):
     logger.warning(f"Página no encontrada: {request.url}")
-    return render_template('error.html', mensaje="Página no encontrada"), 404
+    return render_template(TEMPLATE_ERROR, mensaje="Página no encontrada"), 404
 
 @app.errorhandler(500)
 def error_interno_servidor(error):
     logger.error(f"Error interno del servidor: {error}")
-    return render_template('error.html', mensaje="Error interno del servidor"), 500
+    return render_template(TEMPLATE_ERROR, mensaje="Error interno del servidor"), 500
 
 # ===== MIDDLEWARES DE SEGURIDAD =====
 @app.after_request
@@ -909,7 +899,7 @@ def verificar_expiracion_token():
     if 'admin_logged_in' in session and 'token_expires_at' in session:
         try:
             expires_at = datetime.fromisoformat(session['token_expires_at'])
-            tiempo_restante = (expires_at - datetime.utcnow()).total_seconds()
+            tiempo_restante = (expires_at - datetime.now(timezone.utc)).total_seconds()
             
             # Si quedan menos de 5 minutos, agregar header para renovar
             if tiempo_restante < 300 and tiempo_restante > 0:

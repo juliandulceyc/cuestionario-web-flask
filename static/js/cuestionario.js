@@ -579,4 +579,22 @@ document.addEventListener('DOMContentLoaded', function () {
             '}';
         document.head.appendChild(style);
     }
+
+    // Lógica de aceptación de términos
+    const checkboxTerminos = document.getElementById('acepta_terminos');
+    const btnAceptar = document.getElementById('btn-aceptar');
+    const btnRechazar = document.getElementById('btn-rechazar');
+
+    if (checkboxTerminos && btnAceptar) {
+        checkboxTerminos.addEventListener('change', function() {
+            btnAceptar.disabled = !checkboxTerminos.checked;
+        });
+    }
+
+    if (btnRechazar) {
+        btnRechazar.addEventListener('click', function() {
+            alert('No puedes continuar sin aceptar los términos. Si tienes dudas sobre el tratamiento de tus datos, contacta a la empresa.');
+            window.location.href = '/';
+        });
+    }
 });

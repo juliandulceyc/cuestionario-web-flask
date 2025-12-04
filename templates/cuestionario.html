@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -6,30 +6,6 @@
     <title>Evaluación - {{ candidato.nombre_completo }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/cuestionario.css') }}">
-    <style>
-        body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .header { text-align: center; margin-bottom: 30px; }
-        .config-info { background: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #c3e6cb; font-size: 14px; }
-        .info { background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-        .candidate-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .input-group { margin-bottom: 10px; }
-        .input-group label { font-weight: bold; color: #495057; }
-        .input-group input { padding: 12px; border: 1px solid #ddd; border-radius: 6px; width: 100%; }
-        .pregunta { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-        .opcion { display: block; margin: 10px 0; padding: 15px; background: #e9ecef; border: 2px solid transparent; border-radius: 8px; cursor: pointer; transition: all 0.3s; }
-        .opcion:hover { background: #dee2e6; border-color: #007bff; }
-        .opcion.seleccionada { background-color: #007bff !important; color: white !important; border-color: #0056b3 !important; }
-        button { background: #28a745; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin: 5px; }
-        button:hover { background: #218838; }
-        button:disabled { background: #6c757d; cursor: not-allowed; }
-        #mensaje { margin-top: 20px; padding: 15px; border-radius: 8px; }
-        .progreso { background: #e9ecef; height: 10px; border-radius: 5px; margin-bottom: 20px; }
-        .progreso-barra { background: #007bff; height: 100%; border-radius: 5px; transition: width 0.3s; }
-        .progreso-texto { text-align: center; margin-bottom: 10px; font-weight: bold; color: #495057; }
-        .nivel-badge { display: inline-block; background: #6f42c1; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; margin-left: 5px; }
-        .action-buttons { text-align: center; margin-top: 30px; }
-    </style>
 </head>
 <body>
     <main class="container">
@@ -50,8 +26,8 @@
         
         <section id="formulario-confirmacion">
             <form id="candidate-form" method="post" action="/iniciar_evaluacion">
-                <div class="form-datos" style="background:transparent;padding:0;margin:0;">
-                    <div style="font-weight:bold;margin-bottom:10px;">Confirma tus datos antes de iniciar</div>
+                <div class="form-datos-container">
+                    <div class="form-datos-titulo">Confirma tus datos antes de iniciar</div>
                     <div class="candidate-form-grid">
                         <div class="input-group">
                             <label for="nombre_completo">Nombre completo</label>
@@ -75,43 +51,24 @@
                             <span id="numero-documento-error" class="error-message"></span>
                         </div>
                     </div>
-                    <div class="aviso-legal" style="background:#fff3cd;color:#856404;padding:15px;border-radius:8px;margin:20px 0 10px 0;border:1px solid #ffeeba;font-size:14px;">
+                    <div class="aviso-legal">
                         <strong>🛡️ Aviso de Protección de Datos Personales:</strong><br>
                         De acuerdo con la Ley 1581 de 2012 y normas concordantes de Colombia, informamos que los datos personales aquí registrados serán tratados de manera legal, segura y confidencial, únicamente para fines de gestión de la evaluación técnica y procesos internos de la empresa. El titular tiene derecho a conocer, actualizar, rectificar y suprimir sus datos, así como a revocar la autorización otorgada. Para continuar, es necesario que acepte los términos de tratamiento de datos personales.
                     </div>
-                    <div style="margin-bottom:10px;">
-                        <input type="checkbox" id="acepta_terminos" name="acepta_terminos" value="1" style="margin-right:8px;">
-                        <label for="acepta_terminos" style="font-size:15px;">Acepto el tratamiento de mis datos personales según la legislación colombiana y los términos de la empresa.</label>
+                    <div class="terminos-container">
+                        <input type="checkbox" id="acepta_terminos" name="acepta_terminos" value="1" class="terminos-checkbox">
+                        <label for="acepta_terminos" class="terminos-label">Acepto el tratamiento de mis datos personales según la legislación colombiana y los términos de la empresa.</label>
                     </div>
-                    <div style="display:flex;gap:10px;">
-                        <button type="submit" id="btn-aceptar" class="start-btn btn btn-success" style="width:100%;margin-top:10px;" disabled>
+                    <div class="botones-accion-container">
+                        <button type="submit" id="btn-aceptar" class="start-btn btn btn-success btn-aceptar" disabled>
                              Aceptar y Iniciar Evaluación
                         </button>
-                        <button type="button" id="btn-rechazar" class="btn btn-danger" style="width:100%;margin-top:10px;">
+                        <button type="button" id="btn-rechazar" class="btn btn-danger btn-rechazar">
                              Rechazar y Salir
                         </button>
                     </div>
                 </div>
             </form>
-            <script>
-                // Habilitar botón solo si acepta términos
-                document.addEventListener('DOMContentLoaded', function() {
-                    var checkbox = document.getElementById('acepta_terminos');
-                    var btnAceptar = document.getElementById('btn-aceptar');
-                    var btnRechazar = document.getElementById('btn-rechazar');
-                    if (checkbox && btnAceptar) {
-                        checkbox.addEventListener('change', function() {
-                            btnAceptar.disabled = !checkbox.checked;
-                        });
-                    }
-                    if (btnRechazar) {
-                        btnRechazar.addEventListener('click', function() {
-                            alert('No puedes continuar sin aceptar los términos. Si tienes dudas sobre el tratamiento de tus datos, contacta a la empresa.');
-                            window.location.href = '/';
-                        });
-                    }
-                });
-            </script>
         </section>
         
         <section id="progreso-container" style="display: none;">
@@ -124,7 +81,7 @@
         <section id="pregunta-container" style="display: none;">
             <article class="pregunta">
                 <div id="pregunta-texto"></div>
-                <div id="badge-multiple" style="display:none;margin:10px 0 0 0;"></div>
+                <div id="badge-multiple" class="badge-multiple-container"></div>
             </article>
             <div id="opciones-container"></div>
             <div class="action-buttons">
@@ -146,21 +103,5 @@
     </script>
     
     <script src="{{ url_for('static', filename='js/cuestionario.js') }}" defer></script>
-    <script>
-    // Mostrar badge de múltiple si corresponde
-    function mostrarBadgeMultiple(esMultiple, respuestasCount) {
-        var badge = document.getElementById('badge-multiple');
-        if (!badge) return;
-        if (esMultiple && respuestasCount === 2) {
-            badge.style.display = 'block';
-            badge.innerHTML = '<span style="background:#fff3cd;color:#856404;padding:8px 16px;border-radius:8px;font-weight:bold;border:1px solid #ffeaa7;">🔢 Esta pregunta tiene <b>dos respuestas correctas</b>. Selecciona ambas para sumar puntos.</span>';
-        } else {
-            badge.style.display = 'none';
-            badge.innerHTML = '';
-        }
-    }
-    // Integrar con JS principal
-    window.mostrarBadgeMultiple = mostrarBadgeMultiple;
-    </script>
 </body>
 </html>
