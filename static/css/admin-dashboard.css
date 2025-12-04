@@ -670,3 +670,9 @@ form {
     text-align: center;
 }
 
+
+/* Utility classes for Sonar fixes */
+.hidden { display: none; }
+.flex-end-container { display: flex; align-items: flex-end; }
+.bold-label { font-weight: bold; }
+.candidato-info-item { display: block; margin-bottom: 2px; }

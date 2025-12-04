@@ -944,3 +944,59 @@ document.addEventListener('DOMContentLoaded', function(){
         });
     }
 });
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Copy URL buttons
+    document.querySelectorAll('.btn-copiar-url').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var url = this.getAttribute('data-url');
+            if (url) {
+                navigator.clipboard.writeText(url).then(() => {
+                    var originalText = btn.innerHTML;
+                    btn.innerHTML = ' Copiado!';
+                    setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+                });
+            }
+        });
+    });
+
+    // Edit buttons
+    document.querySelectorAll('.btn-editar').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            if (window.abrirEditarCandidatoDesdeBoton) {
+                window.abrirEditarCandidatoDesdeBoton(this);
+            }
+        });
+    });
+
+    // Delete buttons
+    document.querySelectorAll('.btn-eliminar').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var codigo = this.getAttribute('data-codigo');
+            if (codigo && window.eliminarCandidato) {
+                window.eliminarCandidato(codigo, this);
+            }
+        });
+    });
+
+    // Close modal button
+    var btnCerrarModal = document.querySelector('#modal-editar .btn-secondary');
+    if (btnCerrarModal) {
+        btnCerrarModal.addEventListener('click', function() {
+            if (window.cerrarModalEditar) {
+                window.cerrarModalEditar();
+            }
+        });
+    }
+
+    // Clear filters button
+    var btnLimpiarFiltros = document.querySelector('.btn-limpiar-filtros');
+    if (btnLimpiarFiltros) {
+        btnLimpiarFiltros.addEventListener('click', function() {
+            if (window.limpiarFiltrosResultados) {
+                window.limpiarFiltrosResultados();
+            }
+        });
+    }
+});

@@ -13,12 +13,12 @@
         <section class="panel-temas">
             <h2> Gestión de Temas de Evaluación</h2>
             <form id="form-subir-tema" enctype="multipart/form-data" method="post" action="/admin/subir_tema" class="form-subir-tema">
-                <label for="archivo_tema"><b>Subir nuevo archivo Excel de preguntas:</b></label>
+                <label for="archivo_tema"><span class="bold-label">Subir nuevo archivo Excel de preguntas:</span></label>
                 <input type="file" id="archivo_tema" name="archivo_tema" accept=".xlsx,.xls" required>
                 <button type="submit" class="btn btn-primary">Subir archivo</button>
             </form>
             <form id="form-seleccionar-tema" method="post" action="/admin/seleccionar_tema">
-                <label for="archivo_excel"><b>Seleccionar tema activo:</b></label>
+                <label for="archivo_excel"><span class="bold-label">Seleccionar tema activo:</span></label>
                 <select id="archivo_excel" name="archivo_excel" class="select-archivo-excel"></select>
                 <button type="submit" class="btn btn-success">Activar tema</button>
             </form>
@@ -46,7 +46,7 @@
                 <a href="/admin/logout" class="btn btn-danger">Cerrar Sesión</a>
             </div>
         </div>
-        <section class="form-section" id="formularioRegistro" style="display: none;">
+        <section class="form-section hidden" id="formularioRegistro">
                         <h2 class="titulo-registro">Registrar Nuevo Candidato</h2>
                         <form id="candidatoForm" method="post" action="/admin/registrar_candidato">
                             <div class="form-registro-candidato">
@@ -111,21 +111,21 @@
                 <div class="candidato-card" data-cedula="{{ candidato.codigo }}" data-nombre="{{ candidato.nombre_completo }}" data-estado="{% if candidato.evaluacion_completada %}completada{% else %}pendiente{% endif %}">
                     <div class="candidato-card-content">
                         <div class="candidato-info">
-                            <strong>{{ candidato.nombre_completo }}</strong><br>
+                            <strong class="candidato-info-item">{{ candidato.nombre_completo }}</strong>
                             {% if candidato.numero_documento %}
-                                <span> {{ candidato.tipo_documento }}: {{ candidato.numero_documento }}</span><br>
+                                <span class="candidato-info-item"> {{ candidato.tipo_documento }}: {{ candidato.numero_documento }}</span>
                             {% endif %}
-                            <span> {{ candidato.email }}</span><br>
-                            <span> Código: {{ candidato.codigo }}</span><br>
+                            <span class="candidato-info-item"> {{ candidato.email }}</span>
+                            <span class="candidato-info-item"> Código: {{ candidato.codigo }}</span>
                             {% if candidato.cargo and candidato.cargo != 'N/A' %}
-                                <span> {{ candidato.cargo }}</span><br>
+                                <span class="candidato-info-item"> {{ candidato.cargo }}</span>
                             {% endif %}
                             {% if candidato.evaluacion_completada %}
                                 <span class="estado-completada"> Completada</span>
                             {% else %}
                                 <span class="estado-pendiente"> Pendiente</span>
                                 <div class="acciones-pendiente">
-                                    <button type="button" onclick="navigator.clipboard.writeText('{{ request.url_root }}evaluacion/{{ candidato.codigo }}');this.innerHTML=' Copiado!'" class="copy-btn btn-copiar-url"> Copiar URL</button>
+                                    <button type="button" data-url="{{ request.url_root }}evaluacion/{{ candidato.codigo }}" class="copy-btn btn-copiar-url"> Copiar URL</button>
                                     <a href="/evaluacion/{{ candidato.codigo }}" target="_blank" class="eval-link link-abrir-evaluacion"> Abrir Evaluación</a>
                                 </div>
                             {% endif %}
@@ -138,9 +138,8 @@
                                 data-nombre-completo="{{ candidato.nombre_completo }}"
                                 data-email="{{ candidato.email }}"
                                 data-telefono="{{ candidato.telefono or '' }}"
-                                data-cargo="{{ candidato.cargo or '' }}"
-                                onclick="window.abrirEditarCandidatoDesdeBoton(this)"> Editar</button>
-                            <button onclick="eliminarCandidato('{{ candidato.codigo }}', this)" 
+                                data-cargo="{{ candidato.cargo or '' }}"> Editar</button>
+                            <button data-codigo="{{ candidato.codigo }}" 
                                     class="btn btn-danger btn-eliminar">
                                  Eliminar
                             </button>
@@ -157,20 +156,20 @@
                 <h3 class="modal-editar-titulo">Editar Candidato</h3>
                 <form id="form-editar-candidato">
                     <input type="hidden" id="edit-codigo">
-                    <div class="form-row"><label>Tipo Documento</label>
+                    <div class="form-row"><label for="edit-tipo_documento">Tipo Documento</label>
                         <input type="text" id="edit-tipo_documento" class="form-input"></div>
-                    <div class="form-row"><label>Número Documento</label>
+                    <div class="form-row"><label for="edit-numero_documento">Número Documento</label>
                         <input type="text" id="edit-numero_documento" class="form-input"></div>
-                    <div class="form-row"><label>Nombre Completo</label>
+                    <div class="form-row"><label for="edit-nombre_completo">Nombre Completo</label>
                         <input type="text" id="edit-nombre_completo" class="form-input" required></div>
-                    <div class="form-row"><label>Email</label>
+                    <div class="form-row"><label for="edit-email">Email</label>
                         <input type="email" id="edit-email" class="form-input" required></div>
-                    <div class="form-row"><label>Teléfono</label>
+                    <div class="form-row"><label for="edit-telefono">Teléfono</label>
                         <input type="text" id="edit-telefono" class="form-input"></div>
-                    <div class="form-row"><label>Cargo</label>
+                    <div class="form-row"><label for="edit-cargo">Cargo</label>
                         <input type="text" id="edit-cargo" class="form-input"></div>
                     <div class="modal-actions">
-                        <button type="button" class="btn btn-secondary" onclick="window.cerrarModalEditar()">Cancelar</button>
+                        <button type="button" class="btn btn-secondary">Cancelar</button>
                         <button type="submit" class="btn btn-primary">Guardar</button>
                     </div>
                 </form>
@@ -218,8 +217,8 @@
                             <option value="5">Nivel 5</option>
                         </select>
                     </div>
-                    <div style="display: flex; align-items: flex-end;">
-                        <button onclick="limpiarFiltrosResultados()" class="btn btn-secondary btn-limpiar-filtros"> Limpiar Filtros</button>
+                    <div class="flex-end-container">
+                        <button class="btn btn-secondary btn-limpiar-filtros"> Limpiar Filtros</button>
                     </div>
                 </div>
                 <div id="contador-resultados" class="contador-resultados"></div>
