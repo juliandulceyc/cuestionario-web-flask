@@ -646,7 +646,7 @@ def evaluacion(codigo):
         candidato_db = CandidatoDB.query.filter_by(codigo=codigo).first()
         if not candidato_db:
             logger.warning(f"Código de candidato inválido: {codigo}")
-            return render_template(TEMPLATE_ERROR, mensaje="Código de candidato inválido")
+            return render_template(TEMPLATE_ERROR, mensaje="Código de candidato inválido"), 404
         # Poblar el diccionario en memoria
         candidatos_registrados[codigo] = {
             "codigo": candidato_db.codigo,
@@ -661,7 +661,7 @@ def evaluacion(codigo):
     candidato = candidatos_registrados[codigo]
     if candidato.get("evaluacion_completada", False):
         logger.warning(f"Evaluación ya completada para: {codigo}")
-        return render_template(TEMPLATE_ERROR, mensaje="Esta evaluación ya ha sido completada")
+        return render_template(TEMPLATE_ERROR, mensaje="Esta evaluación ya ha sido completada"), 403
     return render_template('cuestionario.html', candidato=candidato)
 
 @app.route('/iniciar_evaluacion', methods=['POST'])
@@ -884,7 +884,7 @@ def inject_admin_email():
 
 @app.errorhandler(404)
 def pagina_no_encontrada(error):
-    logger.warning(f"Página no encontrada: {request.url}")
+    logger.warning(f"Página no encontrada: {request.url} - {error}")
     return render_template(TEMPLATE_ERROR, mensaje="Página no encontrada"), 404
 
 @app.errorhandler(500)
