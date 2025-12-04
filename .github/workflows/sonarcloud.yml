@@ -53,5 +53,5 @@ jobs:
             -Dsonar.projectKey=cuestionario_cuestionarioapp
             -Dsonar.python.coverage.reportPaths=coverage.xml
             -Dsonar.sources=.
-            -Dsonar.exclusions=venv/**,**/__pycache__/**,tests/**,static/**
+            -Dsonar.exclusions=venv/**,**/__pycache__/**,tests/**,static/**,git-filter-repo.py
             -Dsonar.tests=tests/

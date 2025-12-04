@@ -6,8 +6,8 @@ class Config:
     Este módulo permite mantener la configuración en un archivo separado
     para facilitar revisiones y refactorizaciones posteriores.
     """
-    SECRET_KEY = os.getenv('SECRET_KEY', 'tu_clave_secreta_aqui')
-    DEBUG = os.getenv('FLASK_DEBUG', 'True').lower() == 'true'
+    SECRET_KEY = os.getenv('SECRET_KEY')
+    DEBUG = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
     PORT = int(os.getenv('PORT', 5000))
 
     # Configuración de evaluación
@@ -20,7 +20,7 @@ class Config:
 
     # Credenciales admin (en producción usar variables de entorno)
     ADMIN_USER = os.getenv('ADMIN_USER', 'admin')
-    ADMIN_PASS = os.getenv('ADMIN_PASS', '123456')
+    ADMIN_PASS = os.getenv('ADMIN_PASS')
     ADMIN_EMAIL = os.getenv('ADMIN_EMAIL')  # Email del administrador para recuperación
 
     # Config SMTP

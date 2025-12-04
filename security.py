@@ -1,6 +1,7 @@
 import jwt
 import bcrypt
 import os
+import secrets
 from datetime import datetime, timedelta
 from functools import wraps
 from flask import request, jsonify, session
@@ -12,7 +13,7 @@ class SecurityManager:
     """Gestor de seguridad"""
     
     # Configuración de tokens
-    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'tu_secret_key_super_segura_cambiar_en_produccion')
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY') or secrets.token_hex(32)
     JWT_ALGORITHM = 'HS256'
     TOKEN_EXPIRATION_MINUTES = 15
     REFRESH_TOKEN_EXPIRATION_DAYS = 7

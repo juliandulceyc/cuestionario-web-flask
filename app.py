@@ -58,7 +58,7 @@ logger = setup_logging()
 
 # Inicializar Flask
 app = Flask(__name__)
-app.secret_key = Config.SECRET_KEY
+app.secret_key = Config.SECRET_KEY or secrets.token_hex(32)
 app.config['SQLALCHEMY_DATABASE_URI'] = Config.SQLALCHEMY_DATABASE_URI
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = Config.SQLALCHEMY_TRACK_MODIFICATIONS
 
@@ -83,8 +83,8 @@ def home():
     try:
         if UserDB.query.count() == 0:
             return redirect(url_for('first_run_register'))
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Error verificando usuarios iniciales: {e}")
     return redirect(url_for('admin_login'))
 
 @app.route('/admin/login')
@@ -198,7 +198,8 @@ def recuperar_password():
     try:
         base_url = request.host_url.rstrip('/')
         reset_link = f"{base_url}/admin/restablecer-password?token={token}"
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Error construyendo URL absoluta: {e}")
         reset_link = f"/admin/restablecer-password?token={token}"
 
     # Enviar email al usuario (usando plantillas con firma)
@@ -364,7 +365,8 @@ def admin_candidatos():
         for candidato in candidatos_db:
             try:
                 url_eval = url_for('evaluacion', codigo=candidato.codigo, _external=True)
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Error generando URL para candidato {candidato.codigo}: {e}")
                 url_eval = f"/evaluacion/{candidato.codigo}"
             candidatos_list.append({
                 "codigo": candidato.codigo,
