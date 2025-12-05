@@ -153,6 +153,86 @@ function actualizarFilaResultados(candidato) {
     }
 }
 
+function agregarFilaResultado(candidato) {
+    const tbody = document.getElementById('tbody-resultados');
+    if (!tbody) return;
+
+    const tr = document.createElement('tr');
+    tr.className = 'fila-resultado hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors';
+    tr.dataset.codigo = candidato.codigo;
+    tr.dataset.nombre = (candidato.nombre_completo || '').toLowerCase();
+    tr.dataset.cedula = (candidato.numero_documento || '').toLowerCase();
+    tr.dataset.email = (candidato.email || '').toLowerCase();
+    tr.dataset.tema = '';
+    tr.dataset.nivel = '';
+    tr.dataset.tieneResultado = 'no';
+
+    // Helper for cells
+    const td = (text, classes = '') => {
+        const el = document.createElement('td');
+        el.className = classes;
+        el.textContent = text;
+        return el;
+    };
+    
+    const tdHTML = (html, classes = '') => {
+        const el = document.createElement('td');
+        el.className = classes;
+        el.innerHTML = html;
+        return el;
+    };
+
+    const baseClass = "whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400";
+    const centerClass = baseClass + " text-center";
+
+    // 1. Candidato (Nombre)
+    const tdNombre = td(candidato.nombre_completo, "whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-6");
+    tr.appendChild(tdNombre);
+
+    // 2. Documento
+    let docText = '-';
+    if (candidato.tipo_documento && candidato.numero_documento) {
+        docText = `${candidato.tipo_documento}: ${candidato.numero_documento}`;
+    }
+    tr.appendChild(td(docText, baseClass));
+
+    // 3. Email
+    tr.appendChild(td(candidato.email, baseClass));
+
+    // 4. Tema (Empty)
+    tr.appendChild(td('-', baseClass));
+
+    // 5. Correctas (Empty)
+    tr.appendChild(td('-', centerClass));
+
+    // 6. Total (Empty)
+    tr.appendChild(td('-', centerClass));
+
+    // 7. Porcentaje (Empty)
+    tr.appendChild(td('-', centerClass));
+
+    // 8. Puntos (Empty)
+    tr.appendChild(td('-', centerClass));
+
+    // 9. Nivel (Empty)
+    const tdNivel = td('-', centerClass);
+    tdNivel.classList.add('font-bold');
+    tr.appendChild(tdNivel);
+
+    // 10. Fecha (Empty)
+    tr.appendChild(td('-', baseClass));
+
+    // 11. Términos (No)
+    tr.appendChild(tdHTML('<span class="text-gray-400 material-symbols-outlined text-sm">cancel</span>', centerClass));
+
+    tbody.appendChild(tr);
+    
+    // Update counters
+    if (typeof globalThis.aplicarFiltrosResultados === 'function') {
+        globalThis.aplicarFiltrosResultados();
+    }
+}
+
 function validateField(field, errorElement) {
     if (!field || !errorElement) return false;
 
@@ -692,7 +772,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!r.ok) throw new Error('HTTP ' + r.status);
             return r.json();
         })
-        .then(() => {
+        .then((data) => {
             if (typeof Swal !== 'undefined') {
                 Swal.fire({
                     title: '¡Registrado!',
@@ -705,6 +785,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             ocultarFormulario();
             cargarCandidatos();
+            if (data.candidato) {
+                agregarFilaResultado(data.candidato);
+            }
         })
         .catch(err => Utils.mostrarNotificacion(err, 'error'));
     }
@@ -775,6 +858,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         cardElement.style.transform = 'scale(0.9)';
                         setTimeout(() => {
                             cardElement.remove();
+                            
+                            // Eliminar fila de resultados
+                            const rowElement = document.querySelector(`#tabla-resultados tr[data-codigo="${codigo}"]`);
+                            if (rowElement) {
+                                rowElement.remove();
+                                if (typeof globalThis.aplicarFiltrosResultados === 'function') {
+                                    globalThis.aplicarFiltrosResultados();
+                                }
+                            }
+
                             Utils.mostrarNotificacion('✅ Candidato eliminado exitosamente', 'success');
                             if (document.querySelectorAll('.candidato-card').length === 0) {
                                 listaCandidatos.innerHTML = '<div style="text-align:center;padding:40px;color:#999;font-size:18px;"><p>📭 No hay candidatos registrados</p></div>';

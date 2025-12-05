@@ -901,12 +901,12 @@ def inject_admin_email():
 
 @app.errorhandler(404)
 def pagina_no_encontrada(error):
-    logger.warning("Página no encontrada: %s - %s", request.url, error)
+    logger.warning("Página no encontrada: %s - %s", sanitize_log(request.url), sanitize_log(error))
     return make_response(render_template(TEMPLATE_ERROR, mensaje="Página no encontrada"), 404)
 
 @app.errorhandler(500)
 def error_interno_servidor(error):
-    logger.error(f"Error interno del servidor: {error}")
+    logger.error(f"Error interno del servidor: {sanitize_log(error)}")
     return render_template(TEMPLATE_ERROR, mensaje="Error interno del servidor"), 500
 
 # ===== MIDDLEWARES DE SEGURIDAD =====
