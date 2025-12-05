@@ -26,32 +26,56 @@ const Utils = {
     },
 
     mostrarNotificacion: function(mensaje, tipo) {
-        if (typeof globalThis.mostrarNotificacion === 'function') {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: tipo === 'error' ? 'error' : 'success',
+                title: mensaje,
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true,
+                didOpen: (toast) => {
+                    toast.addEventListener('mouseenter', Swal.stopTimer)
+                    toast.addEventListener('mouseleave', Swal.resumeTimer)
+                }
+            });
+            return;
+        }
+
+        // Fallback implementation
+        if (typeof globalThis.mostrarNotificacion === 'function' && globalThis.mostrarNotificacion !== Utils.mostrarNotificacion) {
             globalThis.mostrarNotificacion(mensaje, tipo);
             return;
         }
-        // Fallback
+        
         const notification = document.createElement('div');
         const isSuccess = tipo === 'success';
         
-        notification.style.background = isSuccess ? '#d4edda' : '#f8d7da';
-        notification.style.color = isSuccess ? '#155724' : '#721c24';
-        notification.style.border = isSuccess ? '1px solid #c3e6cb' : '1px solid #f5c6cb';
+        notification.className = `fixed top-5 right-5 z-50 max-w-sm w-full shadow-lg rounded-lg pointer-events-auto ring-1 ring-black ring-opacity-5 overflow-hidden ${isSuccess ? 'bg-green-50 text-green-800 ring-green-600/20' : 'bg-red-50 text-red-800 ring-red-600/20'}`;
         notification.setAttribute('role', 'alert');
         notification.setAttribute('aria-live', tipo === 'error' ? 'assertive' : 'polite');
-        notification.textContent = mensaje;
         
-        Object.assign(notification.style, {
-            position: 'fixed',
-            top: '20px',
-            right: '20px',
-            padding: '15px 20px',
-            borderRadius: '8px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            zIndex: '1000',
-            maxWidth: '400px',
-            animation: 'slideInRight 0.3s ease-out'
-        });
+        notification.innerHTML = `
+            <div class="p-4">
+                <div class="flex items-start">
+                    <div class="flex-shrink-0">
+                        <span class="material-symbols-outlined ${isSuccess ? 'text-green-400' : 'text-red-400'}">${isSuccess ? 'check_circle' : 'error'}</span>
+                    </div>
+                    <div class="ml-3 w-0 flex-1 pt-0.5">
+                        <p class="text-sm font-medium">${mensaje}</p>
+                    </div>
+                    <div class="ml-4 flex flex-shrink-0">
+                        <button type="button" class="inline-flex rounded-md bg-transparent text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2" onclick="this.closest('[role=alert]').remove()">
+                            <span class="sr-only">Close</span>
+                            <span class="material-symbols-outlined text-sm">close</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        notification.style.animation = 'slideInRight 0.3s ease-out';
 
         document.body.appendChild(notification);
         setTimeout(() => {
@@ -181,6 +205,68 @@ function clearFieldError(field, errorElement) {
     }
 }
 
+
+globalThis.aplicarFiltrosResultados = function() {
+    const ids = ['nombre', 'cedula', 'email', 'tema', 'estado', 'nivel'];
+    const filters = {};
+    let allEmpty = true;
+
+    for (const key of ids) {
+        const el = document.getElementById(`filtro-resultado-${key}`);
+        if (el?.value) {
+            filters[key] = el.value.toLowerCase();
+            allEmpty = false;
+        }
+    }
+
+    const filas = document.querySelectorAll('.fila-resultado');
+    let visibleCount = 0;
+
+    for (const fila of filas) {
+        if (allEmpty) {
+            fila.style.display = '';
+            visibleCount++;
+            continue;
+        }
+
+        const data = {
+            nombre: fila.dataset.nombre || '',
+            cedula: fila.dataset.cedula || '',
+            email: fila.dataset.email || '',
+            tema: fila.dataset.tema || '',
+            nivel: fila.dataset.nivel || '',
+            estado: fila.dataset.tieneResultado || 'no'
+        };
+
+        const matches = ids.every(key => {
+            if (!filters[key]) return true;
+            return data[key].includes(filters[key]);
+        });
+
+        if (matches) {
+            fila.style.display = '';
+            visibleCount++;
+        } else {
+            fila.style.display = 'none';
+        }
+    }
+
+    const contadorDiv = document.getElementById('contador-resultados');
+    if (contadorDiv) {
+        contadorDiv.textContent = visibleCount === filas.length 
+            ? `📊 Mostrando todos los resultados (${filas.length})`
+            : `📊 Mostrando ${visibleCount} de ${filas.length} resultados`;
+    }
+};
+
+globalThis.limpiarFiltrosResultados = function() {
+    for (const key of ['nombre', 'cedula', 'email', 'tema', 'estado', 'nivel']) {
+        const el = document.getElementById(`filtro-resultado-${key}`);
+        if (el) el.value = '';
+    }
+    globalThis.aplicarFiltrosResultados();
+};
+
 // ==========================================
 // Inicialización y Eventos
 // ==========================================
@@ -267,15 +353,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 listaTemas.innerHTML = '';
                 for (const nombre of (data.archivos || [])) {
                     const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors';
                     
                     const tdNombre = document.createElement('td');
                     tdNombre.textContent = nombre;
-                    tdNombre.style.fontWeight = 'bold';
+                    tdNombre.className = 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-6';
                     
                     const tdAccion = document.createElement('td');
+                    tdAccion.className = 'whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400';
+                    
                     const btn = document.createElement('button');
-                    btn.className = 'btn-eliminar-tema';
-                    btn.textContent = 'Eliminar';
+                    btn.className = 'btn-eliminar-tema inline-flex items-center rounded bg-red-600 px-2 py-1 text-xs font-semibold text-white shadow-sm hover:bg-red-500 transition-colors';
+                    btn.innerHTML = '<span class="material-symbols-outlined text-sm mr-1">delete</span> Eliminar';
                     btn.onclick = () => eliminarTemaExcel(nombre);
                     
                     tdAccion.appendChild(btn);
@@ -305,47 +394,59 @@ document.addEventListener('DOMContentLoaded', function() {
     function mostrarCandidatos(candidatos) {
         if (!listaCandidatos) return;
         if (!candidatos || candidatos.length === 0) {
-            listaCandidatos.innerHTML = '<div class="no-candidates">📝 No hay candidatos registrados</div>';
+            listaCandidatos.innerHTML = '<div class="col-span-full text-center py-10 text-gray-500 dark:text-gray-400"><span class="material-symbols-outlined text-4xl mb-2 block">assignment_late</span>No hay candidatos registrados</div>';
             return;
         }
 
         const html = candidatos.map(c => {
-            const statusClass = c.evaluacion_completada ? 'status-completada' : 'status-pendiente';
-            const statusText = c.evaluacion_completada ? '✅ Completada' : '⏳ Pendiente';
+            const statusBadge = c.evaluacion_completada 
+                ? '<span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-300">Completada</span>' 
+                : '<span class="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">Pendiente</span>';
             
             let actionsHtml = '';
             if (!c.evaluacion_completada) {
                 actionsHtml = `
-                    <div style="margin-top:8px;display:flex;gap:8px;">
-                        <button type="button" class="copy-btn" data-url="${c.url_evaluacion || ''}" style="background:#007bff;color:white;padding:4px 10px;border-radius:5px;border:none;cursor:pointer;">📋 Copiar URL</button>
-                        <a href="${c.url_evaluacion || '#'}" target="_blank" class="eval-link" style="background:#28a745;color:white;padding:4px 10px;border-radius:5px;text-decoration:none;display:inline-block;">🔗 Abrir Evaluación</a>
+                    <div class="flex gap-2">
+                        <button type="button" data-url="${c.url_evaluacion || ''}" class="copy-btn flex-1 inline-flex justify-center items-center rounded bg-blue-600 px-2 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-500 transition-colors">
+                            <span class="material-symbols-outlined text-sm mr-1">content_copy</span> Copiar URL
+                        </button>
+                        <a href="${c.url_evaluacion || '#'}" target="_blank" class="eval-link flex-1 inline-flex justify-center items-center rounded bg-green-600 px-2 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-green-500 transition-colors no-underline">
+                            <span class="material-symbols-outlined text-sm mr-1">open_in_new</span> Abrir
+                        </a>
                     </div>`;
             }
 
             return `
-                <div class="candidato-card">
-                    <div class="candidato-info">
-                        <h3>${Utils.escapeHtml(c.nombre_completo)}</h3>
-                        ${c.tipo_documento && c.numero_documento ? `<p>🆔 ${Utils.escapeHtml(c.tipo_documento)}: ${Utils.escapeHtml(c.numero_documento)}</p>` : ''}
-                        <p>📧 ${Utils.escapeHtml(c.email)}</p>
-                        <p>🔑 Código: ${Utils.escapeHtml(c.codigo)}</p>
-                        <p>👔 ${Utils.escapeHtml(c.cargo || 'N/A')}</p>
-                        ${c.telefono && c.telefono !== 'N/A' ? `<p>📞 ${Utils.escapeHtml(c.telefono)}</p>` : ''}
+                <div class="candidato-card bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow border border-gray-200 dark:border-gray-700 flex flex-col" data-cedula="${c.codigo}" data-nombre="${Utils.escapeHtml(c.nombre_completo)}" data-estado="${c.evaluacion_completada ? 'completada' : 'pendiente'}">
+                    <div class="px-4 py-5 sm:p-6 flex-1">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-medium leading-6 text-gray-900 dark:text-white truncate" title="${Utils.escapeHtml(c.nombre_completo)}">${Utils.escapeHtml(c.nombre_completo)}</h3>
+                            ${statusBadge}
+                        </div>
+                        <div class="space-y-2 text-sm text-gray-500 dark:text-gray-400">
+                            ${c.tipo_documento && c.numero_documento ? `<p class="flex items-center"><span class="material-symbols-outlined text-base mr-2">badge</span> ${Utils.escapeHtml(c.tipo_documento)}: ${Utils.escapeHtml(c.numero_documento)}</p>` : ''}
+                            <p class="flex items-center"><span class="material-symbols-outlined text-base mr-2">mail</span> <span class="truncate">${Utils.escapeHtml(c.email)}</span></p>
+                            <p class="flex items-center"><span class="material-symbols-outlined text-base mr-2">key</span> Código: ${Utils.escapeHtml(c.codigo)}</p>
+                            <p class="flex items-center"><span class="material-symbols-outlined text-base mr-2">work</span> ${Utils.escapeHtml(c.cargo || 'N/A')}</p>
+                            ${c.telefono && c.telefono !== 'N/A' ? `<p class="flex items-center"><span class="material-symbols-outlined text-base mr-2">call</span> ${Utils.escapeHtml(c.telefono)}</p>` : ''}
+                        </div>
                     </div>
-                    <div class="candidato-status">
-                        <span class="${statusClass}">${statusText}</span>
+                    <div class="bg-gray-50 dark:bg-gray-700/50 px-4 py-4 sm:px-6 flex flex-col gap-2">
                         ${actionsHtml}
-                        <div style="margin-top:8px;display:flex;gap:8px;">
-                            <button type="button" class="edit-btn" 
+                        <div class="flex gap-2 mt-2">
+                            <button type="button" class="edit-btn flex-1 inline-flex justify-center items-center rounded bg-gray-600 px-2 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-gray-500 transition-colors" 
                                 data-codigo="${c.codigo || ''}"
                                 data-tipo-documento="${c.tipo_documento || ''}"
                                 data-numero-documento="${c.numero_documento || ''}"
                                 data-nombre-completo="${c.nombre_completo || ''}"
                                 data-email="${c.email || ''}"
                                 data-telefono="${c.telefono || ''}"
-                                data-cargo="${c.cargo || ''}"
-                                style="background:#6c757d;color:white;padding:4px 10px;border-radius:5px;border:none;cursor:pointer;">✏️ Editar</button>
-                            <button type="button" class="delete-btn" data-codigo="${c.codigo}" style="background:#dc3545;color:white;padding:4px 10px;border-radius:5px;border:none;cursor:pointer;">🗑️ Eliminar</button>
+                                data-cargo="${c.cargo || ''}">
+                                <span class="material-symbols-outlined text-sm mr-1">edit</span> Editar
+                            </button>
+                            <button type="button" class="delete-btn flex-1 inline-flex justify-center items-center rounded bg-red-600 px-2 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-red-500 transition-colors" data-codigo="${c.codigo}">
+                                <span class="material-symbols-outlined text-sm mr-1">delete</span> Eliminar
+                            </button>
                         </div>
                     </div>
                 </div>`;
@@ -372,6 +473,97 @@ document.addEventListener('DOMContentLoaded', function() {
             candidatoForm.addEventListener('submit', e => {
                 e.preventDefault();
                 registrarCandidato();
+            });
+        }
+
+        // AJAX para selección de tema
+        const formSeleccionarTema = document.getElementById('form-seleccionar-tema');
+        if (formSeleccionarTema) {
+            formSeleccionarTema.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                
+                fetch(this.action, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(r => {
+                    if (r.redirected) {
+                        // Si el servidor redirige, asumimos éxito y actualizamos UI
+                        // Pero idealmente el servidor debería devolver JSON
+                        // Como no podemos cambiar el backend fácilmente, recargamos o intentamos inferir
+                        // Si el backend devuelve HTML, esto fallará al parsear JSON.
+                        // Vamos a asumir que el backend redirige a /admin/dashboard
+                        window.location.reload(); 
+                        return;
+                    }
+                    // Si devuelve texto/html, probablemente sea la página recargada
+                    return r.text().then(text => {
+                        // Actualizar solo el texto del tema activo si es posible
+                        // O mostrar alerta y recargar
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                title: '¡Tema Activado!',
+                                text: 'El tema de evaluación ha sido actualizado.',
+                                icon: 'success',
+                                confirmButtonText: 'Aceptar'
+                            }).then(() => {
+                                window.location.reload();
+                            });
+                        } else {
+                            alert('Tema actualizado');
+                            window.location.reload();
+                        }
+                    });
+                })
+                .catch(err => {
+                    console.error(err);
+                    Utils.mostrarNotificacion('Error al cambiar tema', 'error');
+                });
+            });
+        }
+
+        // AJAX para subir tema
+        const formSubirTema = document.getElementById('form-subir-tema');
+        if (formSubirTema) {
+            formSubirTema.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                const btnSubmit = this.querySelector('button[type="submit"]');
+                const originalText = btnSubmit.innerHTML;
+                btnSubmit.disabled = true;
+                btnSubmit.innerHTML = 'Subiendo...';
+
+                fetch(this.action, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(r => {
+                    // Similar logic: check if redirect or content
+                    // Assuming backend redirects on success
+                    if (r.redirected || r.ok) {
+                         if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                title: '¡Archivo Subido!',
+                                text: 'El nuevo tema ha sido cargado correctamente.',
+                                icon: 'success',
+                                confirmButtonText: 'Aceptar'
+                            }).then(() => {
+                                window.location.reload();
+                            });
+                        } else {
+                            alert('Archivo subido');
+                            window.location.reload();
+                        }
+                    } else {
+                        throw new Error('Error en la subida');
+                    }
+                })
+                .catch(err => {
+                    Utils.mostrarNotificacion('Error al subir archivo', 'error');
+                    btnSubmit.disabled = false;
+                    btnSubmit.innerHTML = originalText;
+                });
             });
         }
 
@@ -442,7 +634,17 @@ document.addEventListener('DOMContentLoaded', function() {
             globalThis.cerrarModalEditar();
             cargarCandidatos();
             if (data.candidato) actualizarFilaResultados(data.candidato);
-            Utils.mostrarNotificacion('Candidato actualizado', 'success');
+            
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: '¡Actualizado!',
+                    text: 'Candidato actualizado correctamente',
+                    icon: 'success',
+                    confirmButtonText: 'Aceptar'
+                });
+            } else {
+                Utils.mostrarNotificacion('Candidato actualizado', 'success');
+            }
         })
         .catch(err => Utils.mostrarNotificacion(err.message, 'error'));
     }
@@ -491,7 +693,16 @@ document.addEventListener('DOMContentLoaded', function() {
             return r.json();
         })
         .then(() => {
-            Utils.mostrarNotificacion('✅ Candidato registrado correctamente', 'success');
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: '¡Registrado!',
+                    text: 'Candidato registrado correctamente',
+                    icon: 'success',
+                    confirmButtonText: 'Aceptar'
+                });
+            } else {
+                Utils.mostrarNotificacion('✅ Candidato registrado correctamente', 'success');
+            }
             ocultarFormulario();
             cargarCandidatos();
         })
@@ -502,121 +713,109 @@ document.addEventListener('DOMContentLoaded', function() {
     globalThis.recargarCandidatos = cargarCandidatos;
     
     globalThis.eliminarTemaExcel = function(nombre) {
-        if (!confirm('¿Seguro que deseas eliminar el archivo ' + nombre + '?')) return;
-        fetch('/admin/eliminar_tema', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ archivo_excel: nombre })
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                Utils.mostrarNotificacion('Archivo eliminado correctamente', 'success');
-                cargarArchivosTemas();
-            } else {
-                Utils.mostrarNotificacion('Error eliminando archivo: ' + (data.error || 'Desconocido'), 'error');
+        const performDelete = () => {
+            fetch('/admin/eliminar_tema', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ archivo_excel: nombre })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    Utils.mostrarNotificacion('Archivo eliminado correctamente', 'success');
+                    cargarArchivosTemas();
+                } else {
+                    Utils.mostrarNotificacion('Error eliminando archivo: ' + (data.error || 'Desconocido'), 'error');
+                }
+            });
+        };
+
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: `¿Deseas eliminar el archivo ${nombre}?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    performDelete();
+                }
+            });
+        } else {
+            if (confirm('¿Seguro que deseas eliminar el archivo ' + nombre + '?')) {
+                performDelete();
             }
-        });
+        }
     };
 
     globalThis.eliminarCandidato = function(codigo, botonElement) {
-        if (!confirm('¿Estás seguro de que deseas eliminar este candidato?')) return;
-        
-        botonElement.disabled = true;
-        botonElement.textContent = '⏳ Eliminando...';
-        
-        fetch('/admin/eliminar_candidato', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ codigo: codigo })
-        })
-        .then(r => {
-            if (!r.ok) throw new Error('HTTP ' + r.status);
-            return r.json();
-        })
-        .then(data => {
-            if (data.success) {
-                const cardElement = botonElement.closest('.candidato-card');
-                if (cardElement) {
-                    cardElement.style.transition = 'opacity 0.3s, transform 0.3s';
-                    cardElement.style.opacity = '0';
-                    cardElement.style.transform = 'scale(0.9)';
-                    setTimeout(() => {
-                        cardElement.remove();
-                        Utils.mostrarNotificacion('✅ Candidato eliminado exitosamente', 'success');
-                        if (document.querySelectorAll('.candidato-card').length === 0) {
-                            listaCandidatos.innerHTML = '<div style="text-align:center;padding:40px;color:#999;font-size:18px;"><p>📭 No hay candidatos registrados</p></div>';
-                        }
-                    }, 300);
+        const performDelete = () => {
+            botonElement.disabled = true;
+            botonElement.textContent = '⏳ Eliminando...';
+            
+            fetch('/admin/eliminar_candidato', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ codigo: codigo })
+            })
+            .then(r => {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    const cardElement = botonElement.closest('.candidato-card');
+                    if (cardElement) {
+                        cardElement.style.transition = 'opacity 0.3s, transform 0.3s';
+                        cardElement.style.opacity = '0';
+                        cardElement.style.transform = 'scale(0.9)';
+                        setTimeout(() => {
+                            cardElement.remove();
+                            Utils.mostrarNotificacion('✅ Candidato eliminado exitosamente', 'success');
+                            if (document.querySelectorAll('.candidato-card').length === 0) {
+                                listaCandidatos.innerHTML = '<div style="text-align:center;padding:40px;color:#999;font-size:18px;"><p>📭 No hay candidatos registrados</p></div>';
+                            }
+                        }, 300);
+                    }
+                } else {
+                    throw new Error(data.error || 'Error desconocido');
                 }
-            } else {
-                throw new Error(data.error || 'Error desconocido');
-            }
-        })
-        .catch(err => {
-            console.error('Error:', err);
-            Utils.mostrarNotificacion('❌ Error al eliminar candidato: ' + err.message, 'error');
-            botonElement.disabled = false;
-            botonElement.textContent = '🗑️ Eliminar';
-        });
-    };
-
-    globalThis.aplicarFiltrosResultados = function() {
-        const ids = ['nombre', 'cedula', 'email', 'tema', 'estado', 'nivel'];
-        const filters = {};
-        let allEmpty = true;
-
-        for (const key of ids) {
-            const el = document.getElementById(`filtro-resultado-${key}`);
-            if (el?.value) {
-                filters[key] = el.value.toLowerCase();
-                allEmpty = false;
-            }
-        }
-
-        if (allEmpty) return; // Opcional: mostrar todos si no hay filtros
-
-        const filas = document.querySelectorAll('.fila-resultado');
-        let visibleCount = 0;
-
-        for (const fila of filas) {
-            const data = {
-                nombre: fila.dataset.nombre || '',
-                cedula: fila.dataset.cedula || '',
-                email: fila.dataset.email || '',
-                tema: fila.dataset.tema || '',
-                nivel: fila.dataset.nivel || '',
-                estado: fila.dataset.tieneResultado || 'no'
-            };
-
-            const matches = ids.every(key => {
-                if (!filters[key]) return true;
-                return data[key].includes(filters[key]) || data[key] === filters[key];
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                Utils.mostrarNotificacion('❌ Error al eliminar candidato: ' + err.message, 'error');
+                botonElement.disabled = false;
+                botonElement.textContent = '🗑️ Eliminar';
             });
+        };
 
-            if (matches) {
-                fila.style.display = '';
-                visibleCount++;
-            } else {
-                fila.style.display = 'none';
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: "No podrás revertir esta acción",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    performDelete();
+                }
+            });
+        } else {
+            if (confirm('¿Estás seguro de que deseas eliminar este candidato?')) {
+                performDelete();
             }
         }
-
-        const contadorDiv = document.getElementById('contador-resultados');
-        if (contadorDiv) {
-            contadorDiv.textContent = visibleCount === filas.length 
-                ? `📊 Mostrando todos los resultados (${filas.length})`
-                : `📊 Mostrando ${visibleCount} de ${filas.length} resultados`;
-        }
     };
 
-    globalThis.limpiarFiltrosResultados = function() {
-        for (const key of ['nombre', 'cedula', 'email', 'tema', 'estado', 'nivel']) {
-            const el = document.getElementById(`filtro-resultado-${key}`);
-            if (el) el.value = '';
-        }
-        globalThis.aplicarFiltrosResultados();
-    };
+
 
     // Bind filter events
     for (const key of ['nombre', 'cedula', 'email', 'tema', 'estado', 'nivel']) {
@@ -641,21 +840,30 @@ globalThis.abrirEditarCandidato = function(c) {
         if (el) el.value = c[key] || '';
     }
     
-    modal.style.display = 'flex';
+    modal.classList.remove('hidden');
+    // Ensure aria-hidden is updated for accessibility
+    modal.setAttribute('aria-hidden', 'false');
     console.log('Modal abierto para:', c.codigo);
 };
 
 globalThis.abrirEditarCandidatoDesdeBoton = function(btn) {
     const c = {};
     for (const key of ['codigo', 'tipo_documento', 'numero_documento', 'nombre_completo', 'email', 'telefono', 'cargo']) {
-        c[key] = btn.getAttribute(`data-${key.replace('_', '-')}`) || '';
+        // Handle both hyphenated attributes and camelCase dataset properties if needed, 
+        // but getAttribute is safer for the exact HTML attribute name.
+        let val = btn.getAttribute(`data-${key.replace('_', '-')}`);
+        if (val === null) val = '';
+        c[key] = val;
     }
     globalThis.abrirEditarCandidato(c);
 };
 
 globalThis.cerrarModalEditar = function() {
     const modal = document.getElementById('modal-editar');
-    if (modal) modal.style.display = 'none';
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.setAttribute('aria-hidden', 'true');
+    }
 };
 
 globalThis.copiarURL = Utils.copiarURL;

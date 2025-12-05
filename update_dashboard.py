@@ -1,0 +1,457 @@
+
+html_content = """<!DOCTYPE html>
+<html lang="es" class="h-full bg-gray-50 dark:bg-gray-900">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <script>
+        tailwind.config = {
+            darkMode: 'media',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar for tables if needed */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* Animations */
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideOutRight { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+    </style>
+</head>
+<body class="h-full font-sans antialiased text-gray-900 dark:text-gray-100">
+    <div class="min-h-full">
+        <!-- Header -->
+        <nav class="bg-white dark:bg-gray-800 shadow-sm">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div class="flex h-16 justify-between items-center">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <span class="material-symbols-outlined text-primary-600 text-3xl">admin_panel_settings</span>
+                        </div>
+                        <div class="ml-4">
+                            <h1 class="text-xl font-bold text-gray-900 dark:text-white">Panel de Administración</h1>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Gestión de candidatos y registro</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center">
+                        <a href="/admin/logout" class="inline-flex items-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 transition-colors">
+                            <span class="material-symbols-outlined text-sm mr-2">logout</span>
+                            Cerrar Sesión
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <main class="py-10">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8">
+                
+                <!-- Gestión de Temas -->
+                <section class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+                    <div class="px-4 py-5 sm:px-6 border-b border-gray-200 dark:border-gray-700">
+                        <h3 class="text-lg font-medium leading-6 text-gray-900 dark:text-white flex items-center">
+                            <span class="material-symbols-outlined mr-2">folder_open</span>
+                            Gestión de Temas de Evaluación
+                        </h3>
+                    </div>
+                    <div class="px-4 py-5 sm:p-6 space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Subir Archivo -->
+                            <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                                <form id="form-subir-tema" enctype="multipart/form-data" method="post" action="/admin/subir_tema" class="space-y-4">
+                                    <label for="archivo_tema" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Subir nuevo archivo Excel de preguntas:</label>
+                                    <div class="flex gap-2">
+                                        <input type="file" id="archivo_tema" name="archivo_tema" accept=".xlsx,.xls" required class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 dark:file:bg-gray-600 dark:file:text-gray-200">
+                                        <button type="submit" class="inline-flex justify-center rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600">Subir</button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- Seleccionar Tema -->
+                            <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                                <form id="form-seleccionar-tema" method="post" action="/admin/seleccionar_tema" class="space-y-4">
+                                    <label for="archivo_excel" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Seleccionar tema activo:</label>
+                                    <div class="flex gap-2">
+                                        <select id="archivo_excel" name="archivo_excel" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-primary-600 sm:text-sm sm:leading-6 dark:bg-gray-700 dark:text-white dark:ring-gray-600"></select>
+                                        <button type="submit" class="inline-flex justify-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600">Activar</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <div id="tema-resultado" class="text-sm text-gray-600 dark:text-gray-400"></div>
+
+                        <!-- Lista de Archivos -->
+                        <div id="archivos-temas-lista">
+                            <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">Archivos de temas subidos</h4>
+                            <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                                <table class="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
+                                    <thead class="bg-gray-50 dark:bg-gray-700">
+                                        <tr>
+                                            <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white sm:pl-6">Archivo</th>
+                                            <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Acción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="lista-temas" class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+                                        <!-- JS will populate this -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Formulario Registro (Hidden by default) -->
+                <section id="formularioRegistro" class="hidden bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden border-l-4 border-primary-500">
+                    <div class="px-4 py-5 sm:px-6 border-b border-gray-200 dark:border-gray-700">
+                        <h2 class="text-lg font-medium leading-6 text-gray-900 dark:text-white">Registrar Nuevo Candidato</h2>
+                    </div>
+                    <div class="px-4 py-5 sm:p-6">
+                        <form id="candidatoForm" method="post" action="/admin/registrar_candidato" class="space-y-6">
+                            <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                                <div class="sm:col-span-6">
+                                    <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md">
+                                        <span class="material-symbols-outlined text-blue-500">info</span>
+                                        <span>Tema de evaluación activo: <strong id="tema-activo" class="text-gray-900 dark:text-white">{{ tema_activo }}</strong></span>
+                                        <input type="hidden" id="tema" name="tema" value="{{ tema_activo|default('')}}">
+                                    </div>
+                                </div>
+
+                                <div class="sm:col-span-3">
+                                    <label for="tipo_documento" class="block text-sm font-medium leading-6 text-gray-900 dark:text-white">Tipo de documento</label>
+                                    <div class="mt-2">
+                                        <select id="tipo_documento" name="tipo_documento" required class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-primary-600 sm:text-sm sm:leading-6 dark:bg-gray-700 dark:text-white dark:ring-gray-600">
+                                            <option value="CC">Cédula de ciudadanía</option>
+                                            <option value="TI">Tarjeta de identidad</option>
+                                            <option value="CE">Cédula de extranjería</option>
+                                            <option value="PA">Pasaporte</option>
+                                            <option value="RC">Registro civil</option>
+                                            <option value="NIT">NIT</option>
+                                            <option value="Otro">Otro</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="sm:col-span-3">
+                                    <label for="numero_documento" class="block text-sm font-medium leading-6 text-gray-900 dark:text-white">Número de Documento</label>
+                                    <div class="mt-2">
+                                        <input type="text" id="numero_documento" name="numero_documento" required class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary-600 sm:text-sm sm:leading-6 dark:bg-gray-700 dark:text-white dark:ring-gray-600">
+                                        <span id="numero-documento-error" class="text-xs text-red-600 mt-1 block"></span>
+                                    </div>
+                                </div>
+
+                                <div class="sm:col-span-3">
+                                    <label for="nombre_completo" class="block text-sm font-medium leading-6 text-gray-900 dark:text-white">Nombre Completo</label>
+                                    <div class="mt-2">
+                                        <input type="text" id="nombre_completo" name="nombre_completo" required class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary-600 sm:text-sm sm:leading-6 dark:bg-gray-700 dark:text-white dark:ring-gray-600">
+                                        <span id="nombre-completo-error" class="text-xs text-red-600 mt-1 block"></span>
+                                    </div>
+                                </div>
+
+                                <div class="sm:col-span-3">
+                                    <label for="email" class="block text-sm font-medium leading-6 text-gray-900 dark:text-white">Email</label>
+                                    <div class="mt-2">
+                                        <input type="email" id="email" name="email" required class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary-600 sm:text-sm sm:leading-6 dark:bg-gray-700 dark:text-white dark:ring-gray-600">
+                                        <span id="email-error" class="text-xs text-red-600 mt-1 block"></span>
+                                    </div>
+                                </div>
+
+                                <div class="sm:col-span-3">
+                                    <label for="cargo" class="block text-sm font-medium leading-6 text-gray-900 dark:text-white">Cargo</label>
+                                    <div class="mt-2">
+                                        <input type="text" id="cargo" name="cargo" required class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary-600 sm:text-sm sm:leading-6 dark:bg-gray-700 dark:text-white dark:ring-gray-600">
+                                        <span id="cargo-error" class="text-xs text-red-600 mt-1 block"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                <button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 dark:bg-gray-700 dark:text-white dark:ring-gray-600 dark:hover:bg-gray-600" data-action="cancel">Cancelar</button>
+                                <button type="submit" class="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600">Registrar</button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- Candidatos Registrados -->
+                <section>
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center">
+                            <span class="material-symbols-outlined mr-2">group</span>
+                            Candidatos Registrados
+                        </h2>
+                        <button type="button" class="add-candidate-btn inline-flex items-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 transition-colors" data-action="show-form">
+                            <span class="material-symbols-outlined text-sm mr-2">person_add</span>
+                            Registrar Candidato
+                        </button>
+                    </div>
+                    
+                    <div id="candidatos-lista" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        <!-- JS will populate this -->
+                        {% for candidato in candidatos %}
+                        <div class="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow border border-gray-200 dark:border-gray-700 flex flex-col" data-cedula="{{ candidato.codigo }}" data-nombre="{{ candidato.nombre_completo }}" data-estado="{% if candidato.evaluacion_completada %}completada{% else %}pendiente{% endif %}">
+                            <div class="px-4 py-5 sm:p-6 flex-1">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="text-lg font-medium leading-6 text-gray-900 dark:text-white truncate" title="{{ candidato.nombre_completo }}">{{ candidato.nombre_completo }}</h3>
+                                    {% if candidato.evaluacion_completada %}
+                                        <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-300">Completada</span>
+                                    {% else %}
+                                        <span class="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">Pendiente</span>
+                                    {% endif %}
+                                </div>
+                                <div class="space-y-2 text-sm text-gray-500 dark:text-gray-400">
+                                    {% if candidato.numero_documento %}
+                                        <p class="flex items-center"><span class="material-symbols-outlined text-base mr-2">badge</span> {{ candidato.tipo_documento }}: {{ candidato.numero_documento }}</p>
+                                    {% endif %}
+                                    <p class="flex items-center"><span class="material-symbols-outlined text-base mr-2">mail</span> <span class="truncate">{{ candidato.email }}</span></p>
+                                    <p class="flex items-center"><span class="material-symbols-outlined text-base mr-2">key</span> Código: {{ candidato.codigo }}</p>
+                                    {% if candidato.cargo and candidato.cargo != 'N/A' %}
+                                        <p class="flex items-center"><span class="material-symbols-outlined text-base mr-2">work</span> {{ candidato.cargo }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-gray-700/50 px-4 py-4 sm:px-6 flex flex-col gap-2">
+                                {% if not candidato.evaluacion_completada %}
+                                    <div class="flex gap-2">
+                                        <button type="button" data-url="{{ request.url_root }}evaluacion/{{ candidato.codigo }}" class="copy-btn flex-1 inline-flex justify-center items-center rounded bg-blue-600 px-2 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-500">
+                                            <span class="material-symbols-outlined text-sm mr-1">content_copy</span> Copiar URL
+                                        </button>
+                                        <a href="/evaluacion/{{ candidato.codigo }}" target="_blank" class="flex-1 inline-flex justify-center items-center rounded bg-green-600 px-2 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-green-500 no-underline">
+                                            <span class="material-symbols-outlined text-sm mr-1">open_in_new</span> Abrir
+                                        </a>
+                                    </div>
+                                {% endif %}
+                                <div class="flex gap-2 mt-2">
+                                    <button type="button" class="btn-editar flex-1 inline-flex justify-center items-center rounded bg-gray-600 px-2 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-gray-500"
+                                        data-codigo="{{ candidato.codigo }}"
+                                        data-tipo-documento="{{ candidato.tipo_documento or '' }}"
+                                        data-numero-documento="{{ candidato.numero_documento or '' }}"
+                                        data-nombre-completo="{{ candidato.nombre_completo }}"
+                                        data-email="{{ candidato.email }}"
+                                        data-telefono="{{ candidato.telefono or '' }}"
+                                        data-cargo="{{ candidato.cargo or '' }}">
+                                        <span class="material-symbols-outlined text-sm mr-1">edit</span> Editar
+                                    </button>
+                                    <button type="button" data-codigo="{{ candidato.codigo }}" class="btn-eliminar flex-1 inline-flex justify-center items-center rounded bg-red-600 px-2 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-red-500">
+                                        <span class="material-symbols-outlined text-sm mr-1">delete</span> Eliminar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </section>
+
+                <!-- Resultados de Evaluaciones -->
+                <section class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+                    <div class="px-4 py-5 sm:px-6 border-b border-gray-200 dark:border-gray-700">
+                        <h2 class="text-lg font-medium leading-6 text-gray-900 dark:text-white flex items-center">
+                            <span class="material-symbols-outlined mr-2">analytics</span>
+                            Resultados de Evaluaciones
+                        </h2>
+                    </div>
+                    
+                    <!-- FILTROS -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700/30 border-b border-gray-200 dark:border-gray-700">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                            <div>
+                                <label for="filtro-resultado-nombre" class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre</label>
+                                <input type="text" id="filtro-resultado-nombre" placeholder="Buscar..." class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            </div>
+                            <div>
+                                <label for="filtro-resultado-cedula" class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Documento</label>
+                                <input type="text" id="filtro-resultado-cedula" placeholder="Buscar..." class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            </div>
+                            <div>
+                                <label for="filtro-resultado-email" class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+                                <input type="text" id="filtro-resultado-email" placeholder="Buscar..." class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            </div>
+                            <div>
+                                <label for="filtro-resultado-tema" class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Tema</label>
+                                <input type="text" id="filtro-resultado-tema" placeholder="Buscar..." class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            </div>
+                            <div>
+                                <label for="filtro-resultado-estado" class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Estado</label>
+                                <select id="filtro-resultado-estado" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                    <option value="">Todos</option>
+                                    <option value="si">Completadas</option>
+                                    <option value="no">Pendientes</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="filtro-resultado-nivel" class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Nivel Final</label>
+                                <select id="filtro-resultado-nivel" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-xs dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                    <option value="">Todos</option>
+                                    <option value="1">Nivel 1</option>
+                                    <option value="2">Nivel 2</option>
+                                    <option value="3">Nivel 3</option>
+                                    <option value="4">Nivel 4</option>
+                                    <option value="5">Nivel 5</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex justify-between items-center">
+                            <div id="contador-resultados" class="text-sm text-gray-500 dark:text-gray-400"></div>
+                            <button type="button" class="btn-limpiar-filtros inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:bg-gray-700 dark:text-white dark:border-gray-600 dark:hover:bg-gray-600">
+                                Limpiar Filtros
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-300 dark:divide-gray-700" id="tabla-resultados">
+                            <thead class="bg-gray-50 dark:bg-gray-700">
+                                <tr>
+                                    <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-xs font-semibold text-gray-900 dark:text-white sm:pl-6">Candidato</th>
+                                    <th scope="col" class="px-3 py-3.5 text-left text-xs font-semibold text-gray-900 dark:text-white">Documento</th>
+                                    <th scope="col" class="px-3 py-3.5 text-left text-xs font-semibold text-gray-900 dark:text-white">Email</th>
+                                    <th scope="col" class="px-3 py-3.5 text-left text-xs font-semibold text-gray-900 dark:text-white">Tema</th>
+                                    <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900 dark:text-white">Correctas</th>
+                                    <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900 dark:text-white">Total</th>
+                                    <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900 dark:text-white">Porcentaje</th>
+                                    <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900 dark:text-white">Puntos</th>
+                                    <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900 dark:text-white">Nivel</th>
+                                    <th scope="col" class="px-3 py-3.5 text-left text-xs font-semibold text-gray-900 dark:text-white">Fecha</th>
+                                    <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900 dark:text-white">Términos</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-resultados" class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+                                {% for candidato in candidatos %}
+                                    {% set resultado = resultados.get(candidato.id) %}
+                                    <tr class="fila-resultado hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                                        data-codigo="{{ candidato.codigo }}"
+                                        data-nombre="{{ candidato.nombre_completo|lower }}"
+                                        data-cedula="{{ candidato.numero_documento|default('')|lower }}"
+                                        data-email="{{ candidato.email|lower }}"
+                                        data-tema="{{ resultado.tema|default('')|lower if resultado else '' }}"
+                                        data-nivel="{{ resultado.nivel_final if resultado else '' }}"
+                                        data-tiene-resultado="{{ 'si' if resultado else 'no' }}">
+                                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-6">{{ candidato.nombre_completo }}</td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                            {% if candidato.tipo_documento and candidato.numero_documento %}
+                                                {{ candidato.tipo_documento }}: {{ candidato.numero_documento }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{{ candidato.email }}</td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{{ resultado.tema if resultado else '-' }}</td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400 text-center">{{ resultado.correctas if resultado else '-' }}</td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400 text-center">{{ resultado.total if resultado else '-' }}</td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400 text-center">
+                                            {% if resultado %}
+                                                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {% if resultado.porcentaje >= 70 %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300{% else %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300{% endif %}">
+                                                    {{ resultado.porcentaje|round(1) }}%
+                                                </span>
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400 text-center">{{ "%.1f"|format(resultado.puntos) if resultado else '-' }}</td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400 text-center font-bold">{{ resultado.nivel_final if resultado else '-' }}</td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{{ resultado.fecha_evaluacion.strftime('%Y-%m-%d %H:%M') if resultado and resultado.fecha_evaluacion else '-' }}</td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400 text-center">
+                                            {% if candidato.acepta_terminos %}
+                                                <span class="text-green-600 material-symbols-outlined text-sm">check_circle</span>
+                                            {% else %}
+                                                <span class="text-gray-400 material-symbols-outlined text-sm">cancel</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- Modal Edición Candidato -->
+        <div id="modal-editar" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+            <div class="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+                <span class="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>
+                <div class="inline-block transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 pt-5 pb-4 text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6 sm:align-middle">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900 sm:mx-0 sm:h-10 sm:w-10">
+                            <span class="material-symbols-outlined text-blue-600 dark:text-blue-300">edit</span>
+                        </div>
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                            <h3 class="text-lg font-medium leading-6 text-gray-900 dark:text-white" id="modal-title">Editar Candidato</h3>
+                            <div class="mt-4">
+                                <form id="form-editar-candidato" class="space-y-4">
+                                    <input type="hidden" id="edit-codigo">
+                                    <div>
+                                        <label for="edit-tipo_documento" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tipo Documento</label>
+                                        <input type="text" id="edit-tipo_documento" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label for="edit-numero_documento" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Número Documento</label>
+                                        <input type="text" id="edit-numero_documento" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label for="edit-nombre_completo" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nombre Completo</label>
+                                        <input type="text" id="edit-nombre_completo" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label for="edit-email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
+                                        <input type="email" id="edit-email" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label for="edit-telefono" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Teléfono</label>
+                                        <input type="text" id="edit-telefono" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label for="edit-cargo" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Cargo</label>
+                                        <input type="text" id="edit-cargo" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                    </div>
+                                    <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse gap-2">
+                                        <button type="submit" class="inline-flex w-full justify-center rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 sm:w-auto">Guardar</button>
+                                        <button type="button" class="btn-secondary mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto dark:bg-gray-700 dark:text-white dark:ring-gray-600 dark:hover:bg-gray-600">Cancelar</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/admin-dashboard.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/admin-panel.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/token-renewal-silent.js') }}" defer></script>
+</body>
+</html>"""
+
+with open(r"c:\Users\USUARIO\Documents\Empresa\templates\admin_dashboard.html", "w", encoding="utf-8") as f:
+    f.write(html_content)

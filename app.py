@@ -6,8 +6,24 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Tuple, Optional, Any
 import secrets
 from functools import wraps
+import re
 
 from dotenv import load_dotenv
+
+def sanitize_log(value):
+    """Sanitiza entradas para logs eliminando caracteres de control y limitando longitud"""
+    if value is None:
+        return ""
+    # Convertir a string
+    s = str(value)
+    # Reemplazar saltos de línea y caracteres de control por espacio
+    s = re.sub(r'[\r\n\t]', ' ', s)
+    # Eliminar otros caracteres no imprimibles si es necesario
+    # s = re.sub(r'[^\x20-\x7E]', '', s) 
+    # Limitar longitud para evitar inundación de logs
+    if len(s) > 50:
+        s = s[:47] + "..."
+    return s
 
 # Constants for templates
 TEMPLATE_ADMIN_LOGIN = 'admin_login.html'
@@ -130,10 +146,10 @@ def admin_authenticate():
         session['refresh_token'] = tokens['refresh_token']
         session['token_expires_at'] = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
         
-        logger.info(f"Admin login (legacy) exitoso: {username} - Token generado")
+        logger.info(f"Admin login (legacy) exitoso: {sanitize_log(username)} - Token generado")
         return redirect(url_for('admin_dashboard'))
     else:
-        logger.warning(f"Intento de login fallido: {username}")
+        logger.warning(f"Intento de login fallido: {sanitize_log(username)}")
         return render_template(TEMPLATE_ADMIN_LOGIN, error="Credenciales incorrectas")
 
 @app.route('/admin/logout')
@@ -187,7 +203,7 @@ def recuperar_password():
     # Buscar usuario por username o email
     user = UserDB.query.filter((UserDB.username==identifier) | (UserDB.email==identifier)).first()
     if not user:
-        logger.warning(f"Intento de recuperación para usuario inexistente: {identifier}")
+        logger.warning("Intento de recuperación para usuario inexistente")
         return render_template(TEMPLATE_RECUPERAR_PASSWORD, error="El usuario o correo no existe en el sistema.")
 
     # Generar token aleatorio single-use y guardarlo con expiración
@@ -333,7 +349,7 @@ def first_run_register():
         )
         db.session.add(u)
         db.session.commit()
-        logger.info(f"Primer usuario creado: {username}")
+        logger.info(f"Primer usuario creado: {sanitize_log(username)}")
         return redirect(url_for('admin_login'))
     except Exception as e:
         logger.error(f"Error creando primer usuario: {e}")
@@ -447,7 +463,7 @@ def _registrar_candidato_form(form):
             
     if validation_errors:
         error_msg = '; '.join(validation_errors)
-        logger.warning(f"Errores de validación (Form): {error_msg}")
+        logger.warning(f"Errores de validación (Form): {sanitize_log(error_msg)}")
         return render_template(TEMPLATE_ADMIN_DASHBOARD, error=error_msg)
             
     try:
@@ -484,7 +500,7 @@ def eliminar_candidato():
             return jsonify({'error': 'Código requerido'}), 400
         candidato_db = CandidatoDB.query.filter_by(codigo=codigo).first()
         if not candidato_db:
-            logger.error(f'Candidato no encontrado: {codigo}')
+            logger.error(f'Candidato no encontrado: {sanitize_log(codigo)}')
             return jsonify({'error': 'Candidato no encontrado'}), 404
         # Eliminar resultados asociados
         resultados = ResultadoDB.query.filter_by(candidato_id=candidato_db.id).all()
@@ -497,13 +513,13 @@ def eliminar_candidato():
             db.session.delete(candidato_db)
             db.session.commit()
         except Exception as e:
-            logger.error(f'Error eliminando candidato {codigo}: {e}')
+            logger.error(f'Error eliminando candidato {sanitize_log(codigo)}: {e}')
             db.session.rollback()
             return jsonify({'error': f'Error eliminando candidato: {str(e)}'}), 500
         # Eliminar también de memoria si existe
         if codigo in candidatos_registrados:
             del candidatos_registrados[codigo]
-        logger.info(f'Candidato eliminado correctamente: {codigo}')
+        logger.info(f'Candidato eliminado correctamente: {sanitize_log(codigo)}')
         return jsonify({'success': True})
     except Exception as e:
         logger.error(f'Error inesperado en eliminar_candidato: {e}')
@@ -550,7 +566,7 @@ def actualizar_candidato():
 
         db.session.commit()
 
-        logger.info(f"Candidato actualizado: {codigo}")
+        logger.info(f"Candidato actualizado: {sanitize_log(codigo)}")
         return jsonify({
             'success': True,
             'candidato': {
@@ -645,9 +661,8 @@ def evaluacion(codigo):
     if codigo not in candidatos_registrados:
         candidato_db = CandidatoDB.query.filter_by(codigo=codigo).first()
         if not candidato_db:
-            # Sanitizar entrada para evitar inyección de logs
-            safe_codigo = str(codigo).replace('\n', '_').replace('\r', '_')
-            logger.warning("Código de candidato inválido: %s", safe_codigo)
+            # Evitar loguear datos controlados por usuario
+            logger.warning("Intento de acceso con código de candidato no registrado")
             return make_response(render_template(TEMPLATE_ERROR, mensaje="Código de candidato inválido"), 404)
         # Poblar el diccionario en memoria
         candidatos_registrados[codigo] = {
@@ -662,7 +677,7 @@ def evaluacion(codigo):
         }
     candidato = candidatos_registrados[codigo]
     if candidato.get("evaluacion_completada", False):
-        logger.warning("Evaluación ya completada para: %s", codigo)
+        logger.warning("Evaluación ya completada para candidato: %s", sanitize_log(codigo))
         return make_response(render_template(TEMPLATE_ERROR, mensaje="Esta evaluación ya ha sido completada"), 403)
     return render_template('cuestionario.html', candidato=candidato)
 
@@ -677,7 +692,7 @@ def iniciar_evaluacion():
     acepta_terminos = int(data.get('acepta_terminos', 0))
     telefono = data.get('telefono', '')
 
-    logger.info(f"Iniciando evaluación para: {documento}")
+    logger.info(f"Iniciando evaluación para: {sanitize_log(documento)}")
     
     success, message = EvaluacionService.iniciar_evaluacion(documento, acepta_terminos, telefono)
     
