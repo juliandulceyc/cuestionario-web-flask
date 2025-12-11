@@ -1,5 +1,7 @@
 import random
 import logging
+import json
+import os
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Tuple
 
@@ -54,8 +56,69 @@ class EvaluadorRespuestas:
 
 class EvaluacionService:
     @staticmethod
+    def _get_state_path(codigo: str) -> str:
+        states_dir = os.path.join(os.getcwd(), 'states')
+        if not os.path.exists(states_dir):
+            os.makedirs(states_dir)
+        return os.path.join(states_dir, f"{codigo}.json")
+
+    @staticmethod
+    def _guardar_estado(codigo: str):
+        try:
+            path = EvaluacionService._get_state_path(codigo)
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(candidato_actual, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.error(f"Error guardando estado para {codigo}: {e}")
+
+    @staticmethod
+    def _cargar_estado(codigo: str) -> bool:
+        try:
+            path = EvaluacionService._get_state_path(codigo)
+            if os.path.exists(path):
+                with open(path, 'r', encoding='utf-8') as f:
+                    estado = json.load(f)
+                    candidato_actual.clear()
+                    candidato_actual.update(estado)
+                return True
+        except Exception as e:
+            logger.error(f"Error cargando estado para {codigo}: {e}")
+        return False
+
+    @staticmethod
+    def limpiar_estado(codigo: str):
+        try:
+            path = EvaluacionService._get_state_path(codigo)
+            if os.path.exists(path):
+                os.remove(path)
+        except Exception as e:
+            logger.error(f"Error limpiando estado para {codigo}: {e}")
+
+    @staticmethod
     def iniciar_evaluacion(documento: str, acepta_terminos: int, telefono: str = '') -> Tuple[bool, str]:
         if documento and documento in candidatos_registrados:
+            # Intentar cargar estado previo
+            if EvaluacionService._cargar_estado(documento):
+                # Verificar si ya estaba completada
+                if candidato_actual.get("evaluacion_completa", False):
+                    return False, "La evaluación ya fue completada anteriormente"
+                
+                # Actualizar datos personales por si cambiaron (opcional, pero seguro)
+                candidato_encontrado = candidatos_registrados[documento]
+                candidato_actual["datos_personales"] = {
+                    "codigo": documento,
+                    "nombre": candidato_encontrado.get("nombre_completo", ""),
+                    "email": candidato_encontrado.get("email", ""),
+                    "telefono": candidato_encontrado.get("telefono", telefono)
+                }
+                
+                # Recargar preguntas
+                preguntas_cargadas = cargar_preguntas_desde_excel()
+                PREGUNTAS.clear()
+                PREGUNTAS.extend(preguntas_cargadas)
+                
+                return True, "Sesión restaurada"
+
             candidato_encontrado = candidatos_registrados[documento]
             
             # Actualizar candidato_actual in-place para mantener la referencia
@@ -111,6 +174,9 @@ class EvaluacionService:
             if not PREGUNTAS:
                  return False, "No hay preguntas cargadas en el sistema"
 
+            # Guardar estado inicial
+            EvaluacionService._guardar_estado(documento)
+
             return True, ""
         return False, "Candidato no encontrado"
 
@@ -125,6 +191,24 @@ class EvaluacionService:
         if error:
             return None, error
 
+        # Verificar si hay una pregunta pendiente (mostrada pero no respondida)
+        preguntas_mostradas = candidato_actual.get("preguntas_mostradas", [])
+        respuestas = candidato_actual.get("respuestas", [])
+        
+        if preguntas_mostradas:
+            last_id = preguntas_mostradas[-1]
+            # Verificar si ya fue respondida
+            answered = any(r["id"] == last_id for r in respuestas)
+            if not answered:
+                # Retornar la misma pregunta
+                pregunta = next((p for p in PREGUNTAS if p["id"] == last_id), None)
+                if pregunta:
+                    candidato_actual["pregunta_actual_nivel"] = pregunta.get("nivel", 1)
+                    return pregunta, None
+                else:
+                    # Si la pregunta ya no existe en el excel, la removemos del historial
+                    candidato_actual["preguntas_mostradas"].pop()
+
         pregunta_seleccionada = EvaluacionService._seleccionar_pregunta()
         if not pregunta_seleccionada:
             candidato_actual["evaluacion_completa"] = True
@@ -133,6 +217,11 @@ class EvaluacionService:
         candidato_actual["preguntas_mostradas"].append(pregunta_seleccionada["id"])
         candidato_actual["pregunta_actual_nivel"] = pregunta_seleccionada.get("nivel", 1)
         
+        # Guardar estado tras seleccionar pregunta
+        codigo = candidato_actual.get("datos_personales", {}).get("codigo")
+        if codigo:
+            EvaluacionService._guardar_estado(codigo)
+
         return pregunta_seleccionada, None
 
     @staticmethod
@@ -234,6 +323,11 @@ class EvaluacionService:
         # Lógica de avance (simplificada/extraída de app.py)
         EvaluacionService._actualizar_progreso(pregunta, puntaje)
         
+        # Guardar estado tras responder
+        codigo = candidato_actual.get("datos_personales", {}).get("codigo")
+        if codigo:
+            EvaluacionService._guardar_estado(codigo)
+
         hay_mas = (not candidato_actual.get("evaluacion_completa", False)) and (len(preguntas_mostradas) < Config.TOTAL_PREGUNTAS)
         
         info_nivel = {}

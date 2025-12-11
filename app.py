@@ -810,6 +810,7 @@ def generar_pdf_final():
         return jsonify({"error": "No hay evaluación activa"}), 400
         
     _actualizar_estado_candidato(codigo)
+    EvaluacionService.limpiar_estado(codigo)
     
     try:
         respuestas = candidato_actual.get('respuestas', [])
