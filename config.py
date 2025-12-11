@@ -31,9 +31,9 @@ class Config:
     EMAIL_FROM = (os.getenv('EMAIL_FROM') or EMAIL_USER or '').strip() or None
 
     # Firma de correos (personalizable por variables de entorno)
-    SIGN_NAME = os.getenv('SIGN_NAME', 'Yeivi Julieth Peinado H.')
+    SIGN_NAME = os.getenv('SIGN_NAME', 'Usuario Admin app')
     SIGN_TITLE = os.getenv('SIGN_TITLE', 'Gerente de Servicios Ciberseguridad')
-    SIGN_PHONE = os.getenv('SIGN_PHONE', '+57 3013407054')
+    SIGN_PHONE = os.getenv('SIGN_PHONE', '+57 3005667940')
     SIGN_LOCATION = os.getenv('SIGN_LOCATION', 'Bogotá, Colombia')
     SIGN_WEBSITE = os.getenv('SIGN_WEBSITE', 'https://www.axity.com')
     SIGN_BANNER_URL = (os.getenv('SIGN_BANNER_URL') or '').strip()

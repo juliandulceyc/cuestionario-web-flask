@@ -460,15 +460,7 @@ function mostrarEvaluacionCompleta(datosResultado, errorPDF) {
     let mensajePDF = '';
     
     if (datosResultado?.success) {
-        mensajeResultados = `
-            <div style="background:#d4edda;color:#155724;padding:15px;border-radius:8px;margin-bottom:15px;">
-                <h3>📊 Resultados de tu Evaluación:</h3>
-                <ul style="margin:10px 0; padding-left:20px;">
-                    <li><strong>Respuestas correctas:</strong> ${datosResultado.correctas}/${datosResultado.total} (${datosResultado.porcentaje}%)</li>
-                    <li><strong>Nivel final alcanzado:</strong> ${datosResultado.nivel_final}/5</li>
-                    <li><strong>Puntuación total:</strong> ${datosResultado.puntos} puntos</li>
-                </ul>
-            </div>`;
+        mensajeResultados = '';
             
         mensajePDF = datosResultado.pdf_generado
             ? '<div style="background:#cce5ff;color:#004085;padding:10px;border-radius:5px;">✅ Reporte PDF generado correctamente</div>'

@@ -10,6 +10,9 @@ import re
 
 from dotenv import load_dotenv
 
+# Cargar variables de entorno antes de importar configuraciones
+load_dotenv()
+
 def sanitize_log(value):
     """Sanitiza entradas para logs eliminando caracteres de control y limitando longitud"""
     if value is None:
@@ -55,9 +58,6 @@ from security import (
     aplicar_headers_seguridad,
     handle_errors
 )
-
-# Cargar variables de entorno
-load_dotenv()
 
 # Importar generador de PDF si está disponible
 try:
@@ -973,7 +973,7 @@ if __name__ == "__main__":
             logger.error(f"Error verificando esquema de recovery_tokens: {e}")
         db.create_all()
         # Asignar email al usuario admin por solicitud
-        seed_or_update_admin_user('brad.castellanos@axity.com')
+        seed_or_update_admin_user('julian_castellanosd@soy.sena.edu.co')
     if inicializar_sistema():
         logger.info("\n🚀 SERVIDOR INICIADO")
         logger.info("=" * 50)
