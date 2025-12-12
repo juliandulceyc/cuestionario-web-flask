@@ -5,11 +5,11 @@ import os
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Tuple
 
-from config import Config
-from shared import PREGUNTAS, candidato_actual, candidatos_registrados
-from utils import cargar_preguntas_desde_excel, _determinar_nivel_pregunta, _buscar_pregunta_fallback
-from models import CandidatoDB
-from extensions import db
+from .config import Config
+from .shared import PREGUNTAS, candidato_actual, candidatos_registrados
+from .utils import cargar_preguntas_desde_excel, _determinar_nivel_pregunta, _buscar_pregunta_fallback
+from .models import CandidatoDB
+from .extensions import db
 
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -57,7 +57,7 @@ class EvaluadorRespuestas:
 class EvaluacionService:
     @staticmethod
     def _get_state_path(codigo: str) -> str:
-        states_dir = os.path.join(os.getcwd(), 'states')
+        states_dir = os.path.join(os.getcwd(), 'data', 'states')
         if not os.path.exists(states_dir):
             os.makedirs(states_dir)
         return os.path.join(states_dir, f"{codigo}.json")

@@ -20,7 +20,7 @@
         <div class="mensaje-error">{{ error }}</div>
         {% endif %}
 
-        <form method="POST" action="/admin/first-run">
+        <form method="POST" action="{{ url_for('main.first_run_register') }}">
             <div class="login-form-group">
                 <label for="username">Usuario</label>
                 <input type="text" id="username" name="username" required autofocus placeholder="Usuario admin">
@@ -40,7 +40,7 @@
 
             <div style="display: flex; gap: 10px; justify-content: center;">
                 <button type="submit" class="btn-login">Crear usuario</button>
-                <a href="/admin/login" class="btn-login" style="background: #6c757d; text-decoration: none; display: inline-block; text-align: center;">Cancelar</a>
+                <a href="{{ url_for('main.admin_login') }}" class="btn-login" style="background: #6c757d; text-decoration: none; display: inline-block; text-align: center;">Cancelar</a>
             </div>
         </form>
     </div>

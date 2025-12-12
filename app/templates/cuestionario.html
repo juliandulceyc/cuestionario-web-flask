@@ -24,7 +24,7 @@
         </section>
         
         <section id="formulario-confirmacion">
-            <form id="candidate-form" method="post" action="/iniciar_evaluacion">
+            <form id="candidate-form" method="post" action="{{ url_for('main.iniciar_evaluacion') }}">
                 <div class="form-datos-container">
                     <div class="form-datos-titulo">Confirma tus datos antes de iniciar</div>
                     <div class="candidate-form-grid">

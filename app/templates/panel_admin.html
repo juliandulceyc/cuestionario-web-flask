@@ -14,12 +14,12 @@
     <div class="container">
         <section class="panel-temas">
             <h2>🗂 Gestión de Temas de Evaluación</h2>
-            <form id="form-subir-tema" enctype="multipart/form-data" method="post" action="/admin/subir_tema" class="form-subir-tema">
+            <form id="form-subir-tema" enctype="multipart/form-data" method="post" action="{{ url_for('main.subir_tema') }}" class="form-subir-tema">
                 <label for="archivo_tema"><span class="bold-label">Subir nuevo archivo Excel de preguntas:</span></label>
                 <input type="file" id="archivo_tema" name="archivo_tema" accept=".xlsx,.xls" required>
                 <button type="submit" class="btn btn-primary">Subir archivo</button>
             </form>
-            <form id="form-seleccionar-tema" method="post" action="/admin/seleccionar_tema">
+            <form id="form-seleccionar-tema" method="post" action="{{ url_for('main.seleccionar_tema') }}">
                 <label for="archivo_excel"><span class="bold-label">Seleccionar tema activo:</span></label>
                 <select id="archivo_excel" name="archivo_excel" class="select-archivo-excel"></select>
                 <button type="submit" class="btn btn-success">Activar tema</button>
@@ -33,8 +33,8 @@
             </div>
             <div class="dashboard-actions">
                 <div class="dashboard-actions-container">
-                    <a href="/admin/dashboard" class="btn btn-primary">📊 Dashboard</a>
-                    <a href="/admin/logout" class="btn btn-danger btn-logout">Cerrar
+                    <a href="{{ url_for('main.admin_dashboard') }}" class="btn btn-primary">📊 Dashboard</a>
+                    <a href="{{ url_for('main.admin_logout') }}" class="btn btn-danger btn-logout">Cerrar
                         Sesión</a>
                 </div>
             </div>

@@ -15,7 +15,9 @@ class Config:
     ARCHIVO_EXCEL = 'Evaluación FWS PAN V2.xlsx'
 
     # Configuración de Base de Datos
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///evaluacion.db')
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    DB_PATH = os.path.join(BASE_DIR, 'data', 'instance', 'evaluacion.db')
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', f'sqlite:///{DB_PATH}')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Credenciales admin (en producción usar variables de entorno)

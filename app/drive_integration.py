@@ -11,8 +11,8 @@ import json
 from datetime import datetime
 
 SCOPES = ['https://www.googleapis.com/auth/drive']
-TOKEN_FILE = 'token.json'
-CREDENTIALS_FILE = 'client_credentials.json'
+TOKEN_FILE = os.path.join('config', 'token.json')
+CREDENTIALS_FILE = os.path.join('config', 'client_credentials.json')
 DRIVE_FOLDER_ID = "1xYYkbJniRP1K7PawanI7741M2pEJ-RkD"
 
 def get_drive_service():

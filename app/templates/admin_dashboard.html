@@ -89,7 +89,7 @@
             </div>
           </div>
           <div class="flex items-center">
-            <a href="/admin/logout"
+            <a href="{{ url_for('main.admin_logout') }}"
               class="inline-flex items-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 transition-colors">
               <span class="material-symbols-outlined text-sm mr-2">logout</span>
               Cerrar Sesión
@@ -114,7 +114,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <!-- Subir Archivo -->
               <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-                <form id="form-subir-tema" enctype="multipart/form-data" method="post" action="/admin/subir_tema"
+                <form id="form-subir-tema" enctype="multipart/form-data" method="post" action="{{ url_for('main.subir_tema') }}"
                   class="space-y-4">
                   <label for="archivo_tema" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Subir
                     nuevo archivo Excel de preguntas:</label>
@@ -129,7 +129,7 @@
 
               <!-- Seleccionar Tema -->
               <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-                <form id="form-seleccionar-tema" method="post" action="/admin/seleccionar_tema" class="space-y-4">
+                <form id="form-seleccionar-tema" method="post" action="{{ url_for('main.seleccionar_tema') }}" class="space-y-4">
                   <label for="archivo_excel"
                     class="block text-sm font-medium text-gray-700 dark:text-gray-300">Seleccionar tema activo:</label>
                   <div class="flex gap-2">
@@ -175,7 +175,7 @@
             <h2 class="text-lg font-medium leading-6 text-gray-900 dark:text-white">Registrar Nuevo Candidato</h2>
           </div>
           <div class="px-4 py-5 sm:p-6">
-            <form id="candidatoForm" method="post" action="/admin/registrar_candidato" class="space-y-6">
+            <form id="candidatoForm" method="post" action="{{ url_for('main.registrar_candidato') }}" class="space-y-6">
               <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
                 <div class="sm:col-span-6">
                   <div
@@ -313,7 +313,7 @@
                     class="copy-btn flex-1 inline-flex justify-center items-center rounded bg-blue-600 px-2 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-500">
                     <span class="material-symbols-outlined text-sm mr-1">content_copy</span> Copiar URL
                   </button>
-                  <a href="/evaluacion/{{ candidato.codigo }}" target="_blank"
+                  <a href="{{ url_for('main.evaluacion', codigo=candidato.codigo) }}" target="_blank"
                     class="flex-1 inline-flex justify-center items-center rounded bg-green-600 px-2 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-green-500 no-underline">
                     <span class="material-symbols-outlined text-sm mr-1">open_in_new</span> Abrir
                   </a>

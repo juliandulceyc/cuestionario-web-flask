@@ -9,11 +9,11 @@ from datetime import datetime
 from email.message import EmailMessage
 from typing import List, Dict, Any, Tuple, Optional
 
-from config import Config
-from shared import PREGUNTAS, candidatos_registrados, candidato_actual
-from extensions import db
-from models import UserDB, CandidatoDB, ResultadoDB
-from security import SecurityManager
+from .config import Config
+from .shared import PREGUNTAS, candidatos_registrados, candidato_actual
+from .extensions import db
+from .models import UserDB, CandidatoDB, ResultadoDB
+from .security import SecurityManager
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +34,10 @@ def setup_logging():
     return logging.getLogger('evaluacion_system')
 
 def get_tema_activo():
-    if not os.path.exists('config_tema.json'):
+    config_path = os.path.join('config', 'config_tema.json')
+    if not os.path.exists(config_path):
         return None
-    with open('config_tema.json', 'r', encoding='utf-8') as f:
+    with open(config_path, 'r', encoding='utf-8') as f:
         config = json.load(f)
     return config.get('archivo_excel')
 
@@ -106,7 +107,7 @@ def cargar_preguntas_desde_excel():
     archivo_excel = get_tema_activo()
     if not archivo_excel:
         return []
-    temas_dir = os.path.join(os.getcwd(), 'temas')
+    temas_dir = os.path.join(os.getcwd(), 'data', 'temas')
     ruta_excel = os.path.join(temas_dir, archivo_excel)
     if not os.path.exists(ruta_excel):
         return []
@@ -229,10 +230,20 @@ def seed_or_update_admin_user(admin_email: str):
         admin_username = Config.ADMIN_USER
         user = UserDB.query.filter_by(username=admin_username).first()
         if user:
+            # Actualizar email si cambió
             if user.email != admin_email:
                 user.email = admin_email
                 db.session.commit()
                 logger.info(f"Admin email actualizado a: {admin_email}")
+            
+            # Actualizar password si cambió en .env
+            # Nota: Esto sobrescribirá la contraseña en la BD con la del .env cada vez que se reinicie
+            if Config.ADMIN_PASS:
+                new_hash = SecurityManager.hash_password(Config.ADMIN_PASS)
+                if not SecurityManager.verificar_password(Config.ADMIN_PASS, user.password_hash):
+                    user.password_hash = new_hash
+                    db.session.commit()
+                    logger.info("Admin password actualizado desde .env")
         else:
             u = UserDB(
                 username=admin_username,

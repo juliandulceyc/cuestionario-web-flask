@@ -1,4 +1,4 @@
-from flask import Flask, abort, render_template, request, jsonify, redirect, url_for, session, make_response
+from flask import Blueprint, abort, render_template, request, jsonify, redirect, url_for, session, make_response, current_app
 import os
 import json
 import logging
@@ -37,11 +37,11 @@ TEMPLATE_ADMIN_DASHBOARD = 'admin_dashboard.html'
 TEMPLATE_ERROR = 'error.html'
 
 # Importar módulos refactorizados
-from config import Config
-from extensions import db
-from models import UserDB, CandidatoDB, ResultadoDB, RecoveryToken
-from shared import candidatos_registrados, candidato_actual, PREGUNTAS
-from utils import (
+from .config import Config
+from .extensions import db
+from .models import UserDB, CandidatoDB, ResultadoDB, RecoveryToken
+from .shared import candidatos_registrados, candidato_actual, PREGUNTAS
+from .utils import (
     setup_logging, 
     validar_email_simple, 
     enviar_email, 
@@ -51,8 +51,8 @@ from utils import (
     seed_or_update_admin_user,
     _actualizar_candidato_final
 )
-from services import EvaluacionService
-from security import (
+from .services import EvaluacionService
+from .security import (
     SecurityManager, 
     token_requerido, 
     aplicar_headers_seguridad,
@@ -61,7 +61,7 @@ from security import (
 
 # Importar generador de PDF si está disponible
 try:
-    from pdf_generator import generar_pdf_evaluacion
+    from .pdf_generator import generar_pdf_evaluacion
     REPORTLAB_AVAILABLE = True
 except ImportError:
     REPORTLAB_AVAILABLE = False
@@ -70,7 +70,7 @@ except ImportError:
 
 # Importar integración con Drive si está disponible
 try:
-    from drive_integration import save_pdf_to_drive
+    from .drive_integration import save_pdf_to_drive
     DRIVE_AVAILABLE = True
 except ImportError:
     DRIVE_AVAILABLE = False
@@ -78,16 +78,10 @@ except ImportError:
     logging.warning("Integración con Drive no disponible")
 
 # Configurar logging
-logger = setup_logging()
+logger = logging.getLogger(__name__)
 
-# Inicializar Flask
-app = Flask(__name__)
-app.secret_key = Config.SECRET_KEY or secrets.token_hex(32)
-app.config['SQLALCHEMY_DATABASE_URI'] = Config.SQLALCHEMY_DATABASE_URI
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = Config.SQLALCHEMY_TRACK_MODIFICATIONS
-
-# Inicializar extensiones
-db.init_app(app)
+# Crear Blueprint
+main_bp = Blueprint('main', __name__)
 
 # ===== DECORADORES =====
 def admin_required(f):
@@ -95,27 +89,27 @@ def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'admin_logged_in' not in session:
-            return redirect(url_for('admin_login'))
+            return redirect(url_for('main.admin_login'))
         return f(*args, **kwargs)
     return decorated_function
 
 # ===== RUTAS PRINCIPALES =====
 
-@app.route('/')
+@main_bp.route('/')
 def home():
     # Si no hay usuarios, iniciar flujo de primer usuario
     try:
         if UserDB.query.count() == 0:
-            return redirect(url_for('first_run_register'))
+            return redirect(url_for('main.first_run_register'))
     except Exception as e:
         logger.warning(f"Error verificando usuarios iniciales: {e}")
-    return redirect(url_for('admin_login'))
+    return redirect(url_for('main.admin_login'))
 
-@app.route('/admin/login')
+@main_bp.route('/admin/login')
 def admin_login():
     return render_template(TEMPLATE_ADMIN_LOGIN)
 
-@app.route('/admin/authenticate', methods=['POST'])
+@main_bp.route('/admin/authenticate', methods=['POST'])
 @handle_errors
 def admin_authenticate():
     username = request.form.get('username')
@@ -132,7 +126,7 @@ def admin_authenticate():
         session['refresh_token'] = tokens['refresh_token']
         session['token_expires_at'] = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
         logger.info(f"Admin login (BD) exitoso: {user.username}")
-        return redirect(url_for('admin_dashboard'))
+        return redirect(url_for('main.admin_dashboard'))
 
     # 2) Fallback: admin legacy por Config si no hay usuarios en BD
     if UserDB.query.count() == 0 and username == Config.ADMIN_USER and password == Config.ADMIN_PASS:
@@ -147,18 +141,18 @@ def admin_authenticate():
         session['token_expires_at'] = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
         
         logger.info(f"Admin login (legacy) exitoso: {sanitize_log(username)} - Token generado")
-        return redirect(url_for('admin_dashboard'))
+        return redirect(url_for('main.admin_dashboard'))
     else:
         logger.warning(f"Intento de login fallido: {sanitize_log(username)}")
         return render_template(TEMPLATE_ADMIN_LOGIN, error="Credenciales incorrectas")
 
-@app.route('/admin/logout')
+@main_bp.route('/admin/logout')
 def admin_logout():
     session.pop('admin_logged_in', None)
     logger.info("Admin logout")
-    return redirect(url_for('admin_login'))
+    return redirect(url_for('main.admin_login'))
 
-@app.route('/api/renovar-token', methods=['POST'])
+@main_bp.route('/api/renovar-token', methods=['POST'])
 @handle_errors
 def renovar_token():
     """Endpoint para renovar el token de acceso cada 15 minutos"""
@@ -188,7 +182,7 @@ def renovar_token():
 
 # ===== RECUPERACIÓN DE CONTRASEÑA =====
 
-@app.route('/admin/recuperar-password', methods=['GET', 'POST'])
+@main_bp.route('/admin/recuperar-password', methods=['GET', 'POST'])
 @handle_errors
 def recuperar_password():
     """Solicitar enlace de recuperación de contraseña (envío por email). Acepta usuario o email."""
@@ -261,13 +255,13 @@ def recuperar_password():
         return render_template(TEMPLATE_RECUPERAR_PASSWORD, mensaje_exito=f"Enviamos un enlace de recuperación a: {user.email}")
 
 
-@app.route('/admin/restablecer-password', methods=['GET'])
+@main_bp.route('/admin/restablecer-password', methods=['GET'])
 @handle_errors
 def mostrar_form_restablecer_password():
     """Muestra el formulario de restablecimiento si el token es válido (no consumido aún)."""
     token = request.args.get('token', '').strip()
     if not token:
-        return redirect(url_for('recuperar_password'))
+        return redirect(url_for('main.recuperar_password'))
 
     rec = RecoveryToken.query.filter_by(token=token).first()
     if not rec or rec.used or rec.is_expired():
@@ -276,7 +270,7 @@ def mostrar_form_restablecer_password():
     return render_template(TEMPLATE_RESTABLECER_PASSWORD, token=token)
 
 
-@app.route('/admin/restablecer-password', methods=['POST'])
+@main_bp.route('/admin/restablecer-password', methods=['POST'])
 @handle_errors
 def restablecer_password():
     """Restablecer contraseña a partir de un token enviado por email"""
@@ -316,11 +310,11 @@ def restablecer_password():
         return render_template(TEMPLATE_RESTABLECER_PASSWORD, token=token, error="Error al restablecer contraseña")
 
 # ===== Bootstrap de primer usuario (solo si no hay usuarios) =====
-@app.route('/admin/first-run', methods=['GET', 'POST'])
+@main_bp.route('/admin/first-run', methods=['GET', 'POST'])
 def first_run_register():
     # Si ya existe algún usuario, redirigir al login
     if UserDB.query.count() > 0:
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('main.admin_login'))
 
     if request.method == 'GET':
         return render_template(TEMPLATE_ADMIN_REGISTER)
@@ -350,13 +344,13 @@ def first_run_register():
         db.session.add(u)
         db.session.commit()
         logger.info(f"Primer usuario creado: {sanitize_log(username)}")
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('main.admin_login'))
     except Exception as e:
         logger.error(f"Error creando primer usuario: {e}")
         db.session.rollback()
         return render_template(TEMPLATE_ADMIN_REGISTER, error='Error creando usuario')
 
-@app.route('/admin/dashboard')
+@main_bp.route('/admin/dashboard')
 @admin_required
 def admin_dashboard():
     # Obtener candidatos y resultados desde la base de datos
@@ -377,7 +371,7 @@ def admin_dashboard():
     tema_activo = get_tema_activo() or "No seleccionado"
     return render_template(TEMPLATE_ADMIN_DASHBOARD, candidatos=candidatos_db, resultados=resultados_dict, tema_activo=tema_activo)
 
-@app.route('/admin/candidatos')
+@main_bp.route('/admin/candidatos')
 @admin_required
 @handle_errors
 def admin_candidatos():
@@ -388,7 +382,7 @@ def admin_candidatos():
         candidatos_list = []
         for candidato in candidatos_db:
             try:
-                url_eval = url_for('evaluacion', codigo=candidato.codigo, _external=True)
+                url_eval = url_for('main.evaluacion', codigo=candidato.codigo, _external=True)
             except Exception as e:
                 logger.warning(f"Error generando URL para candidato {candidato.codigo}: {e}")
                 url_eval = f"/evaluacion/{candidato.codigo}"
@@ -467,7 +461,7 @@ def _registrar_candidato_form(form):
         return render_template(TEMPLATE_ADMIN_DASHBOARD, error=error_msg)
             
     try:
-        registrar_candidato_simple(
+        candidato = registrar_candidato_simple(
             form.get('tipo_documento', '').strip(),
             numero_documento,
             form.get('nombre_completo', '').strip(),
@@ -475,12 +469,21 @@ def _registrar_candidato_form(form):
             form.get('cargo', '').strip(),
             form.get('tema', '').strip()
         )
-        return redirect(url_for('admin_candidatos'))
+        _guardar_candidato_db(
+            candidato,
+            form.get('tipo_documento', '').strip(),
+            numero_documento,
+            form.get('nombre_completo', '').strip(),
+            email,
+            form.get('cargo', '').strip(),
+            form.get('tema', '').strip()
+        )
+        return redirect(url_for('main.admin_dashboard'))
     except Exception as e:
         logger.error(f"Error registrando candidato (Form): {e}")
         return render_template(TEMPLATE_ADMIN_DASHBOARD, error="Error interno al registrar candidato")
 
-@app.route('/admin/registrar_candidato', methods=['POST'])
+@main_bp.route('/admin/registrar_candidato', methods=['POST'])
 @admin_required
 @handle_errors
 def registrar_candidato():
@@ -488,7 +491,7 @@ def registrar_candidato():
         return _registrar_candidato_json(request.get_json())
     return _registrar_candidato_form(request.form)
 
-@app.route('/admin/eliminar_candidato', methods=['POST'])
+@main_bp.route('/admin/eliminar_candidato', methods=['POST'])
 @admin_required
 @handle_errors
 def eliminar_candidato():
@@ -525,7 +528,7 @@ def eliminar_candidato():
         logger.error(f'Error inesperado en eliminar_candidato: {e}')
         return jsonify({'error': f'Error inesperado: {str(e)}'}), 500
 
-@app.route('/admin/actualizar_candidato', methods=['POST'])
+@main_bp.route('/admin/actualizar_candidato', methods=['POST'])
 @admin_required
 @handle_errors
 def actualizar_candidato():
@@ -585,7 +588,7 @@ def actualizar_candidato():
         db.session.rollback()
         return jsonify({'error': f'Error inesperado: {str(e)}'}), 500
 
-@app.route('/admin/eliminar_tema', methods=['POST'])
+@main_bp.route('/admin/eliminar_tema', methods=['POST'])
 @admin_required
 @handle_errors
 def eliminar_tema():
@@ -593,7 +596,7 @@ def eliminar_tema():
     archivo_excel = data.get('archivo_excel')
     if not archivo_excel:
         return jsonify({'success': False, 'error': 'Nombre de archivo requerido'}), 400
-    temas_dir = os.path.join(os.getcwd(), 'temas')
+    temas_dir = os.path.join(os.getcwd(), 'data', 'temas')
     ruta_excel = os.path.join(temas_dir, archivo_excel)
     if not os.path.exists(ruta_excel):
         return jsonify({'success': False, 'error': 'Archivo no encontrado'}), 404
@@ -603,7 +606,7 @@ def eliminar_tema():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/admin/subir_tema', methods=['POST'])
+@main_bp.route('/admin/subir_tema', methods=['POST'])
 @admin_required
 def subir_tema():
     if 'archivo_tema' not in request.files:
@@ -611,7 +614,7 @@ def subir_tema():
     archivo = request.files['archivo_tema']
     if archivo.filename == '':
         return jsonify({'error': 'Nombre de archivo vacío'}), 400
-    temas_dir = os.path.join(os.getcwd(), 'temas')
+    temas_dir = os.path.join(os.getcwd(), 'data', 'temas')
     if not os.path.exists(temas_dir):
         os.makedirs(temas_dir)
     ruta_destino = os.path.join(temas_dir, archivo.filename)
@@ -625,7 +628,7 @@ def subir_tema():
         PREGUNTAS.extend(preguntas_cargadas)
     return jsonify({'success': True, 'archivo': archivo.filename})
 
-@app.route('/admin/seleccionar_tema', methods=['POST'])
+@main_bp.route('/admin/seleccionar_tema', methods=['POST'])
 @admin_required
 def seleccionar_tema():
     data = request.form if not request.is_json else request.get_json()
@@ -635,7 +638,7 @@ def seleccionar_tema():
     config = {
         'archivo_excel': nombre_archivo
     }
-    with open('config_tema.json', 'w', encoding='utf-8') as f:
+    with open(os.path.join('config', 'config_tema.json'), 'w', encoding='utf-8') as f:
         json.dump(config, f, ensure_ascii=False, indent=2)
     # Recargar preguntas automáticamente
     global PREGUNTAS
@@ -644,9 +647,9 @@ def seleccionar_tema():
     PREGUNTAS.extend(preguntas_cargadas)
     return jsonify({'success': True, 'tema_activo': nombre_archivo})
 
-@app.route('/temas/', methods=['GET'])
+@main_bp.route('/temas/', methods=['GET'])
 def listar_archivos_temas():
-    temas_dir = os.path.join(os.getcwd(), 'temas')
+    temas_dir = os.path.join(os.getcwd(), 'data', 'temas')
     if not os.path.exists(temas_dir):
         return jsonify({'archivos': []})
     archivos = [f for f in os.listdir(temas_dir) if f.endswith('.xlsx') or f.endswith('.xls')]
@@ -654,7 +657,7 @@ def listar_archivos_temas():
 
 # ===== RUTAS DE EVALUACIÓN =====
 
-@app.route('/evaluacion/<codigo>')
+@main_bp.route('/evaluacion/<codigo>')
 @handle_errors
 def evaluacion(codigo):
     # Si el candidato no está en memoria, buscar en la base de datos y poblar el diccionario
@@ -681,7 +684,7 @@ def evaluacion(codigo):
         return make_response(render_template(TEMPLATE_ERROR, mensaje="Esta evaluación ya ha sido completada"), 403)
     return render_template('cuestionario.html', candidato=candidato)
 
-@app.route('/iniciar_evaluacion', methods=['POST'])
+@main_bp.route('/iniciar_evaluacion', methods=['POST'])
 @handle_errors
 def iniciar_evaluacion():
     data = request.get_json()
@@ -701,7 +704,7 @@ def iniciar_evaluacion():
     else:
         return jsonify({"error": message}), 400
 
-@app.route('/obtener_pregunta')
+@main_bp.route('/obtener_pregunta')
 @handle_errors
 def obtener_pregunta():
     pregunta, error = EvaluacionService.obtener_siguiente_pregunta()
@@ -730,7 +733,7 @@ def obtener_pregunta():
         "correctas_nivel": candidato_actual.get("correctas_nivel", 0)
     })
 
-@app.route('/responder', methods=['POST'])
+@main_bp.route('/responder', methods=['POST'])
 @handle_errors
 def responder():
     data = request.get_json()
@@ -740,7 +743,7 @@ def responder():
     response, status_code = EvaluacionService.procesar_respuesta(data)
     return jsonify(response), status_code
 
-@app.route('/estado_evaluacion')
+@main_bp.route('/estado_evaluacion')
 @handle_errors
 def estado_evaluacion():
     response, status_code = EvaluacionService.obtener_estado()
@@ -802,7 +805,7 @@ def _generar_y_subir_pdf(candidato_data):
         
     return pdf_path, drive_result
 
-@app.route('/generar_pdf_final', methods=['POST'])
+@main_bp.route('/generar_pdf_final', methods=['POST'])
 @handle_errors
 def generar_pdf_final():
     codigo = candidato_actual.get("datos_personales", {}).get("codigo")
@@ -856,34 +859,34 @@ def generar_pdf_final():
 
 # ===== RUTAS API =====
 
-@app.route('/api/configuracion')
+@main_bp.route('/api/configuracion')
 @handle_errors
 def api_configuracion():
     """API para obtener configuración de la evaluación"""
     return jsonify({
         "total_preguntas": Config.TOTAL_PREGUNTAS,
         "tema_activo": get_tema_activo(),
-        "archivos_temas": [f for f in os.listdir(os.path.join(os.getcwd(), 'temas')) if f.endswith('.xlsx') or f.endswith('.xls')]
+        "archivos_temas": [f for f in os.listdir(os.path.join(os.getcwd(), 'data', 'temas')) if f.endswith('.xlsx') or f.endswith('.xls')]
     })
 
-@app.route('/reporte')
+@main_bp.route('/reporte')
 @admin_required
 def reporte():
     return render_template('reporte.html', candidatos=candidatos_registrados.values())
 
-@app.route('/api/candidatos')
+@main_bp.route('/api/candidatos')
 @admin_required
 @handle_errors
 def api_candidatos():
     return jsonify(candidatos_registrados)
 
-@app.route('/api/preguntas')
+@main_bp.route('/api/preguntas')
 @admin_required
 @handle_errors
 def api_preguntas():
     return jsonify(PREGUNTAS)
 
-@app.route('/api/estadisticas')
+@main_bp.route('/api/estadisticas')
 @admin_required
 @handle_errors
 def api_estadisticas():
@@ -894,29 +897,29 @@ def api_estadisticas():
     })
 
 # ===== CONTEXT PROCESSORS =====
-@app.context_processor
+@main_bp.app_context_processor
 def inject_admin_email():
     return {'admin_email': Config.ADMIN_EMAIL or 'soporte@empresa.com'}
 
 # ===== MANEJO DE ERRORES =====
 
-@app.errorhandler(404)
+@main_bp.app_errorhandler(404)
 def pagina_no_encontrada(error):
     logger.warning("Página no encontrada: %s - %s", sanitize_log(request.url), sanitize_log(error))
     return make_response(render_template(TEMPLATE_ERROR, mensaje="Página no encontrada"), 404)
 
-@app.errorhandler(500)
+@main_bp.app_errorhandler(500)
 def error_interno_servidor(error):
     logger.error(f"Error interno del servidor: {sanitize_log(error)}")
     return render_template(TEMPLATE_ERROR, mensaje="Error interno del servidor"), 500
 
 # ===== MIDDLEWARES DE SEGURIDAD =====
-@app.after_request
+@main_bp.after_request
 def aplicar_seguridad(response):
     """Aplica headers de seguridad HTTP a todas las respuestas"""
     return aplicar_headers_seguridad(response)
 
-@app.before_request
+@main_bp.before_request
 def verificar_expiracion_token():
     """Verifica si el token está próximo a expirar y notifica al cliente"""
     if 'admin_logged_in' in session and 'token_expires_at' in session:
@@ -935,53 +938,3 @@ def verificar_expiracion_token():
                 
         except Exception as e:
             logger.error(f"Error verificando expiración de token: {e}")
-
-def inicializar_sistema():
-    """Inicializa el sistema de evaluación"""
-    logger.info("🚀 Iniciando sistema de evaluación...")
-    logger.info(f"📊 Configurado para {Config.TOTAL_PREGUNTAS} preguntas")
-    
-    global PREGUNTAS
-    preguntas_cargadas = cargar_preguntas_desde_excel()
-    PREGUNTAS.clear()
-    PREGUNTAS.extend(preguntas_cargadas)
-    
-    if PREGUNTAS:
-        logger.info(f"✅ Sistema listo con {len(PREGUNTAS)} preguntas cargadas")
-        return True
-    else:
-        logger.error(f"❌ Error: No se pudieron cargar las preguntas. Verificar archivo '{Config.ARCHIVO_EXCEL}'")
-        return False
-
-if __name__ == "__main__":
-    # Crear las tablas en la base de datos PostgreSQL si no existen
-    with app.app_context():
-        # Verificar/migrar esquema simple de recovery_tokens si quedó antiguo
-        try:
-            from sqlalchemy import inspect, text
-            inspector = inspect(db.engine)
-            tables = inspector.get_table_names()
-            if 'recovery_tokens' in tables:
-                cols = [col['name'] for col in inspector.get_columns('recovery_tokens')]
-                # Si encontramos 'username' y no 'user_id', dropeamos la tabla para recrearla correctamente
-                if ('username' in cols) and ('user_id' not in cols):
-                    logger.warning("Esquema antiguo de recovery_tokens detectado. Eliminando tabla para recrear correctamente...")
-                    with db.engine.begin() as conn:
-                        conn.execute(text('DROP TABLE recovery_tokens'))
-                    logger.info("Tabla recovery_tokens eliminada. Será recreada por create_all().")
-        except Exception as e:
-            logger.error(f"Error verificando esquema de recovery_tokens: {e}")
-        db.create_all()
-        # Asignar email al usuario admin por solicitud
-        seed_or_update_admin_user('julian_castellanosd@soy.sena.edu.co')
-    if inicializar_sistema():
-        logger.info("\n🚀 SERVIDOR INICIADO")
-        logger.info("=" * 50)
-        logger.info(f"📊 Configuración actual: {Config.TOTAL_PREGUNTAS} preguntas máximo")
-        logger.info(f"Admin: http://localhost:{Config.PORT}/admin/login")
-        logger.info(f"Usuario/Pass: {Config.ADMIN_USER} / {Config.ADMIN_PASS}")
-        logger.info("=" * 50)
-        
-        app.run(debug=Config.DEBUG, port=Config.PORT, host='0.0.0.0')
-    else:
-        logger.error("No se pudo iniciar el sistema debido a errores en la carga de preguntas")

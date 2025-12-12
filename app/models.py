@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
-from extensions import db
-from security import SecurityManager
+from .extensions import db
+from .security import SecurityManager
 
 def get_utc_now():
     return datetime.now(timezone.utc).replace(tzinfo=None)

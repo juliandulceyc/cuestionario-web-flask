@@ -15,7 +15,7 @@ class PDFGenerator:
     """Generador especializado de reportes PDF para evaluaciones"""
     
     def __init__(self):
-        self.output_dir = "reportes_pdf"
+        self.output_dir = os.path.join("data", "reportes_pdf")
         self._ensure_output_dir()
     
     def _ensure_output_dir(self):

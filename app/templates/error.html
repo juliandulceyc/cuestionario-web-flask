@@ -16,7 +16,7 @@
         <p class="error-message">
             {{ mensaje or 'La página que buscas no existe o no está disponible.' }}
         </p>
-        <a href="/admin/login" class="back-btn">🏠 Ir al Inicio</a>
+        <a href="{{ url_for('main.admin_login') }}" class="back-btn">🏠 Ir al Inicio</a>
         <div class="error-footer">
             ¿Necesitas ayuda? <a href="mailto:{{ admin_email }}">Contacta al administrador</a>
         </div>
