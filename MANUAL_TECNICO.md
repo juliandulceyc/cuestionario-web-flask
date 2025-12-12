@@ -3,242 +3,224 @@
 ## 1. Introducción
 
 ### 1.1 Propósito
-El Sistema de Evaluación de Candidatos es una aplicación web diseñada para administrar y realizar pruebas técnicas o de conocimientos a candidatos. Permite a los administradores gestionar el banco de preguntas, registrar candidatos y visualizar resultados, mientras que los candidatos pueden realizar las evaluaciones en un entorno controlado. El sistema genera reportes automáticos en PDF y los almacena en Google Drive.
+El Sistema de Evaluación de Candidatos es una plataforma web integral diseñada para administrar, ejecutar y calificar pruebas técnicas o psicotécnicas. Su objetivo es simplificar el proceso de selección de personal mediante la automatización de cuestionarios, calificación instantánea y generación de reportes detallados.
 
-### 1.2 Alcance
-La aplicación cubre el ciclo completo de evaluación:
-- Autenticación y gestión de administradores con protección contra fuerza bruta (Rate Limiting).
-- Gestión de bancos de preguntas y temas vía interfaz Web o carga desde Excel.
-- Registro y validación de candidatos.
-- Presentación de cuestionarios con lógica de niveles y tiempos.
-- Recuperación automática de sesión ante cierres inesperados.
-- Calificación automática.
-- Generación de reportes en PDF.
-- Envío de notificaciones por correo electrónico.
-- Respaldo de reportes en la nube (Google Drive).
+### 1.2 Alcance y Funcionalidades
+La aplicación cubre el ciclo completo de evaluación con las siguientes características avanzadas:
+- **Gestión de Usuarios**: Autenticación segura para administradores con protección contra ataques de fuerza bruta (Rate Limiting).
+- **Bancos de Preguntas Híbridos**: Soporte para cargar preguntas desde archivos Excel o gestionarlas directamente desde una interfaz web (CRUD de Temas y Preguntas).
+- **Evaluación Robusta**:
+    - Lógica de niveles de dificultad.
+    - Temporizador y control de tiempo.
+    - **Recuperación de Sesión**: Si el navegador se cierra o recarga, el candidato puede retomar la prueba exactamente donde la dejó.
+- **Registro de Candidatos**: Formulario de registro con validación de duplicados.
+- **Reportes Automáticos**: Generación de PDFs con resultados detallados y almacenamiento automático en Google Drive.
+- **Notificaciones**: Envío de correos electrónicos con resultados o enlaces de recuperación de contraseña.
 
 ### 1.3 Tecnologías Utilizadas
-- **Lenguaje Principal**: Python 3.x
-- **Framework Web**: Flask
-- **Base de Datos**: SQLite (por defecto), compatible con PostgreSQL/MySQL vía SQLAlchemy.
-- **ORM**: Flask-SQLAlchemy
-- **Frontend**: HTML5, CSS3, JavaScript (Vanilla), Jinja2 Templates.
-- **Generación de PDF**: ReportLab
-- **Integración Cloud**: Google Drive API v3
-- **Procesamiento de Datos**: Pandas, OpenPyXL
-- **Seguridad**: BCrypt, PyJWT
+- **Backend**: Python 3.10+, Flask, SQLAlchemy (ORM), Flask-Limiter.
+- **Base de Datos**: SQLite (por defecto, autoconfigurable), compatible con PostgreSQL/MySQL.
+- **Frontend**: HTML5, TailwindCSS, JavaScript (Vanilla), Jinja2.
+- **Integraciones**: Google Drive API v3, SMTP (Email).
+- **Seguridad**: BCrypt (Hashing), PyJWT (Tokens), Rate Limiting.
 
 ---
 
-## 2. Arquitectura del Sistema
+## 2. Instalación y Configuración (Cualquier Entorno)
 
-### 2.1 Estructura de Directorios
-```
-appCuestionario/
-├── app/                        # Código fuente de la aplicación
-│   ├── __init__.py             # Fábrica de la aplicación (App Factory)
-│   ├── routes.py               # Rutas y controladores (Blueprint)
-│   ├── models.py               # Modelos de base de datos
-│   ├── services.py             # Lógica de negocio
-│   ├── utils.py                # Utilidades
-│   ├── config.py               # Configuración
-│   ├── security.py             # Seguridad y autenticación
-│   ├── extensions.py           # Extensiones (DB, etc.)
-│   ├── shared.py               # Variables compartidas
-│   ├── drive_integration.py    # Integración con Google Drive
-│   ├── pdf_generator.py        # Generador de PDFs
-│   ├── static/                 # Archivos estáticos (CSS, JS)
-│   └── templates/              # Plantillas HTML
-├── config/                     # Archivos de configuración y credenciales
-│   ├── client_credentials.json
-│   ├── token.json
-│   └── config_tema.json
-├── data/                       # Datos generados y almacenamiento
-│   ├── instance/               # Base de datos SQLite
-│   ├── reportes_pdf/           # PDFs generados
-│   ├── states/                 # Estados temporales de evaluación
-│   └── temas/                  # Archivos Excel de preguntas
-├── run.py                      # Punto de entrada para ejecutar la app
-├── requirements.txt            # Dependencias
-└── MANUAL_TECNICO.md           # Documentación técnica
+Esta guía asegura que la aplicación funcione en Windows, macOS o Linux.
+
+### 2.1 Requisitos Previos
+- **Python 3.10** o superior instalado.
+- **Git** (opcional, para clonar el repositorio).
+- Acceso a internet para instalar dependencias.
+
+### 2.2 Paso a Paso
+
+#### 1. Obtener el Código
+Clone el repositorio o descargue y descomprima el archivo ZIP del proyecto.
+```bash
+git clone <url-del-repositorio>
+cd appCuestionario
 ```
 
-### 2.2 Flujo de Datos
-1.  **Carga de Datos**: Al iniciar, el sistema carga las preguntas desde un archivo Excel configurado en `data/temas/`.
-2.  **Interacción Usuario**: Las peticiones HTTP son manejadas por `app/routes.py`, que delega la lógica a `services.py` o `security.py`.
-3.  **Persistencia**: Los datos transaccionales se guardan en la base de datos SQL (`data/instance/`). El estado temporal de una evaluación en curso se guarda en archivos JSON en `data/states/` para recuperación ante fallos.
-4.  **Salida**: Al finalizar una evaluación, se genera un PDF (`pdf_generator.py`), se envía por correo (`utils.py`) y se sube a Drive (`drive_integration.py`).
+#### 2. Crear un Entorno Virtual
+Es crucial usar un entorno virtual para aislar las dependencias.
 
----
+*   **Windows**:
+    ```powershell
+    python -m venv venv
+    .\venv\Scripts\activate
+    ```
+*   **macOS / Linux**:
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate
+    ```
 
-## 3. Base de Datos
+#### 3. Instalar Dependencias
+Ejecute el siguiente comando para instalar todas las librerías necesarias:
+```bash
+pip install -r requirements.txt
+```
 
-El sistema utiliza **SQLAlchemy** como ORM. El esquema relacional consta de las siguientes tablas:
-
-### 3.1 Modelos (`models.py`)
-
-#### `UserDB` (Administradores)
-- `id`: Identificador único.
-- `username`: Nombre de usuario.
-- `email`: Correo electrónico.
-- `password_hash`: Hash de la contraseña (BCrypt).
-- `role`: Rol del usuario (ej. 'admin').
-
-#### `CandidatoDB`
-- `id`: Identificador único.
-- `codigo`: Código único de acceso a la prueba.
-- `nombre_completo`: Nombre del candidato.
-- `email`: Correo de contacto.
-- `evaluacion_completada`: Booleano de estado.
-- `puntos_finales`: Calificación obtenida.
-- `nivel_final`: Nivel alcanzado en la prueba.
-- `resultados`: Relación 1:N con `ResultadoDB`.
-
-#### `ResultadoDB`
-- `id`: Identificador único.
-- `candidato_id`: Clave foránea a `CandidatoDB`.
-- `correctas`: Número de respuestas correctas.
-- `total`: Total de preguntas.
-- `porcentaje`: Porcentaje de acierto.
-- `tema`: Tema de la evaluación.
-
-#### `TemaDB`
-- `id`: Identificador único.
-- `nombre`: Nombre del banco de preguntas.
-- `descripcion`: Descripción opcional.
-
-#### `PreguntaDB`
-- `id`: Identificador único.
-- `tema_id`: Clave foránea a `TemaDB`.
-- `texto`: Enunciado de la pregunta.
-- `opciones`: Lista de opciones (JSON).
-- `respuesta_correcta`: Opción correcta (ej. "A").
-- `nivel`: Nivel de dificultad (1-5).
-
-#### `RecoveryToken`
-- `token`: Token único para recuperación de contraseña.
-- `expires_at`: Fecha de expiración.
-- `used`: Estado del token.
-
----
-
-## 4. Componentes del Backend
-
-### 4.1 `run.py` y `app/routes.py`
-- **`run.py`**: Punto de entrada. Inicializa la aplicación, crea las tablas de base de datos y arranca el servidor.
-- **`app/routes.py`**: Define las rutas URL (Blueprint), configura el logging y gestiona el ciclo de vida de las peticiones. Implementa decoradores como `@admin_required` y `@limiter.limit` para protección de rutas.
-
-### 4.2 `app/services.py`
-Contiene la lógica core de la evaluación:
-- **`EvaluadorRespuestas`**: Evalúa respuestas simples y múltiples.
-- **`EvaluacionService`**: Gestiona el estado de la evaluación (guardar/cargar progreso en `data/states/`), verifica avance de nivel y terminación temprana. Implementa la lógica de recuperación de sesión.
-
-### 4.3 `app/drive_integration.py`
-Maneja la autenticación OAuth2 con Google y la subida de archivos.
-- Requiere `config/client_credentials.json` y genera `config/token.json`.
-- Sube los PDFs a una carpeta específica definida por `DRIVE_FOLDER_ID`.
-
-### 4.4 `app/pdf_generator.py`
-Utiliza `ReportLab` para crear documentos PDF dinámicos.
-- Genera encabezados con datos del candidato.
-- Crea tablas de resultados.
-- Guarda el archivo localmente en `data/reportes_pdf/` antes de la subida.
-
-### 4.5 `app/utils.py`
-- **Email**: Envío de correos SMTP (`smtplib`).
-- **Excel**: Lectura y parseo de preguntas usando `pandas`.
-- **Logging**: Configuración centralizada de logs.
-
----
-
-## 5. Frontend
-
-El frontend es renderizado desde el servidor (Server-Side Rendering) usando **Jinja2**.
-
-### 5.1 Templates Principales
-- `admin_dashboard.html`: Panel de control para administradores.
-- `admin_temas.html`: Gestión de bancos de preguntas.
-- `admin_preguntas.html`: Editor de preguntas para un tema específico.
-- `cuestionario.html`: Interfaz de la evaluación para el candidato. Maneja la lógica de presentación de preguntas y temporizador vía JavaScript.
-- `admin_login.html`: Formulario de acceso.
-
-### 5.2 Archivos Estáticos (`static/`)
-- **CSS**: Estilos modulares (`admin-dashboard.css`, `cuestionario.css`, `theme.css`).
-- **JS**: Lógica del lado del cliente.
-    - `cuestionario.js`: Maneja la interacción en la prueba, envío de respuestas AJAX y control de tiempo.
-    - `admin-panel.js`: Funcionalidades del dashboard.
-
----
-
-## 6. Configuración e Instalación
-
-### 6.1 Requisitos Previos
-- Python 3.10 o superior.
-- Cuenta de Google Cloud Platform (para API de Drive).
-- Servidor SMTP (para correos).
-
-### 6.2 Variables de Entorno (`.env`)
-Crear un archivo `.env` en la raíz con las siguientes variables:
+#### 4. Configurar Variables de Entorno
+Cree un archivo llamado `.env` en la raíz del proyecto (puede copiar el ejemplo si existe). Configure las siguientes variables clave:
 
 ```env
-SECRET_KEY=tu_clave_secreta_segura
-FLASK_DEBUG=True
-PORT=5000
-# DATABASE_URL es opcional para SQLite (por defecto usa data/instance/evaluacion.db)
-# DATABASE_URL=sqlite:///data/instance/evaluacion.db
+# Seguridad
+SECRET_KEY=cambiar_por_una_clave_muy_segura_y_larga
+FLASK_DEBUG=False  # Poner en True solo para desarrollo
 
-# Credenciales Admin Iniciales
-# Si se cambia ADMIN_PASS aquí, se actualizará automáticamente en la BD al reiniciar
+# Servidor
+PORT=5000
+
+# Base de Datos (Opcional, por defecto usa SQLite local)
+# DATABASE_URL=postgresql://user:pass@localhost/dbname
+
+# Credenciales Admin Iniciales (Se crean al primer inicio)
 ADMIN_USER=admin
 ADMIN_PASS=12345678
 ADMIN_EMAIL=admin@empresa.com
 
-# Configuración SMTP
+# Configuración SMTP (Correo)
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
 EMAIL_USER=tu_email@gmail.com
 EMAIL_PASSWORD=tu_app_password
 EMAIL_FROM=no-reply@empresa.com
-
-# Firma de Correos
-SIGN_NAME=Nombre Admin
-SIGN_TITLE=Cargo
 ```
 
-### 6.3 Archivos de Credenciales
-- **`config/client_credentials.json`**: Descargar desde Google Cloud Console (OAuth 2.0 Client ID) y colocar en la carpeta `config/`.
-
-### 6.4 Instalación
-1. Crear entorno virtual: `python -m venv venv`
-2. Activar entorno: `venv\Scripts\activate` (Windows)
-3. Instalar dependencias: `pip install -r requirements.txt`
-4. Ejecutar aplicación: `python run.py` (Esto inicializará la base de datos y creará las carpetas necesarias).
+#### 5. Configuración de Google Drive (Opcional)
+Para que funcione la subida automática a Drive:
+1.  Obtenga el archivo `client_credentials.json` de su proyecto en Google Cloud Console (OAuth 2.0 Client ID).
+2.  Colóquelo en la carpeta `config/`.
+3.  Al primer uso, el sistema pedirá autenticación y generará `config/token.json`.
 
 ---
 
-## 7. Seguridad
+## 3. Base de Datos
 
-- **Autenticación**: Sesiones de Flask firmadas para admins. Tokens de acceso único para candidatos.
-- **Contraseñas**: Hashing con `bcrypt`.
-- **Protección CSRF**: Implementada en formularios críticos.
-- **Headers**: Se aplican cabeceras de seguridad HTTP (HSTS, X-Frame-Options, etc.) en `security.py`.
-- **Sanitización**: Limpieza de logs para evitar inyección de caracteres de control.
+El sistema utiliza **SQLAlchemy** como ORM, lo que abstrae el motor de base de datos subyacente.
+
+### 3.1 Inicialización Automática
+**No es necesario ejecutar scripts SQL manualmente.**
+Al ejecutar la aplicación por primera vez (`python run.py`), el sistema detecta si la base de datos existe. Si no, crea automáticamente todas las tablas necesarias en `data/instance/evaluacion.db` (para SQLite).
+
+### 3.2 Esquema Relacional
+A continuación se describe la estructura de datos que el sistema genera:
+
+#### Tabla: `users` (Administradores)
+| Columna | Tipo | Descripción |
+|---------|------|-------------|
+| id | Integer (PK) | Identificador único |
+| username | String | Nombre de usuario (único) |
+| email | String | Correo electrónico (único) |
+| password_hash | String | Hash seguro de la contraseña |
+| role | String | Rol (ej. 'admin') |
+| is_active | Boolean | Estado de la cuenta |
+
+#### Tabla: `temas` (Bancos de Preguntas)
+| Columna | Tipo | Descripción |
+|---------|------|-------------|
+| id | Integer (PK) | Identificador único |
+| nombre | String | Nombre del banco (único) |
+| descripcion | String | Descripción opcional |
+| activo | Boolean | Si está disponible para uso |
+
+#### Tabla: `preguntas`
+| Columna | Tipo | Descripción |
+|---------|------|-------------|
+| id | Integer (PK) | Identificador único |
+| tema_id | Integer (FK) | Relación con `temas` |
+| texto | Text | Enunciado de la pregunta |
+| opciones | JSON | Lista de opciones ["A) ...", "B) ..."] |
+| respuesta_correcta | String | Letra correcta (ej. "A") |
+| nivel | Integer | Dificultad (1-5) |
+| multiple | Boolean | Si permite múltiples respuestas |
+
+#### Tabla: `candidatos`
+| Columna | Tipo | Descripción |
+|---------|------|-------------|
+| id | Integer (PK) | Identificador único |
+| codigo | String | Código de acceso único |
+| nombre_completo | String | Nombre del candidato |
+| email | String | Correo electrónico |
+| evaluacion_completada | Boolean | Estado de la prueba |
+| nivel_final | Integer | Nivel alcanzado |
+| tema | String | Tema asignado |
+
+#### Tabla: `resultados`
+| Columna | Tipo | Descripción |
+|---------|------|-------------|
+| id | Integer (PK) | Identificador único |
+| candidato_id | Integer (FK) | Relación con `candidatos` |
+| correctas | Integer | Cantidad de aciertos |
+| total | Integer | Total de preguntas |
+| porcentaje | Float | Rendimiento (0-100) |
 
 ---
 
-## 8. Mantenimiento y Solución de Problemas
+## 4. Ejecución y Uso
 
-### 8.1 Logs
-El sistema escribe logs detallados en `evaluacion_system.log`. Revisar este archivo ante errores 500.
+### 4.1 Iniciar el Servidor
+Desde la terminal, en la raíz del proyecto y con el entorno virtual activado:
 
-### 8.2 Actualización de Preguntas
-1. Modificar el archivo Excel configurado (ej. `Evaluación FWS PAN V2.xlsx`).
-2. Asegurar que las columnas coincidan con lo esperado por `utils.py` (Pregunta, A, B, C, D, Respuesta Correcta, Nivel, Tema).
-3. Reiniciar la aplicación o recargar la configuración desde el panel admin (si está implementado).
+```bash
+python run.py
+```
 
-### 8.3 Errores Comunes
-- **Error de Google Drive**: Si el token expira o es revocado, borrar `config/token.json` y volver a autenticar al iniciar la app.
-- **Error de SMTP**: Verificar que la contraseña de aplicación (App Password) sea correcta y que el puerto 587 esté habilitado.
-- **Permisos de Escritura**: Asegurar que la aplicación tenga permisos de escritura en la carpeta `data/` y sus subcarpetas (`instance/`, `reportes_pdf/`, `states/`).
-- **Login Loop / Sesión Inválida**: Si no se puede iniciar sesión, verificar que `SECRET_KEY` esté configurada en `.env`. Si cambia la clave, las sesiones antiguas se invalidarán.
-- **Candidatos no aparecen**: Verificar que la base de datos `data/instance/evaluacion.db` tenga permisos de escritura. El sistema guarda automáticamente los registros en esta ubicación.
+Verá logs indicando que el sistema se ha iniciado, la configuración de preguntas cargada y la dirección de acceso (usualmente `http://localhost:5000`).
+
+### 4.2 Acceso al Sistema
+1.  Abra su navegador web.
+2.  Vaya a `http://localhost:5000/admin/login`.
+3.  Ingrese con las credenciales configuradas en `.env` (Default: `admin` / `12345678`).
+
+### 4.3 Flujo de Trabajo Típico
+1.  **Preparar Preguntas**:
+    *   *Opción A (Web)*: Ir a "Bancos" -> "Crear Tema" -> Agregar preguntas manualmente.
+    *   *Opción B (Excel)*: Colocar un archivo `.xlsx` en `data/temas/` y seleccionarlo desde el Dashboard.
+2.  **Registrar Candidato**: En el Dashboard, llenar el formulario de registro.
+3.  **Realizar Prueba**: El candidato accede con su número de documento (o enlace generado).
+4.  **Ver Resultados**: Al finalizar, el admin puede ver los resultados en el Dashboard y descargar el PDF.
+
+---
+
+## 5. Mantenimiento y Solución de Problemas
+
+### 5.1 Logs del Sistema
+El archivo `evaluacion_system.log` contiene información detallada de errores y eventos. Revíselo si algo falla.
+
+### 5.2 Problemas Comunes
+
+*   **Error "ModuleNotFoundError"**: Asegúrese de haber activado el entorno virtual y ejecutado `pip install -r requirements.txt`.
+*   **Error de Base de Datos / Migraciones**: Si cambia la estructura de los modelos y la base de datos ya existe, puede haber conflictos.
+    *   *Solución Rápida (Desarrollo)*: Borre el archivo `data/instance/evaluacion.db` y reinicie la aplicación. Se creará una nueva DB limpia.
+*   **Rate Limiting (429 Too Many Requests)**: Si se bloquea por muchos intentos de login fallidos, espere 1 minuto antes de intentar nuevamente.
+*   **Google Drive Falla**: Verifique que `config/token.json` sea válido. Si duda, bórrelo para re-autenticar.
+
+### 5.3 Respaldo
+Para respaldar la información, copie regularmente la carpeta `data/`. Esta contiene:
+- La base de datos (`instance/`).
+- Los reportes generados (`reportes_pdf/`).
+- Los archivos de temas (`temas/`).
+
+---
+
+## 6. Estructura del Proyecto
+
+```
+appCuestionario/
+├── app/                        # Núcleo de la aplicación
+│   ├── models.py               # Definición de tablas (BD)
+│   ├── routes.py               # Controladores y rutas Web
+│   ├── services.py             # Lógica de negocio (Evaluación)
+│   ├── templates/              # Vistas HTML
+│   └── static/                 # CSS y JS
+├── config/                     # Archivos de configuración
+├── data/                       # Almacenamiento de datos
+├── run.py                      # Script de inicio
+├── requirements.txt            # Lista de dependencias
+└── MANUAL_TECNICO.md           # Esta documentación
+```

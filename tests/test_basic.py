@@ -1,7 +1,15 @@
 import pytest
-from app import app
+from app import create_app
 
-def test_app_creation():
+@pytest.fixture
+def app():
+    app = create_app()
+    app.config.update({
+        "TESTING": True,
+    })
+    return app
+
+def test_app_creation(app):
     """Prueba básica para verificar que la aplicación se crea correctamente"""
     assert app is not None
-    assert app.config['TESTING'] is False  # Por defecto no es testing a menos que se configure
+    assert app.config['TESTING'] is True
