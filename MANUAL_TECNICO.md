@@ -224,3 +224,31 @@ appCuestionario/
 ├── requirements.txt            # Lista de dependencias
 └── MANUAL_TECNICO.md           # Esta documentación
 ```
+
+---
+
+## 7. Pruebas y Calidad de Código
+
+El proyecto incluye una suite de pruebas automatizadas utilizando `pytest` para garantizar la estabilidad del sistema.
+
+### 7.1 Ejecutar Pruebas
+Para correr las pruebas unitarias y de integración, ejecute el siguiente comando desde la raíz del proyecto (con el entorno virtual activo):
+
+```bash
+python -m pytest
+```
+
+Esto ejecutará todos los tests ubicados en la carpeta `tests/` y mostrará un reporte de éxito o fallo.
+
+### 7.2 Cobertura de Código (Coverage)
+Si desea ver qué porcentaje del código está cubierto por las pruebas, puede usar `coverage`:
+
+```bash
+pip install coverage
+coverage run -m pytest
+coverage report -m
+```
+
+### 7.3 Análisis Estático (SonarCloud)
+El proyecto está configurado con GitHub Actions para ejecutar un análisis de calidad en SonarCloud cada vez que se hace un push a la rama `master`. El archivo de configuración se encuentra en `.github/workflows/sonarcloud.yml`.
+
