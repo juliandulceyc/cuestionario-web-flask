@@ -38,8 +38,8 @@ TEMPLATE_ERROR = 'error.html'
 
 # Importar módulos refactorizados
 from .config import Config
-from .extensions import db
-from .models import UserDB, CandidatoDB, ResultadoDB, RecoveryToken
+from .extensions import db, limiter
+from .models import UserDB, CandidatoDB, ResultadoDB, RecoveryToken, TemaDB, PreguntaDB
 from .shared import candidatos_registrados, candidato_actual, PREGUNTAS
 from .utils import (
     setup_logging, 
@@ -110,6 +110,7 @@ def admin_login():
     return render_template(TEMPLATE_ADMIN_LOGIN)
 
 @main_bp.route('/admin/authenticate', methods=['POST'])
+@limiter.limit("5 per minute")
 @handle_errors
 def admin_authenticate():
     username = request.form.get('username')
@@ -895,6 +896,68 @@ def api_estadisticas():
         "total_preguntas": len(PREGUNTAS),
         "niveles_disponibles": [1, 2, 3, 4, 5]
     })
+
+# ===== GESTIÓN DE TEMAS Y PREGUNTAS =====
+
+@main_bp.route('/admin/temas')
+@admin_required
+def admin_temas():
+    temas = TemaDB.query.all()
+    return render_template('admin_temas.html', temas=temas)
+
+@main_bp.route('/admin/temas/crear', methods=['POST'])
+@admin_required
+def crear_tema():
+    nombre = request.form.get('nombre')
+    descripcion = request.form.get('descripcion')
+    if nombre:
+        nuevo_tema = TemaDB(nombre=nombre, descripcion=descripcion)
+        db.session.add(nuevo_tema)
+        db.session.commit()
+    return redirect(url_for('main.admin_temas'))
+
+@main_bp.route('/admin/temas/<int:tema_id>/preguntas')
+@admin_required
+def ver_preguntas(tema_id):
+    tema = TemaDB.query.get_or_404(tema_id)
+    preguntas = PreguntaDB.query.filter_by(tema_id=tema_id).all()
+    return render_template('admin_preguntas.html', tema=tema, preguntas=preguntas)
+
+@main_bp.route('/admin/temas/<int:tema_id>/preguntas/crear', methods=['POST'])
+@admin_required
+def crear_pregunta(tema_id):
+    texto = request.form.get('texto')
+    opciones = [
+        request.form.get('opcion_a'),
+        request.form.get('opcion_b'),
+        request.form.get('opcion_c'),
+        request.form.get('opcion_d')
+    ]
+    # Filtrar opciones vacías
+    opciones = [opt for opt in opciones if opt]
+    
+    respuesta_correcta = request.form.get('respuesta_correcta')
+    nivel = int(request.form.get('nivel', 1))
+    
+    nueva_pregunta = PreguntaDB(
+        tema_id=tema_id,
+        texto=texto,
+        opciones=opciones,
+        respuesta_correcta=respuesta_correcta,
+        nivel=nivel
+    )
+    db.session.add(nueva_pregunta)
+    db.session.commit()
+    return redirect(url_for('main.ver_preguntas', tema_id=tema_id))
+
+@main_bp.route('/admin/preguntas/<int:pregunta_id>/eliminar', methods=['POST'])
+@admin_required
+def eliminar_pregunta(pregunta_id):
+    pregunta = PreguntaDB.query.get_or_404(pregunta_id)
+    tema_id = pregunta.tema_id
+    db.session.delete(pregunta)
+    db.session.commit()
+    return redirect(url_for('main.ver_preguntas', tema_id=tema_id))
 
 # ===== CONTEXT PROCESSORS =====
 @main_bp.app_context_processor

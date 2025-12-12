@@ -36,6 +36,29 @@ class CandidatoDB(db.Model):
     tema = db.Column(db.String(120))
     resultados = db.relationship('ResultadoDB', backref='candidato', cascade='all, delete-orphan', lazy=True)
 
+# Modelo de Tema (Banco de Preguntas)
+class TemaDB(db.Model):
+    __tablename__ = 'temas'
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(120), unique=True, nullable=False)
+    descripcion = db.Column(db.String(255))
+    activo = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=get_utc_now)
+    preguntas = db.relationship('PreguntaDB', backref='tema', cascade='all, delete-orphan', lazy=True)
+
+# Modelo de Pregunta
+class PreguntaDB(db.Model):
+    __tablename__ = 'preguntas'
+    id = db.Column(db.Integer, primary_key=True)
+    tema_id = db.Column(db.Integer, db.ForeignKey('temas.id'), nullable=False)
+    texto = db.Column(db.Text, nullable=False)
+    opciones = db.Column(db.JSON, nullable=False)  # Lista de opciones ["A) ...", "B) ..."]
+    respuesta_correcta = db.Column(db.String(10), nullable=False)  # "A", "B", etc.
+    nivel = db.Column(db.Integer, default=1)
+    multiple = db.Column(db.Boolean, default=False)
+    respuestas_correctas = db.Column(db.JSON)  # Lista ["A", "C"] si es multiple
+    created_at = db.Column(db.DateTime, default=get_utc_now)
+
 # Modelo de Resultado
 class ResultadoDB(db.Model):
     __tablename__ = 'resultados'

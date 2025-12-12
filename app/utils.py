@@ -12,7 +12,7 @@ from typing import List, Dict, Any, Tuple, Optional
 from .config import Config
 from .shared import PREGUNTAS, candidatos_registrados, candidato_actual
 from .extensions import db
-from .models import UserDB, CandidatoDB, ResultadoDB
+from .models import UserDB, CandidatoDB, ResultadoDB, TemaDB, PreguntaDB
 from .security import SecurityManager
 
 logger = logging.getLogger(__name__)
@@ -107,6 +107,31 @@ def cargar_preguntas_desde_excel():
     archivo_excel = get_tema_activo()
     if not archivo_excel:
         return []
+
+    # 1. Intentar cargar desde Base de Datos
+    try:
+        tema_db = TemaDB.query.filter_by(nombre=archivo_excel).first()
+        if tema_db:
+            preguntas_db = PreguntaDB.query.filter_by(tema_id=tema_db.id).all()
+            if preguntas_db:
+                preguntas = []
+                for p in preguntas_db:
+                    preguntas.append({
+                        'id': p.id,
+                        'pregunta': p.texto,
+                        'opciones': p.opciones, # Ya es una lista JSON
+                        'respuesta_correcta': p.respuesta_correcta,
+                        'respuestas_correctas': [p.respuesta_correcta], # Adaptar a formato lista
+                        'nivel': p.nivel,
+                        'categoria': 'General',
+                        'multiple': False # Por ahora simple
+                    })
+                logger.info(f"Cargadas {len(preguntas)} preguntas desde DB para tema '{archivo_excel}'")
+                return preguntas
+    except Exception as e:
+        logger.error(f"Error cargando desde DB: {e}")
+
+    # 2. Fallback a Excel
     temas_dir = os.path.join(os.getcwd(), 'data', 'temas')
     ruta_excel = os.path.join(temas_dir, archivo_excel)
     if not os.path.exists(ruta_excel):

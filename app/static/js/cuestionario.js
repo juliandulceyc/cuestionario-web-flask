@@ -70,6 +70,45 @@ const UI = {
 };
 
 // ==========================================
+// Gestión de Sesión Local (Recuperación)
+// ==========================================
+
+const SessionManager = {
+    KEY: 'evaluacion_state',
+    
+    save: () => {
+        if (!State.preguntaActual) return;
+        const sessionData = {
+            candidateData: State.candidateData,
+            preguntaActual: State.preguntaActual,
+            respuestasSeleccionadas: State.respuestasSeleccionadas,
+            timestamp: Date.now()
+        };
+        localStorage.setItem(SessionManager.KEY, JSON.stringify(sessionData));
+    },
+    
+    load: () => {
+        const data = localStorage.getItem(SessionManager.KEY);
+        if (!data) return null;
+        try {
+            const parsed = JSON.parse(data);
+            // Validar expiración (ej. 2 horas)
+            if (Date.now() - parsed.timestamp > 2 * 60 * 60 * 1000) {
+                localStorage.removeItem(SessionManager.KEY);
+                return null;
+            }
+            return parsed;
+        } catch (e) {
+            return null;
+        }
+    },
+    
+    clear: () => {
+        localStorage.removeItem(SessionManager.KEY);
+    }
+};
+
+// ==========================================
 // Lógica de Negocio
 // ==========================================
 
@@ -242,6 +281,9 @@ function mostrarPregunta(data) {
     }
     
     UI.announceToScreenReader(`Pregunta ${data.pregunta_numero} cargada`);
+    
+    // Guardar estado
+    SessionManager.save();
 }
 
 function mostrarOpciones(opciones, esMultiple) {
@@ -280,6 +322,7 @@ function seleccionarOpcion(index, elemento, esMultiple) {
     }
     
     updateAnswerButtonState(esMultiple);
+    SessionManager.save();
 }
 
 function handleMultipleSelection(elemento, letra, isSelected) {
@@ -454,6 +497,14 @@ function mostrarEvaluacionCompleta(datosResultado, errorPDF) {
         progressBar.setAttribute('aria-valuenow', progressBar.getAttribute('aria-valuemax'));
     }
     
+function mostrarEvaluacionCompleta() {
+    SessionManager.clear();
+    const container = document.getElementById('pregunta-container');
+    if (container) container.style.display = 'none';
+    
+    const progressContainer = document.getElementById('progreso-container');
+    if (progressContainer) progressContainer.style.display = 'none';
+    
     document.getElementById('progreso-texto').textContent = '¡Evaluación Completada!';
     
     let mensajeResultados = '';
@@ -497,6 +548,34 @@ function mostrarEvaluacionCompleta(datosResultado, errorPDF) {
 
 document.addEventListener('DOMContentLoaded', () => {
     obtenerConfiguracion();
+
+    // Intentar restaurar sesión
+    const savedSession = SessionManager.load();
+    if (savedSession && savedSession.preguntaActual) {
+        console.log('Restaurando sesión...');
+        State.candidateData = savedSession.candidateData;
+        State.preguntaActual = savedSession.preguntaActual;
+        State.respuestasSeleccionadas = savedSession.respuestasSeleccionadas || [];
+        
+        // Restaurar UI
+        document.getElementById('formulario-confirmacion').style.display = 'none';
+        document.getElementById('progreso-container').style.display = 'block';
+        document.getElementById('pregunta-container').style.display = 'block';
+        
+        mostrarPregunta(State.preguntaActual);
+        
+        // Restaurar selecciones visuales
+        if (State.respuestasSeleccionadas.length > 0) {
+            const opciones = document.querySelectorAll('.opcion');
+            opciones.forEach(op => {
+                const letra = String.fromCodePoint(65 + parseInt(op.dataset.index));
+                if (State.respuestasSeleccionadas.includes(letra)) {
+                    op.classList.add('seleccionada');
+                }
+            });
+            updateAnswerButtonState(State.preguntaActual.multiple);
+        }
+    }
 
     const candidateForm = document.getElementById('candidate-form');
     if (candidateForm) {

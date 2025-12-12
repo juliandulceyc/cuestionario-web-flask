@@ -1,6 +1,6 @@
 from flask import Flask
 from .config import Config
-from .extensions import db
+from .extensions import db, limiter
 from .utils import setup_logging
 import secrets
 
@@ -14,6 +14,7 @@ def create_app(config_class=Config):
 
     # Inicializar extensiones
     db.init_app(app)
+    limiter.init_app(app)
     setup_logging()
 
     # Registrar blueprints

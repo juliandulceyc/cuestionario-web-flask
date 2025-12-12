@@ -88,7 +88,12 @@
               <p class="text-xs text-gray-500 dark:text-gray-400">Gestión de candidatos y registro</p>
             </div>
           </div>
-          <div class="flex items-center">
+          <div class="flex items-center gap-2">
+            <a href="{{ url_for('main.admin_temas') }}"
+              class="inline-flex items-center rounded-md bg-gray-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600 transition-colors">
+              <span class="material-symbols-outlined text-sm mr-2">library_books</span>
+              Bancos
+            </a>
             <a href="{{ url_for('main.admin_logout') }}"
               class="inline-flex items-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 transition-colors">
               <span class="material-symbols-outlined text-sm mr-2">logout</span>

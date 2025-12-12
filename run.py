@@ -20,9 +20,14 @@ def inicializar_sistema():
     logger.info("🚀 Iniciando sistema de evaluación...")
     logger.info(f"📊 Configurado para {Config.TOTAL_PREGUNTAS} preguntas")
     
-    preguntas_cargadas = cargar_preguntas_desde_excel()
-    PREGUNTAS.clear()
-    PREGUNTAS.extend(preguntas_cargadas)
+    # Crear tablas si no existen
+    with app.app_context():
+        db.create_all()
+        
+        # Cargar preguntas dentro del contexto
+        preguntas_cargadas = cargar_preguntas_desde_excel()
+        PREGUNTAS.clear()
+        PREGUNTAS.extend(preguntas_cargadas)
     
     if PREGUNTAS:
         logger.info(f"✅ Sistema listo con {len(PREGUNTAS)} preguntas cargadas")

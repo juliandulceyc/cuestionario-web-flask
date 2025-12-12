@@ -7,10 +7,11 @@ El Sistema de Evaluación de Candidatos es una aplicación web diseñada para ad
 
 ### 1.2 Alcance
 La aplicación cubre el ciclo completo de evaluación:
-- Autenticación y gestión de administradores.
-- Carga de preguntas desde archivos Excel.
+- Autenticación y gestión de administradores con protección contra fuerza bruta (Rate Limiting).
+- Gestión de bancos de preguntas y temas vía interfaz Web o carga desde Excel.
 - Registro y validación de candidatos.
 - Presentación de cuestionarios con lógica de niveles y tiempos.
+- Recuperación automática de sesión ante cierres inesperados.
 - Calificación automática.
 - Generación de reportes en PDF.
 - Envío de notificaciones por correo electrónico.
@@ -101,6 +102,19 @@ El sistema utiliza **SQLAlchemy** como ORM. El esquema relacional consta de las 
 - `porcentaje`: Porcentaje de acierto.
 - `tema`: Tema de la evaluación.
 
+#### `TemaDB`
+- `id`: Identificador único.
+- `nombre`: Nombre del banco de preguntas.
+- `descripcion`: Descripción opcional.
+
+#### `PreguntaDB`
+- `id`: Identificador único.
+- `tema_id`: Clave foránea a `TemaDB`.
+- `texto`: Enunciado de la pregunta.
+- `opciones`: Lista de opciones (JSON).
+- `respuesta_correcta`: Opción correcta (ej. "A").
+- `nivel`: Nivel de dificultad (1-5).
+
 #### `RecoveryToken`
 - `token`: Token único para recuperación de contraseña.
 - `expires_at`: Fecha de expiración.
@@ -112,12 +126,12 @@ El sistema utiliza **SQLAlchemy** como ORM. El esquema relacional consta de las 
 
 ### 4.1 `run.py` y `app/routes.py`
 - **`run.py`**: Punto de entrada. Inicializa la aplicación, crea las tablas de base de datos y arranca el servidor.
-- **`app/routes.py`**: Define las rutas URL (Blueprint), configura el logging y gestiona el ciclo de vida de las peticiones. Implementa decoradores como `@admin_required`.
+- **`app/routes.py`**: Define las rutas URL (Blueprint), configura el logging y gestiona el ciclo de vida de las peticiones. Implementa decoradores como `@admin_required` y `@limiter.limit` para protección de rutas.
 
 ### 4.2 `app/services.py`
 Contiene la lógica core de la evaluación:
 - **`EvaluadorRespuestas`**: Evalúa respuestas simples y múltiples.
-- **`EvaluacionService`**: Gestiona el estado de la evaluación (guardar/cargar progreso en `data/states/`), verifica avance de nivel y terminación temprana.
+- **`EvaluacionService`**: Gestiona el estado de la evaluación (guardar/cargar progreso en `data/states/`), verifica avance de nivel y terminación temprana. Implementa la lógica de recuperación de sesión.
 
 ### 4.3 `app/drive_integration.py`
 Maneja la autenticación OAuth2 con Google y la subida de archivos.
@@ -143,6 +157,8 @@ El frontend es renderizado desde el servidor (Server-Side Rendering) usando **Ji
 
 ### 5.1 Templates Principales
 - `admin_dashboard.html`: Panel de control para administradores.
+- `admin_temas.html`: Gestión de bancos de preguntas.
+- `admin_preguntas.html`: Editor de preguntas para un tema específico.
 - `cuestionario.html`: Interfaz de la evaluación para el candidato. Maneja la lógica de presentación de preguntas y temporizador vía JavaScript.
 - `admin_login.html`: Formulario de acceso.
 
